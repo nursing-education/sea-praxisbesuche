@@ -1144,8 +1144,8 @@ const SP_CONFIG = {
 };
 /* Zuordnung SharePoint-Spalte -> App-Feld. Heisst eine Spalte in SharePoint
    anders (z.B. "Title" statt "Name"), hier den Namen anpassen. */
-const SP_FELDER = { name:"Name", bereiche:"Bereiche", plz:"PLZ", ort:"Ort",
-                    strasse:"Strasse", aliase:"Aliase", stamm:"Stamm", schule:"Schule" };
+const SP_FELDER = { name:"Title", bereiche:"field_1", plz:"field_2", ort:"field_3",
+                    strasse:"field_4", aliase:"field_5", stamm:"field_6", schule:"field_7" };
 
 /* Anzeige: ISO (YYYY-MM-DD) -> DD.MM.YYYY */
 function fmtDatum(iso){ const m=(iso||"").match(/^(\d{4})-(\d{2})-(\d{2})/); return m?`${m[3]}.${m[2]}.${m[1]}`:(iso||""); }
