@@ -140,6 +140,17 @@
   .werkzeug{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
   .werkzeug input[type=search]{flex:1;min-width:160px}
 
+  /* Einstellungen: aufklappbare Sektionen (v0.21) */
+  .einst-gruppe{border:1px solid var(--rahmen);border-radius:var(--radius);margin-bottom:10px;background:var(--flaeche);overflow:hidden}
+  .einst-gruppe>summary{list-style:none;cursor:pointer;padding:11px 14px;font-size:13px;font-weight:600;color:var(--navy);
+    text-transform:uppercase;letter-spacing:.04em;background:var(--sekundaer);display:flex;align-items:center;gap:8px;user-select:none}
+  .einst-gruppe>summary::-webkit-details-marker{display:none}
+  .einst-gruppe>summary::before{content:"\25B8";font-size:11px;color:var(--text-leise);transition:transform .15s}
+  .einst-gruppe[open]>summary::before{transform:rotate(90deg)}
+  .einst-gruppe>summary:hover{background:var(--rahmen)}
+  .einst-inhalt{padding:14px}
+  .spalte .einst-inhalt h2{font-size:13px;margin:16px 0 8px;color:var(--navy);text-transform:none;letter-spacing:0;font-weight:600}
+  .spalte .einst-inhalt h2:first-child{margin-top:0}
   /* Einrichtungen: nach Bereich gruppiert, aufklappbar */
   .einr-gruppe{border:1px solid var(--rahmen);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;background:var(--flaeche)}
   .gruppe-kopf{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;border-radius:0;
@@ -1026,7 +1037,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.20";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.21";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3623,65 +3634,91 @@ const Oberflaeche = {
     const esc=v=>(v||'').replace(/"/g,'&quot;');
     return `<div class="spalte" style="grid-column:1/-1">
       ${banner}
-      <h2>Mein Name</h2>
-      <div class="meta" style="margin-bottom:8px">Wird zum Dateinamen deines Exports (z.B. „christian.json") und kennzeichnet deine Daten im Kollegiums-Überblick.</div>
-      <div class="feld" style="max-width:320px"><label>Mein Name / Kürzel</label>
-        <input id="geraet" value="${esc(s.geraet)}" placeholder="z.B. Christian"></div>
 
-      <h2 style="margin-top:18px">Private Startadresse (für Fahrtkosten)</h2>
-      <div class="meta" style="margin-bottom:8px">Wird als Startpunkt für die Fahrtkostenberechnung verwendet. Wenn nicht angegeben, wird die Schuladresse verwendet (Hammfelddamm 7, 41460 Neuss). 🔒 Wird nur lokal auf deinem Gerät gespeichert.</div>
-      <div class="feld-reihe" style="max-width:560px">
-        <div class="feld" style="flex:2"><label>Straße &amp; Hausnummer</label>
-          <input id="privStrasse" value="${esc(a.strasse)}" placeholder="z.B. Musterweg 12"></div>
-        <div class="feld" style="width:90px"><label>PLZ</label>
-          <input id="privPlz" value="${esc(a.plz)}" placeholder="41460"></div>
-        <div class="feld" style="flex:1"><label>Ort</label>
-          <input id="privOrt" value="${esc(a.ort)}" placeholder="Neuss"></div>
-      </div>
-      <div class="werkzeug" style="margin-top:8px">
-        <button class="primaer" id="privSpeichern">Adresse speichern</button>
-        <button id="privLoeschen">Zurücksetzen (Schule nutzen)</button>
-        <button id="privVerorten">Privatadresse verorten</button>
-        <span id="privVerortenStatus" class="meta">${a.lat!=null?"verortet ✓":""}</span>
-      </div>
+      <details class="einst-gruppe" open>
+        <summary>Mein Profil &amp; Export</summary>
+        <div class="einst-inhalt">
+          <h2>Mein Name</h2>
+          <div class="meta" style="margin-bottom:8px">Wird zum Dateinamen deines Exports (z.B. „christian.json") und kennzeichnet deine Daten im Kollegiums-Überblick.</div>
+          <div class="feld" style="max-width:320px"><label>Mein Name / Kürzel</label>
+            <input id="geraet" value="${esc(s.geraet)}" placeholder="z.B. Christian"></div>
 
-      <h2 style="margin-top:18px">Besuchsdauer</h2>
-      <div class="meta" style="margin-bottom:8px">Geplante Dauer eines Praxisbesuchs <b>pro Azubi</b> in Minuten – Grundlage für die Zeitplanung im Touren-Tab (Sammelbesuch: Anzahl Azubis × Dauer).</div>
-      <div class="feld" style="max-width:180px"><label>Minuten je Besuch</label>
-        <input id="besuchDauer" type="number" min="10" max="120" step="1" value="${s.besuchDauerMin||37}"></div>
+          <h2>Private Startadresse (für Fahrtkosten)</h2>
+          <div class="meta" style="margin-bottom:8px">Wird als Startpunkt für die Fahrtkostenberechnung verwendet. Wenn nicht angegeben, wird die Schuladresse verwendet (Hammfelddamm 7, 41460 Neuss). 🔒 Wird nur lokal auf deinem Gerät gespeichert.</div>
+          <div class="feld-reihe" style="max-width:560px">
+            <div class="feld" style="flex:2"><label>Straße &amp; Hausnummer</label>
+              <input id="privStrasse" value="${esc(a.strasse)}" placeholder="z.B. Musterweg 12"></div>
+            <div class="feld" style="width:90px"><label>PLZ</label>
+              <input id="privPlz" value="${esc(a.plz)}" placeholder="41460"></div>
+            <div class="feld" style="flex:1"><label>Ort</label>
+              <input id="privOrt" value="${esc(a.ort)}" placeholder="Neuss"></div>
+          </div>
+          <div class="werkzeug" style="margin-top:8px">
+            <button class="primaer" id="privSpeichern">Adresse speichern</button>
+            <button id="privLoeschen">Zurücksetzen (Schule nutzen)</button>
+            <button id="privVerorten">Privatadresse verorten</button>
+            <span id="privVerortenStatus" class="meta">${a.lat!=null?"verortet ✓":""}</span>
+          </div>
 
-      <h2 style="margin-top:18px">Sammelbesuch-Größe</h2>
-      <div class="meta" style="margin-bottom:8px">Max. Anzahl Azubis, die gleichzeitig an einer Einrichtung besucht werden – gilt für Sammelbesuch-Vorschläge und den Tourenbuilder.</div>
-      <div class="feld" style="max-width:180px"><label>Max. Azubis je Einrichtung</label>
-        <input id="maxSammel" type="number" min="2" max="5" step="1" value="${s.maxSammelGroesse||3}"></div>
+          <h2>Termine exportieren</h2>
+          <div class="meta" style="margin-bottom:8px">Erzeugt die Datei <b>${(dateinameVonLabel(s.geraet)||'[deinName]')}.json</b> im Speichern-Dialog – Ordner: <b>S:\\Allgemein\\ELISABETH-AKADEMIE\\Arbeitsgruppen\\12 KI in der SEA\\Praxisbesuche\\Datenbank\\Export</b>, Dateinamen unverändert lassen.</div>
+          <div class="werkzeug" style="margin-top:6px">
+            <button class="aktion" id="termineExportBtn">Termine exportieren</button>
+          </div>
 
-      <h2 style="margin-top:18px">Termine exportieren</h2>
-      <div class="meta" style="margin-bottom:8px">Erzeugt die Datei <b>${(dateinameVonLabel(s.geraet)||'[deinName]')}.json</b> im Speichern-Dialog – Ordner: <b>S:\\Allgemein\\ELISABETH-AKADEMIE\\Arbeitsgruppen\\12 KI in der SEA\\Praxisbesuche\\Datenbank\\Export</b>, Dateinamen unverändert lassen.</div>
-      <div class="werkzeug" style="margin-top:6px">
-        <button class="aktion" id="termineExportBtn">Termine exportieren</button>
-      </div>
+          <h2>Daten wiederherstellen</h2>
+          <div class="meta" style="margin-bottom:8px">Eine zuvor exportierte JSON-Datei wieder einlesen – z.B. nach einem PC-Wechsel.</div>
+          <button id="importBtn">JSON-Datei einlesen</button>
 
-      <h2 style="margin-top:18px">Daten wiederherstellen</h2>
-      <div class="meta" style="margin-bottom:8px">Eine zuvor exportierte JSON-Datei wieder einlesen – z.B. nach einem PC-Wechsel.</div>
-      <button id="importBtn">JSON-Datei einlesen</button>
+          <h2>Automatische Sicherungen</h2>
+          <div id="sicherungsListe" class="leer">lädt…</div>
+        </div>
+      </details>
 
-      <h2 style="margin-top:18px">Einrichtungsliste (SharePoint)</h2>
-      <div class="meta" style="margin-bottom:8px">Die Einrichtungen kommen jetzt live aus SharePoint. Beim ersten Mal ist eine einmalige Microsoft-Anmeldung noetig; danach aktualisiert die App im Hintergrund. Zentrale Einrichtungen werden dabei aktualisiert, deine eigenen, manuell angelegten Eintraege bleiben erhalten.</div>
-      <div id="spStatus" class="meta" style="margin-bottom:8px">SharePoint: -</div>
-      <button id="spSyncBtn">Anmelden &amp; Einrichtungen aktualisieren</button>
-      <button id="startlisteNeuBtn">Neu von SharePoint laden</button>
+      <details class="einst-gruppe" open>
+        <summary>Planungs-Parameter</summary>
+        <div class="einst-inhalt">
+          <h2>Besuchsdauer</h2>
+          <div class="meta" style="margin-bottom:8px">Geplante Dauer eines Praxisbesuchs <b>pro Azubi</b> in Minuten – Grundlage für die Zeitplanung im Touren-Tab (Sammelbesuch: Anzahl Azubis × Dauer).</div>
+          <div class="feld" style="max-width:180px"><label>Minuten je Besuch</label>
+            <input id="besuchDauer" type="number" min="10" max="120" step="1" value="${s.besuchDauerMin||37}"></div>
 
-      <h2 style="margin-top:18px">Automatische Sicherungen</h2>
-      <div id="sicherungsListe" class="leer">lädt…</div>
+          <h2>Sammelbesuch-Größe</h2>
+          <div class="meta" style="margin-bottom:8px">Max. Anzahl Azubis, die gleichzeitig an einer Einrichtung besucht werden – gilt für Sammelbesuch-Vorschläge und den Tourenbuilder.</div>
+          <div class="feld" style="max-width:180px"><label>Max. Azubis je Einrichtung</label>
+            <input id="maxSammel" type="number" min="2" max="5" step="1" value="${s.maxSammelGroesse||3}"></div>
+        </div>
+      </details>
 
-      <h2 style="margin-top:18px">Karte / Koordinaten</h2>
-      <div class="meta" style="margin-bottom:8px">Verortet die in Einsatzplänen verwendeten Einrichtungen neu (für die Touren-Karte). Nutzt OpenStreetMap/Nominatim, ca. 1 Sekunde pro Einrichtung – nur bei Internet-Zugang.</div>
-      <button id="geoNeuBtn">Koordinaten aktualisieren</button>
-      <span id="geoNeuStatus" class="meta" style="margin-left:10px"></span>
+      <details class="einst-gruppe" open>
+        <summary>Datenquelle SharePoint</summary>
+        <div class="einst-inhalt">
+          <h2>Einrichtungsliste (SharePoint)</h2>
+          <div class="meta" style="margin-bottom:8px">Die Einrichtungen kommen jetzt live aus SharePoint. Beim ersten Mal ist eine einmalige Microsoft-Anmeldung noetig; danach aktualisiert die App im Hintergrund. Zentrale Einrichtungen werden dabei aktualisiert, deine eigenen, manuell angelegten Eintraege bleiben erhalten.</div>
+          <div id="spStatus" class="meta" style="margin-bottom:8px">SharePoint: -</div>
+          <button id="spSyncBtn">Anmelden &amp; Einrichtungen aktualisieren</button>
+          <button id="startlisteNeuBtn">Neu von SharePoint laden</button>
+        </div>
+      </details>
 
-      <h2 style="margin-top:18px">Gefahrenzone</h2>
-      <div class="meta" style="margin-bottom:8px">Lösche gezielt einzelne Datenpakete. Die SEA-Startliste der Einrichtungen wird dabei immer automatisch wiederhergestellt.</div>
-      <button class="gefahr" id="loeschBtn">Daten löschen…</button>
+      <details class="einst-gruppe">
+        <summary>Karte / Koordinaten</summary>
+        <div class="einst-inhalt">
+          <h2>Karte / Koordinaten</h2>
+          <div class="meta" style="margin-bottom:8px">Verortet die in Einsatzplänen verwendeten Einrichtungen neu (für die Touren-Karte). Nutzt OpenStreetMap/Nominatim, ca. 1 Sekunde pro Einrichtung – nur bei Internet-Zugang.</div>
+          <button id="geoNeuBtn">Koordinaten aktualisieren</button>
+          <span id="geoNeuStatus" class="meta" style="margin-left:10px"></span>
+        </div>
+      </details>
+
+      <details class="einst-gruppe">
+        <summary>Gefahrenzone</summary>
+        <div class="einst-inhalt">
+          <h2>Gefahrenzone</h2>
+          <div class="meta" style="margin-bottom:8px">Lösche gezielt einzelne Datenpakete. Zentrale Einrichtungen aus SharePoint werden beim nächsten Abgleich automatisch neu geladen; deine manuell angelegten Einträge bleiben davon unberührt.</div>
+          <button class="gefahr" id="loeschBtn">Daten löschen…</button>
+        </div>
+      </details>
     </div>`;
   },
 
