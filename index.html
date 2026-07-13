@@ -1037,7 +1037,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.21";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.21.1"; // Bugfix: SP_CONFIG.scopes Sites.Read.All -> Sites.Selected
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -1151,7 +1151,7 @@ const SP_CONFIG = {
   host     : "stelisabethakademie.sharepoint.com",
   sitePath : "/sites/St.Elisabeth-AkademiegGmbH",
   listName : "SEA_Einrichtungen_Startliste",   /* bei Umbenennung hier anpassen */
-  scopes   : ["Sites.Read.All"]
+  scopes   : ["Sites.Selected"]
 };
 /* Zuordnung SharePoint-Spalte -> App-Feld. Heisst eine Spalte in SharePoint
    anders (z.B. "Title" statt "Name"), hier den Namen anpassen. */
