@@ -1037,7 +1037,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.21.1"; // Bugfix: SP_CONFIG.scopes Sites.Read.All -> Sites.Selected
+const APP_VERSION = "0.21.2";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -1619,12 +1619,24 @@ const Eingang = {
   },
   _ueberspringen(b){ return !b || /^(urlaub|theorieblock|theorie|examen|gesamt|änderungen)/i.test(b.trim()); },
 
+  /* Liest eine CSV-Datei ein. Eine Datei kann MEHRERE Azubi-Bloecke
+     hintereinander enthalten (Kurs-Export): pro Block eine Namenszeile
+     direkt ueber dem Spaltenkopf "von;bis;Einsatzbereich...", gefolgt von
+     dessen Terminzeilen. csvLesen() liefert deshalb ein Array mit einem
+     Plan-Objekt je erkanntem Block (auch bei nur einem Block: Array mit
+     einem Element). v0.21.2: vorher wurde nur der erste Block erkannt,
+     alle weiteren Termine faelschlich dort mit hineingemischt. */
   async csvLesen(file){
     const buf = await file.arrayBuffer();
     const text = new TextDecoder("windows-1252").decode(buf);   // Easysoft = cp1252
     const zeilen = text.split(/\r?\n/);
-    let id=null, kurs=null, ausbildung="PFK"; const eintraege=[];
+    const plaene=[];
+    let id=null, kurs=null, ausbildung="PFK", eintraege=[];
     let kopfGesehen=false, vorKopfToken=null;
+    const blockAbschliessen=()=>{
+      if(id) plaene.push({id,kurs,ausbildung,eintraege});
+      id=null; eintraege=[];
+    };
     for(const z of zeilen){
       const c=z.split(";");
       const join=z.toLowerCase();
@@ -1632,22 +1644,23 @@ const Eingang = {
       const ep=z.match(/Einsatzplan\s+(.+?);*$/); if(ep) kurs=ep[1].replace(/;+$/,"").trim();
       const aid=z.match(/(azubi-\d+)/i); if(aid) id=aid[1].toLowerCase();
       if(/;von;bis;einsatzbereich/i.test(join)){
-        if(!id && vorKopfToken) id=vorKopfToken;   // Fallback: ID-Zeile direkt über dem Datenkopf (z. B. „Sa_azubi")
+        if(kopfGesehen) blockAbschliessen();   // vorherigen Block abschliessen, naechster beginnt
+        if(!id && vorKopfToken) id=vorKopfToken;   // Fallback: Namenszeile direkt über dem Datenkopf
         kopfGesehen=true; continue;
       }
-      if(!kopfGesehen){
-        // Kandidat für die ID-Zeile: nur Spalte 2 gefüllt (kein „Einsatzplan…", keine Adresszeile)
-        if(c[1] && c[1].trim() && !c[0].trim() && c.slice(2).every(x=>!x.trim())) vorKopfToken=c[1].trim();
-        continue;
-      }
+      // Kandidat für die Namenszeile: nur Spalte 2 gefüllt (kein „Einsatzplan…", keine Adresszeile).
+      // Läuft durchgehend (nicht nur vor dem ersten Block), damit auch spätere Bloecke erkannt werden.
+      if(c[1] && c[1].trim() && !c[0].trim() && c.slice(2).every(x=>!x.trim())) vorKopfToken=c[1].trim();
+      if(!kopfGesehen) continue;
       const von=this._datum(c[1]), bis=this._datum(c[2]), bereichText=(c[3]||"").trim();
       if(this._ueberspringen(bereichText)) continue;
       if(!von) continue;
       const std=parseFloat((c[6]||"").replace(",",".").trim())||null;
       eintraege.push({von,bis,einrichtungName:bereichText,std});
     }
-    if(!id){ Oberflaeche.toast("Keine Azubi-Kennung in der CSV gefunden",true); return null; }
-    return {id,kurs,ausbildung,eintraege};
+    blockAbschliessen();   // letzten Block sichern
+    if(!plaene.length){ Oberflaeche.toast("Keine Azubi-Kennung in der CSV gefunden",true); return null; }
+    return plaene;
   },
 
   /* Typ-Vorschläge erzeugen. PFK: Lauf-Erkennung mit Stunden-Deckel (typAbleitenPFK).
@@ -3048,7 +3061,7 @@ const Oberflaeche = {
         <td><select data-typ="${i}">${typOpt}</select></td>
         <td>${durchCell}</td></tr>`;
     }).join("");
-    const fortschritt = queue ? ` <span class="meta">· Datei ${queue.nr} von ${queue.von}</span>` : "";
+    const fortschritt = queue ? ` <span class="meta">· Azubi ${queue.nr} von ${queue.von}</span>` : "";
     // Hinweis-Banner: fehlende Pflicht-Typen und/oder Verteilungsvorschläge
     const fehlend = plan.fehlendeTypen||[];
     const hatVorschlag = plan.eintraege.some(e=>e.unsicher);
@@ -3838,13 +3851,13 @@ const Oberflaeche = {
     const inp=document.createElement("input"); inp.type="file"; inp.accept=".csv"; inp.multiple=true;
     inp.onchange=async()=>{
       const plaene=[];
-      for(const f of inp.files){ const plan=await Eingang.csvLesen(f); if(plan) plaene.push(plan); }
+      for(const f of inp.files){ const geleseneBloecke=await Eingang.csvLesen(f); if(geleseneBloecke) plaene.push(...geleseneBloecke); }
       if(!plaene.length){ this.toast("Keine gültige CSV erkannt.",true); return; }
       let i=0, importiert=0, abgebrochen=false;
       const naechster=()=>{
         if(abgebrochen) return;
         if(i>=plaene.length){
-          if(plaene.length>1) this.toast(plaene.length+" Dateien verarbeitet, "+importiert+" Azubi(s) importiert.");
+          if(plaene.length>1) this.toast(importiert+" von "+plaene.length+" Azubi(s) importiert.");
           return;
         }
         const plan=plaene[i]; i++;
@@ -3854,7 +3867,7 @@ const Oberflaeche = {
           danach:naechster,
           onImport:()=>{ importiert++; },
           abbrechen:()=>{ abgebrochen=true;
-            this.toast("Import abgebrochen nach "+(i-1)+" von "+plaene.length+" Dateien. "+importiert+" Azubi(s) importiert."); }
+            this.toast("Import abgebrochen nach "+(i-1)+" von "+plaene.length+" Azubi(s). "+importiert+" importiert."); }
         } : null;
         this.pruefschritt(plan, queue);
       };
