@@ -37,14 +37,6 @@
   nav button.hat-hinweis::after{content:"";position:absolute;top:5px;right:6px;width:7px;height:7px;
     border-radius:50%;background:var(--orange);box-shadow:0 0 0 2px var(--sekundaer)}
 
-  .export-banner{display:flex;align-items:center;gap:12px;background:#FFF4D6;border:1px solid var(--gold);
-    border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:14px}
-  .export-banner .meta{font-size:12px;color:var(--text-leise)}
-  .export-sticky{grid-column:1/-1;position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;
-    min-height:40px;background:#FFF3CD;border-bottom:2px solid var(--orange);
-    padding:6px 14px;margin:-18px -18px 14px;font-size:13.5px;color:#7a4a00}
-  .export-sticky button{margin-left:auto;background:var(--orange);color:#fff;border-color:var(--orange);padding:4px 12px}
-
   main{display:grid;grid-template-columns:340px 1fr;gap:18px;padding:18px;max-width:1280px;margin:0 auto;align-items:start}
   .spalte{background:var(--flaeche);border:1px solid var(--rahmen);border-radius:var(--radius);padding:14px}
   .spalte h2{font-size:14px;margin:0 0 10px;color:var(--navy);text-transform:uppercase;letter-spacing:.04em}
@@ -1439,7 +1431,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.24";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.25";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -1555,6 +1547,7 @@ const SP_CONFIG = {
   listName : "SEA_Einrichtungen_Startliste",   /* bei Umbenennung hier anpassen */
   listAzubis    : "Azubis",                    /* v0.22: Stammdaten der Azubis */
   listEinsaetze : "Einsaetze",                 /* v0.22: Einsatzplaene (aus Easysoft-CSV) */
+  listAdmins    : "Admins",                    /* v0.25: Admin-Erkennung (E-Mail-Abgleich) */
   scopes   : ["Sites.Selected"]
 };
 /* Zuordnung SharePoint-Spalte -> App-Feld. Heisst eine Spalte in SharePoint
@@ -1576,6 +1569,12 @@ const SP_FELDER_AZUBIS = {
   bemerkung      : "field_4",
   praxisanleitung: "field_5"
 };
+
+/* v0.25 -- Feldzuordnung Liste "Admins". Eine Spalte (intern weiterhin
+   "Title", in SharePoint auf "E-Mail" umbenannt) mit der Microsoft-Anmelde-
+   Adresse pro Admin. Dient ausschliesslich der "Alle"-Ansicht im Azubi-Tab --
+   KEINE echte Sicherheitsgrenze, siehe SPSync.istAdmin(). */
+const SP_FELDER_ADMINS = { email: "Title" };
 
 /* v0.22 -- Feldzuordnung Liste "Einsaetze". Ebenfalls per Graph verifiziert.
    "Title" wird als lesbare Bezeichnung genutzt und traegt zugleich den
@@ -1607,7 +1606,7 @@ function fmtDatum(iso){ const m=(iso||"").match(/^(\d{4})-(\d{2})-(\d{2})/); ret
 /* kleines Kalender-Icon (monochrom, nimmt die Textfarbe an) für die Datumszeile der Anstehend-Karten */
 const KD_ICO = '<svg class="kd-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
 
-/* „Mein Name" -> sicherer Dateiname-Stamm (ohne Endung). Leer = "" (Export blockiert). */
+/* Text -> sicherer Dateiname-Stamm (ohne Endung). Leer = "" (Export blockiert). */
 function dateinameVonLabel(label){
   const map={"ä":"ae","ö":"oe","ü":"ue","ß":"ss"};
   return (label||"").trim().toLowerCase()
@@ -1615,6 +1614,15 @@ function dateinameVonLabel(label){
     .replace(/\s+/g,"-")
     .replace(/[^a-z0-9_-]/g,"")
     .replace(/-+/g,"-").replace(/^-+|-+$/g,"");
+}
+
+/* v0.25 -- Bezugslehrer-Rohwert aus der Azubis-Liste, Format bestaetigt als
+   "Nachname, Vorname (Zahl)" -- die Zahl ist die maximale Bezugsschueler-
+   anzahl (fuers spaetere Dashboard reserviert). Fuer Anzeige/Druck (DFA-PDF,
+   Dateiname, Feedback-Absender) wird nur der Name gebraucht, ohne Klammer. */
+function bezugslehrerAnzeige(wert){
+  const m=String(wert||"").match(/^(.*?)\s*\(\d+\)\s*$/);
+  return (m ? m[1] : String(wert||"")).trim();
 }
 
 /* ---------- DB: dünne IndexedDB-Hülle --------------------------------- */
@@ -1651,10 +1659,10 @@ const DB = {
 const Daten = {
   state:null,
   leererState(){
-    return { schemaVersion:1, aktualisiertAm:new Date().toISOString(), geraet:"", privatAdresse:null,
+    return { schemaVersion:1, aktualisiertAm:new Date().toISOString(), bezugslehrerWert:"", privatAdresse:null,
              besuchDauerMin:37,                              /* v0.17: geplante Dauer je Besuch (Minuten) */
              maxSammelGroesse:3,                             /* v0.18: max. Azubis gleichzeitig an einer Einrichtung */
-             exportAusstehend:false,
+             ansichtModus:"meine",                           /* v0.25: "meine" | "alle" (Admins-Umschalter, siehe Abschnitt 14) */
              meldungen:[],                                   /* v0.19: Feedback der Kolleg:innen (fürs Dashboard) */
              azubis:[], azubiNamen:{}, einrichtungen:[], termine:[], touren:[] };
   },
@@ -1680,7 +1688,6 @@ const Daten = {
   /* EINE Speicherfunktion mit Fehlerabfang – verhindert stillen Datenverlust.
      ohneKennzeichnung=true: Export-Hinweis NICHT setzen (z.B. nach Export selbst, Housekeeping). */
   async speichern(meldung, ohneKennzeichnung){
-    if(!ohneKennzeichnung) this.state.exportAusstehend=true;
     this.state.aktualisiertAm=new Date().toISOString();
     try{
       await DB.set("app","haupt",this.state);
@@ -1905,6 +1912,7 @@ const SharePoint = {
   _initPromise: null,
   status: "unbekannt",   /* unbekannt | abgemeldet | angemeldet | laden | ok | fehler */
   _statusText: "",
+  istAdmin: false,        /* v0.25: nur waehrend der laufenden Sitzung gueltig, siehe SPSync.istAdmin() */
 
   verfuegbar(){ return (typeof msal !== "undefined") && msal && msal.PublicClientApplication; },
 
@@ -2035,6 +2043,12 @@ const SharePoint = {
     let azubiBericht=null, azubiFehler=null;
     try { azubiBericht=await SPSync.syncen(token); }
     catch(e){ azubiFehler=(e&&e.message)||String(e); }
+
+    /* v0.25: Admin-Status fuer die "Nur meine/Alle"-Ansicht. Scheitert das
+       (z.B. Liste "Admins" noch nicht angelegt), bleibt istAdmin=false --
+       sicherer Default. */
+    try { this.istAdmin=await SPSync.istAdmin(token, (this._konto()||{}).username); }
+    catch(e){ this.istAdmin=false; }
 
     this.status = azubiFehler ? "fehler" : "ok";
     await Daten.speichern(false, true);   /* Housekeeping-Speicherung ohne Export-Erinnerung */
@@ -2251,7 +2265,36 @@ const SPSync = {
     this._azubisCache=await this.azubisLaden(token);
     return this._azubisCache;
   },
-  cacheLeeren(){ this._bestandCache=null; this._azubisCache=null; },
+  _adminsCache: null,
+  /* v0.25 -- Admin-Erkennung: SharePoint-Liste "Admins" (eine Spalte mit
+     Microsoft-Anmelde-Adressen). Bewusst NICHT ueber einen Namens-Text
+     abgeglichen (Lehre aus den v0.24-Matching-Bugs), sondern ueber die
+     eindeutige UPN des angemeldeten MSAL-Kontos. Wichtig: die App laeuft
+     rein clientseitig, das ist eine Komfort-/Uebersichtsfunktion, KEINE
+     echte Sicherheitsgrenze (siehe kontext-Dokumentation). */
+  async adminsLaden(token){
+    const url=await this._itemsUrl(token, SP_CONFIG.listAdmins);
+    const r=await SharePoint._graphGet(url + "?$expand=fields&$top=999", token);
+    const F=SP_FELDER_ADMINS;
+    return (r.value||[]).map(it=>{
+      const f=it.fields||{};
+      return { spId: it.id, email: String(f[F.email]!=null ? f[F.email] : "") };
+    }).filter(a=>a.email);
+  },
+  async adminsBestand(token){
+    if(this._adminsCache) return this._adminsCache;
+    this._adminsCache=await this.adminsLaden(token);
+    return this._adminsCache;
+  },
+  async istAdmin(token, upn){
+    if(!upn) return false;
+    let admins;
+    try { admins=await this.adminsBestand(token); }
+    catch(e){ return false; }   /* Liste fehlt/nicht erreichbar -> sicherheitshalber kein Admin */
+    const n=this._norm(upn);
+    return admins.some(a=> this._norm(a.email)===n);
+  },
+  cacheLeeren(){ this._bestandCache=null; this._azubisCache=null; this._adminsCache=null; },
 
   _einsatzAus(item){
     const f=item.fields||{}, F=SP_FELDER_EINSAETZE;
@@ -2589,6 +2632,20 @@ const Eingang = {
 /* ---------- Azubis ---------------------------------------------------- */
 const Azubis = {
   alle(){ return Daten.state.azubis; },
+  /* v0.25 -- "Nur meine/Alle"-Filter (SharePoint-Plan Abschnitt 14). Globaler
+     Schalter: wirkt einheitlich auf Azubi-Tab, Kalender und (ueber
+     Anstehend.sammeln) auch auf Anstehend + Touren-Vorschlaege -- bewusste
+     Vereinfachung, siehe kontext-Dokumentation, statt Sonderregeln je Ansicht.
+     Fallback ungefiltert, solange keine Bezugslehrer-Auswahl getroffen wurde
+     (sonst leere/verwirrende Liste). "Alle" nur erreichbar fuer Admins. */
+  sichtbar(){
+    const alle=this.alle();
+    const wert=Daten.state.bezugslehrerWert;
+    if(!wert) return alle;
+    if(Daten.state.ansichtModus==="alle" && SharePoint.istAdmin) return alle;
+    const n=SPSync._norm(wert);
+    return alle.filter(a=> SPSync._norm(a.bezugslehrer)===n);
+  },
   name(id){ return Daten.state.azubiNamen[id]||""; },
   async nameSetzen(id,name){ Daten.state.azubiNamen[id]=name; await Daten.speichern("Name gespeichert (lokal)"); },
   fortschritt(a){
@@ -2811,7 +2868,7 @@ const DFA = {
     const cols=rel.map(v=>Math.round(v*PW/summe*10)/10);
     cols[cols.length-1]+=Math.round((PW-cols.reduce((a,b)=>a+b,0))*10)/10;
     const colX=[]; let cx=ML; for(const c of cols){ colX.push(cx); cx+=c; }
-    const name=Daten.state.geraet||"";
+    const name=bezugslehrerAnzeige(Daten.state.bezugslehrerWert)||"";
     const seiten=[]; for(let i=0;i<zeilen.length;i+=MAXZ) seiten.push(zeilen.slice(i,i+MAXZ));
     if(!seiten.length) seiten.push([]);
     let gSatz=0,gFrei=0,gPfl=0,gKm=0,gPark=0;
@@ -2908,7 +2965,7 @@ const Anstehend = {
   sammeln(bezugDatum){
     const heute=bezugDatum||this._heute(); const woStart=this._montag(heute), woEnde=this._sonntag(heute);
     const eintraege=[];
-    for(const a of Azubis.alle()){
+    for(const a of Azubis.sichtbar()){
       // Typen, die über irgendeinen durchgeführten Besuch bereits erledigt sind
       const erledigteTypen=new Set(a.einsaetze.filter(x=>x.pflichtbesuch && x.besuchStatus==="durchgeführt").map(x=>x.typ));
       // je offenem Typ den spätesten Einsatz UND die Anzahl merken (für „letzter Einsatz dieses Typs")
@@ -3468,33 +3525,6 @@ const Einstellungen = {
   }
 };
 
-/* ---------- ImportExport ---------------------------------------------- */
-const ImportExport = {
-  /* Hauptaktion: vollständigen Stand als [meinName].json herunterladen.
-     Im Speichern-Dialog navigiert die Lehrkraft selbst in den gemeinsamen NAS-Ordner.
-     (Automatisches Ordner-Schreiben ist in der Citrix-/file://-Umgebung gesperrt.) */
-  async termineExportieren(){
-    const stamm=dateinameVonLabel(Daten.state.geraet);
-    if(!stamm){ Oberflaeche.toast("Bitte zuerst oben unter „Mein Name“ einen Namen eintragen.",true); return; }
-    const dateiname=stamm+".json";
-    const blob=new Blob([JSON.stringify(Daten.state,null,2)],{type:"application/json"});
-    this._download(blob,dateiname);
-    Daten.state.exportAusstehend=false;
-    await Daten.speichern("Export erstellt: "+dateiname+" – im Speichern-Dialog in den NAS-Ordner legen.", true);
-    Oberflaeche.render();
-  },
-  async importDatei(file){
-    try{
-      const text=await file.text(); const obj=JSON.parse(text);
-      Merge.vollMerge(obj); await Daten.speichern("Import zusammengeführt"); Oberflaeche.render();
-    }catch(e){ Oberflaeche.toast("Import fehlgeschlagen: "+e.message,true); }
-  },
-  _download(blob,name){
-    const u=URL.createObjectURL(blob); const a=document.createElement("a");
-    a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
-  }
-};
-
 /* ====================== Kalender (Einsatz-Zeitleiste, Gantt) ============
    Reine Rechenlogik + HTML-Erzeugung. Datumsbasiert (UTC, ganze Tage),
    Balken in % relativ zum Fenster -> kein DOM-Messen nötig, headless testbar.
@@ -3605,12 +3635,6 @@ const Oberflaeche = {
   standAnzeigen(){
     const t=Daten.state&&Daten.state.aktualisiertAm;
     document.getElementById("standAnzeige").textContent = t? "Stand: "+new Date(t).toLocaleString("de-DE") : "";
-    this.exportHinweisAktualisieren();
-  },
-  /* Orangefarbener Punkt am Einstellungen-Tab, solange Änderungen seit letztem Export offen sind. */
-  exportHinweisAktualisieren(){
-    const b=document.querySelector('nav button[data-tab="einstellungen"]');
-    if(b) b.classList.toggle("hat-hinweis", !!(Daten.state&&Daten.state.exportAusstehend));
   },
   toast(msg,fehler){
     const t=document.getElementById("toast"); t.textContent=msg;
@@ -3628,13 +3652,13 @@ const Oberflaeche = {
   feedbackFormular(){
     const kats=[["fehler","Fehler"],["wunsch","Wunsch"],["frage","Frage"]];
     const segs=kats.map((k,i)=>`<label class="seg"><input type="radio" name="fbKat" value="${k[0]}" ${i===0?"checked":""}> ${k[1]}</label>`).join("");
-    const wer=Daten.state.geraet||"";
+    const wer=bezugslehrerAnzeige(Daten.state.bezugslehrerWert)||"";
     this.modal(`<h3>Feedback an Christian</h3>
-      <div class="meta" style="margin-bottom:10px">Deine Meldung wird beim nächsten Export mitgesichert und erscheint im Dashboard. Kein Versand per E-Mail.</div>
+      <div class="meta" style="margin-bottom:10px">Deine Meldung wird lokal auf diesem Gerät gespeichert. Kein automatischer Versand.</div>
       <div class="feld"><label>Art</label><div class="seg-reihe">${segs}</div></div>
       <div class="feld"><label>Beschreibung</label>
         <textarea id="fbText" rows="4" placeholder="Was ist passiert bzw. was wünschst du dir?" style="font:inherit;padding:6px 8px;border:1px solid var(--rahmen);border-radius:6px;resize:vertical"></textarea></div>
-      <div class="meta">Absender: <b>${wer?esc(wer):"(kein Name hinterlegt – bitte in den Einstellungen eintragen)"}</b></div>
+      <div class="meta">Absender: <b>${wer?esc(wer):"(noch keine Bezugslehrer-Auswahl in den Einstellungen getroffen)"}</b></div>
       <div class="modal-aktionen">
         <button onclick="Oberflaeche.modalZu()">Abbrechen</button>
         <button class="primaer" id="fbSenden">Melden</button>
@@ -3646,12 +3670,12 @@ const Oberflaeche = {
       Daten.state.meldungen = Daten.state.meldungen || [];
       Daten.state.meldungen.push({
         id:"m-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,6),
-        zeit:new Date().toISOString(), von:Daten.state.geraet||"", version:APP_VERSION,
+        zeit:new Date().toISOString(), von:bezugslehrerAnzeige(Daten.state.bezugslehrerWert)||"", version:APP_VERSION,
         tab:this.tab||"", kategorie:kat, text:text
       });
       await Daten.speichern("Feedback gespeichert", true);
       this.modalZu();
-      this.toast("Danke – dein Feedback wird beim nächsten Export mitgesichert.");
+      this.toast("Danke für dein Feedback.");
     };
   },
 
@@ -3663,11 +3687,6 @@ const Oberflaeche = {
     else if(this.tab==="einrichtungen") html=this.viewEinrichtungen();
     else if(this.tab==="touren") html=this.viewTouren();
     else html=this.viewEinstellungen();
-    // Schlankes Export-Sticky-Banner nur in Anstehend + Azubis, wenn Änderungen ungesichert sind.
-    if((this.tab==="anstehend"||this.tab==="azubis") && Daten.state.exportAusstehend){
-      html = `<div class="export-sticky"><span>⚠ Ungesicherte Änderungen</span>
-        <button id="stickyExportBtn">Exportieren →</button></div>` + html;
-    }
     el.innerHTML=html;
     this._verdrahten();
     if(this.tab==="touren") this._tourenInit();
@@ -3677,11 +3696,13 @@ const Oberflaeche = {
   viewAnstehend(){
     const heute=Anstehend._heute();
     const alle=Anstehend.sammeln();
+    const modusBlock=this._ansichtModusBlock();
     const reihenfolge=["ueberfaellig","diesewoche","geplant","abstimmen","kein"];
     const titel={ueberfaellig:"Überfällig",diesewoche:"Diese Woche",geplant:"Geplant (später)",abstimmen:"Noch abstimmen (vorläufig)",kein:"Noch kein Termin"};
     if(alle.length===0){
       return `<div class="spalte" style="grid-column:1/-1">
         <h2>Anstehende Besuche</h2>
+        ${modusBlock}
         <div class="meta" style="margin-bottom:10px">Stand heute: ${fmtDatum(heute)}</div>
         <div class="leer">Alles erledigt ✓ – überfällige, diese Woche anstehende, noch abzustimmende
           oder terminlose Pflichtbesuche erscheinen hier automatisch.</div></div>`;
@@ -3699,6 +3720,7 @@ const Oberflaeche = {
     }).join("");
     return `<div class="spalte" style="grid-column:1/-1">
       <h2>Anstehende Besuche</h2>
+      ${modusBlock}
       <div class="meta" style="margin-bottom:14px">Stand heute: ${fmtDatum(heute)} · ${alle.length} offen</div>
       ${sektionen}</div>`;
   },
@@ -3733,14 +3755,28 @@ const Oberflaeche = {
     </div>`;
   },
 
+  /* v0.25 -- "Nur meine/Alle"-Block: Hinweistext (keine Auswahl getroffen)
+     oder Umschalter (nur fuer Admins sichtbar/bedienbar), sonst leer. */
+  _ansichtModusBlock(){
+    if(!Daten.state.bezugslehrerWert){
+      return `<div class="meta" style="margin-bottom:10px">ℹ️ Noch keine Auswahl bei „Ich bin …" in den Einstellungen getroffen – es werden aktuell <b>alle</b> Azubis angezeigt.</div>`;
+    }
+    if(!SharePoint.istAdmin) return "";
+    return `<div class="seg-knopf" id="ansichtModusUmschalter" style="margin-bottom:10px">
+        <button data-modus="meine" class="${Daten.state.ansichtModus!=='alle'?'an':''}">Nur meine</button>
+        <button data-modus="alle" class="${Daten.state.ansichtModus==='alle'?'an':''}">Alle</button>
+      </div>`;
+  },
+
   /* ---- Azubis ---- */
   viewAzubis(){
     const umschalter=`<div class="seg-knopf" id="azubiAnsichtUmschalter">
         <button data-ansicht="liste" class="${this.azubiAnsicht==='liste'?'an':''}">Liste</button>
         <button data-ansicht="kalender" class="${this.azubiAnsicht==='kalender'?'an':''}">Kalender</button>
       </div>`;
-    if(this.azubiAnsicht==="kalender") return this.viewKalender(umschalter);
-    const liste=Azubis.alle().map(a=>{
+    const modusBlock=this._ansichtModusBlock();
+    if(this.azubiAnsicht==="kalender") return this.viewKalender(umschalter, modusBlock);
+    const liste=Azubis.sichtbar().map(a=>{
       const f=Azubis.fortschritt(a); const nm=Azubis.name(a.id);
       const si=Azubis.sollIst(a); const fehlt=si?si.filter(x=>!x.da).length:0;
       return `<div class="zeile" data-azubi="${a.id}">
@@ -3750,6 +3786,7 @@ const Oberflaeche = {
     }).join("") || `<div class="leer">Noch keine Azubis. Über „CSV importieren" einlesen.</div>`;
     return `<div class="spalte">
         <h2>Azubis</h2>
+        ${modusBlock}
         <div class="werkzeug">${umschalter}<button class="aktion" id="csvImport">CSV importieren</button></div>
         ${liste}
       </div>
@@ -3757,8 +3794,8 @@ const Oberflaeche = {
   },
 
   /* ---- Azubi-Kalender (Einsatz-Zeitleiste über alle eigenen Azubis) ---- */
-  viewKalender(umschalter){
-    const azubis=Azubis.alle();
+  viewKalender(umschalter, modusBlock){
+    const azubis=Azubis.sichtbar();
     const heute=new Date().toISOString().slice(0,10);
     const anker=this.kalAnker||heute;
     const zoom=this.kalZoom;
@@ -3770,6 +3807,7 @@ const Oberflaeche = {
     if(azubis.length===0){
       return `<div class="spalte" style="grid-column:1/-1">
         <h2>Azubis</h2>
+        ${modusBlock}
         <div class="werkzeug">${umschalter}<button class="aktion" id="csvImport">CSV importieren</button></div>
         <div class="leer">Noch keine Azubis. Über „CSV importieren" einlesen.</div></div>`;
     }
@@ -3840,6 +3878,7 @@ const Oberflaeche = {
 
     return `<div class="spalte" style="grid-column:1/-1">
       <h2>Azubis – Einsatz-Zeitleiste</h2>
+      ${modusBlock}
       <div class="kal-leiste">
         ${umschalter}
         <div class="seg-knopf" id="kalZoomUmschalter">
@@ -4795,7 +4834,7 @@ const Oberflaeche = {
     let doc;
     try{ doc=DFA.erzeugePdf(d.zeilen, label); }
     catch(e){ this.toast("PDF-Erstellung fehlgeschlagen: "+((e&&e.message)||e),true); return; }
-    const stamm=dateinameVonLabel(Daten.state.geraet)||"DFA";
+    const stamm=dateinameVonLabel(bezugslehrerAnzeige(Daten.state.bezugslehrerWert))||"DFA";
     doc.save("DFA_"+this._MONATE[d.monat]+d.jahr+"_"+stamm+".pdf");
     /* Beteiligte Touren als abgerechnet markieren (Löschsperre greift) */
     const ids=new Set(d.zeilen.map(z=>z.tourId).filter(Boolean));
@@ -4880,24 +4919,24 @@ const Oberflaeche = {
   /* ---- Einstellungen ---- */
   viewEinstellungen(){
     const s=Daten.state;
-    const banner = s.exportAusstehend ? `
-      <div class="export-banner">
-        <div><b>Änderungen seit dem letzten Terminexport.</b>
-          <div class="meta">Exportiere deine Termine, damit Kolleg:innen und Leitung den aktuellen Stand sehen.</div></div>
-        <button class="aktion" id="bannerExportBtn" style="margin-left:auto">Jetzt exportieren</button>
-      </div>` : "";
     const a=s.privatAdresse||{};
     const esc=v=>(v||'').replace(/"/g,'&quot;');
+    /* v0.25: Auswahlliste "Ich bin ..." aus den tatsaechlich vorkommenden
+       Bezugslehrer-Werten der schon geladenen Azubis-Liste (kein neuer
+       API-Aufruf). Rohwert bleibt fuehrend fuers Matching, Anzeige/Druck
+       trennt die "(Zahl)" per bezugslehrerAnzeige() ab. */
+    const bezugslehrerWerte=[...new Set((s.azubis||[]).map(x=>x.bezugslehrer).filter(Boolean))]
+      .sort((x,y)=>x.localeCompare(y,"de"));
+    const bezugslehrerOptionen = `<option value="">– bitte wählen –</option>` +
+      bezugslehrerWerte.map(w=>`<option value="${esc(w)}" ${s.bezugslehrerWert===w?"selected":""}>${esc(bezugslehrerAnzeige(w))}</option>`).join("");
     return `<div class="spalte" style="grid-column:1/-1">
-      ${banner}
-
       <details class="einst-gruppe" open>
         <summary>Mein Profil &amp; Export</summary>
         <div class="einst-inhalt">
-          <h2>Mein Name</h2>
-          <div class="meta" style="margin-bottom:8px">Wird zum Dateinamen deines Exports (z.B. „christian.json") und kennzeichnet deine Daten im Kollegiums-Überblick.</div>
-          <div class="feld" style="max-width:320px"><label>Mein Name / Kürzel</label>
-            <input id="geraet" value="${esc(s.geraet)}" placeholder="z.B. Christian"></div>
+          <h2>Ich bin …</h2>
+          <div class="meta" style="margin-bottom:8px">Steuert die „Nur meine/Alle"-Ansicht im Azubi-Tab und wird als Name auf dem DFA-Formular sowie im Feedback verwendet. Werte kommen direkt aus der Bezugslehrer-Spalte der Azubis-Liste in SharePoint.</div>
+          <div class="feld" style="max-width:320px"><label>Bezugslehrer*in</label>
+            <select id="bezugslehrerWert">${bezugslehrerOptionen}</select></div>
 
           <h2>Private Startadresse (für Fahrtkosten)</h2>
           <div class="meta" style="margin-bottom:8px">Wird als Startpunkt für die Fahrtkostenberechnung verwendet. Wenn nicht angegeben, wird die Schuladresse verwendet (Hammfelddamm 7, 41460 Neuss). 🔒 Wird nur lokal auf deinem Gerät gespeichert.</div>
@@ -4915,16 +4954,6 @@ const Oberflaeche = {
             <button id="privVerorten">Privatadresse verorten</button>
             <span id="privVerortenStatus" class="meta">${a.lat!=null?"verortet ✓":""}</span>
           </div>
-
-          <h2>Termine exportieren</h2>
-          <div class="meta" style="margin-bottom:8px">Erzeugt die Datei <b>${(dateinameVonLabel(s.geraet)||'[deinName]')}.json</b> im Speichern-Dialog – Ordner: <b>S:\\Allgemein\\ELISABETH-AKADEMIE\\Arbeitsgruppen\\12 KI in der SEA\\Praxisbesuche\\Datenbank\\Export</b>, Dateinamen unverändert lassen.</div>
-          <div class="werkzeug" style="margin-top:6px">
-            <button class="aktion" id="termineExportBtn">Termine exportieren</button>
-          </div>
-
-          <h2>Daten wiederherstellen</h2>
-          <div class="meta" style="margin-bottom:8px">Eine zuvor exportierte JSON-Datei wieder einlesen – z.B. nach einem PC-Wechsel.</div>
-          <button id="importBtn">JSON-Datei einlesen</button>
 
           <h2>Automatische Sicherungen</h2>
           <div id="sicherungsListe" class="leer">lädt…</div>
@@ -4979,9 +5008,6 @@ const Oberflaeche = {
   },
 
   _verdrahten(){
-    // Export-Sticky-Banner (Anstehend/Azubis)
-    const sx=document.getElementById("stickyExportBtn");
-    if(sx) sx.onclick=()=>ImportExport.termineExportieren();
     // Anstehende Besuche: ganze Karte öffnet den Besuch-Dialog (planen/bearbeiten)
     document.querySelectorAll(".av-karte").forEach(k=>{
       k.onclick=()=>{ this.besuchFormular(k.dataset.anstAzubi, +k.dataset.anstIdx); };
@@ -5031,7 +5057,7 @@ const Oberflaeche = {
     if(suche){ suche.oninput=()=>{ this.einrFilter=suche.value; this._einrGruppenRender(); };
       this._einrGruppenRender(); }   // Zeilen + Gruppen werden hier gebunden
     // Einstellungen
-    const g=document.getElementById("geraet"); if(g) g.onchange=()=>{ Daten.state.geraet=g.value.trim(); Daten.speichern("Name gespeichert"); };
+    const g=document.getElementById("bezugslehrerWert"); if(g) g.onchange=()=>{ Daten.state.bezugslehrerWert=g.value; Daten.speichern("Auswahl gespeichert"); Oberflaeche.render(); };
     const pSave=document.getElementById("privSpeichern");
     if(pSave) pSave.onclick=()=>{
       const s=document.getElementById("privStrasse").value.trim();
@@ -5072,10 +5098,10 @@ const Oberflaeche = {
       v=Math.max(2,Math.min(5,v)); ms.value=v;
       Daten.state.maxSammelGroesse=v; Daten.speichern("Sammelbesuch-Größe gespeichert");
     };
-    const te=document.getElementById("termineExportBtn"); if(te) te.onclick=()=>ImportExport.termineExportieren();
-    const be=document.getElementById("bannerExportBtn"); if(be) be.onclick=()=>ImportExport.termineExportieren();
-    const im=document.getElementById("importBtn"); if(im) im.onclick=()=>this._importDialog();
     const sln=document.getElementById("startlisteNeuBtn"); if(sln) sln.onclick=()=>Einrichtungen.startlisteNeu();
+    document.querySelectorAll("#ansichtModusUmschalter button").forEach(b=>{
+      b.onclick=()=>{ Daten.state.ansichtModus=b.dataset.modus; Daten.speichern(false,true); this.render(); };
+    });
     const spb=document.getElementById("spSyncBtn"); if(spb) spb.onclick=()=>SharePoint.synchronisieren(true);
     if(typeof SharePoint!=="undefined") SharePoint._statusAnzeigen();
     const gn=document.getElementById("geoNeuBtn");
@@ -5130,11 +5156,6 @@ const Oberflaeche = {
       };
       naechster();
     };
-    inp.click();
-  },
-  _importDialog(){
-    const inp=document.createElement("input"); inp.type="file"; inp.accept=".json";
-    inp.onchange=()=>{ if(inp.files[0]) ImportExport.importDatei(inp.files[0]); };
     inp.click();
   },
   async _sicherungenZeigen(){
@@ -5194,7 +5215,7 @@ const Oberflaeche = {
       /* v0.20: nur zentrale (aus SharePoint stammende) Einrichtungen behalten, manuelle entfernen. */
       s.einrichtungen=(s.einrichtungen||[]).filter(e=> e._startliste);
     }
-    if(scopes.includes("settings")){ s.geraet=""; s.privatAdresse=null; }
+    if(scopes.includes("settings")){ s.bezugslehrerWert=""; s.privatAdresse=null; }
     if(scopes.includes("sicherungen")){ await Sicherung.alleLoeschen(); }
     Einrichtungen.startlisteSicherstellen();        // Startliste IMMER wiederherstellen
     this.modalZu();
