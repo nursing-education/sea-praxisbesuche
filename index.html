@@ -1439,7 +1439,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.23";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.24";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -2127,29 +2127,77 @@ const SPSync = {
     return (!z || z==="00:00") ? null : z;   /* 00:00 = keine Uhrzeit erfasst */
   },
 
-  /* --- Namens-Matching (Plan-Spec Abschnitt 4.4) -----------------------
-     Azubis.Title enthaelt nur den NACHNAMEN (manuell gepflegt, kann Fehler
-     enthalten). Die Easysoft-CSV liefert "Nachname, Vorname" und gilt als
-     massgeblich. Abgleich ueber Nachname; bei mehreren Treffern zusaetzlich
-     ueber den Kurs. Es wird NICHTS automatisch angelegt und nichts still
-     ueberschrieben -- unklare Faelle gehen an den Admin zurueck. */
+  /* --- Namens-Matching (Plan-Spec Abschnitt 4.4, erweitert v0.24) -------
+     Azubis.Title enthaelt normalerweise nur den NACHNAMEN (manuell gepflegt,
+     kann Fehler enthalten). Bei Geschwistern (gleicher Nachname) wird zur
+     Unterscheidung zusaetzlich die Vornamens-Initiale angehaengt, Format
+     "Nachname, V." (bestaetigt 16.07.2026) -- z.B. "Mueller, M." statt nur
+     "Mueller". Die Easysoft-CSV liefert stets "Nachname, Vorname" und gilt
+     als massgeblich. Abgleich ueber den Nachname-Teil (vor einem evtl.
+     Komma) in Azubis.Title; bei mehreren Treffern zusaetzlich ueber die
+     Vornamens-Initiale (falls vorhanden) und/oder den Kurs. Es wird NICHTS
+     automatisch angelegt und nichts still ueberschrieben -- unklare Faelle
+     gehen an den Admin zurueck. */
   nachnameAus(vollName){ return String(vollName||"").split(",")[0].trim(); },
+  vornameAus(vollName){ return String(vollName||"").split(",").slice(1).join(",").trim(); },
   _norm(s){ return String(s||"").trim().toLowerCase().replace(/\s+/g," "); },
+
+  /* Nachname-Teil aus Azubis.Title: alles vor einem evtl. vorhandenen Komma.
+     Ohne Komma (Normalfall) unveraendert der komplette Titel. */
+  _titelNachname(title){ return String(title||"").split(",")[0].trim(); },
+  /* Vornamens-Initiale aus Azubis.Title im Geschwister-Format "Nachname, V.",
+     sonst null. Der Punkt wird ignoriert. */
+  _titelInitiale(title){
+    const teile=String(title||"").split(",");
+    if(teile.length<2) return null;
+    const i=teile[1].trim().replace(/\.$/,"");
+    return i ? this._norm(i).charAt(0) : null;
+  },
+
+  /* Kern einer Kursbezeichnung: Ausbildungstyp (PFK/PFA) + Kursnummer.
+     Blendet Formatunterschiede zwischen Easysoft-CSV (z.B.
+     "PFK 041  N 2024 H") und der manuell in SharePoint gepflegten Kurzform
+     (z.B. "PFK N 041") aus -- die in SharePoint gepflegte Bezeichnung selbst
+     wird dadurch nicht veraendert, nur fuer den Vergleich herangezogen. */
+  _kursKern(kurs){
+    const s=String(kurs||"").toUpperCase();
+    const typ=/PFA|PFLASS/.test(s) ? "PFA" : (/PFK/.test(s) ? "PFK" : "");
+    const nrM=s.match(/\b(\d{2,3})\b/);
+    return typ + "-" + (nrM ? nrM[1] : "");
+  },
+  _kurseVergleichbar(a, b){
+    if(!a || !b) return false;
+    const ka=this._kursKern(a);
+    return ka===this._kursKern(b) && ka!=="-";
+  },
 
   zuordnen(csvVollName, csvKurs, azubisSp){
     const nn=this._norm(this.nachnameAus(csvVollName));
     if(!nn) return { status:"keinTreffer", kandidaten:[] };
-    let kand=azubisSp.filter(a=> this._norm(a.name)===nn);
+    let kand=azubisSp.filter(a=> this._norm(this._titelNachname(a.name))===nn);
     let ueberKurs=false;
+
+    /* Geschwister: mehrere Treffer mit gleichem Nachnamen -> Initiale des
+       CSV-Vornamens gegen die Initiale in Azubis.Title abgleichen. */
+    if(kand.length>1){
+      const vnInitial=this._norm(this.vornameAus(csvVollName)).charAt(0);
+      if(vnInitial){
+        const mitInitial=kand.filter(a=> this._titelInitiale(a.name)===vnInitial);
+        if(mitInitial.length) kand=mitInitial;
+      }
+    }
+
     if(kand.length>1 && csvKurs){
-      const mitKurs=kand.filter(a=> this._norm(a.kurs)===this._norm(csvKurs));
+      const mitKurs=kand.filter(a=> this._kurseVergleichbar(a.kurs, csvKurs));
       if(mitKurs.length){ kand=mitKurs; ueberKurs=true; }
     }
     if(kand.length===0) return { status:"keinTreffer", kandidaten:[] };
     if(kand.length>1)  return { status:"mehrdeutig", kandidaten:kand };
     const treffer=kand[0];
-    /* Abweichung: Kurs passt nicht zusammen -> Admin muss das sehen. */
-    const abweichung = (csvKurs && this._norm(treffer.kurs) !== this._norm(csvKurs))
+    /* Abweichung: nur noch, wenn auch der Kern (Ausbildungstyp+Kursnummer)
+       nicht zusammenpasst -- reine Formatunterschiede (Jahrgang/Halbjahr in
+       der CSV, Kurzform in SharePoint) loesen keine Warnung mehr aus. */
+    const abweichung = (csvKurs && !this._kurseVergleichbar(treffer.kurs, csvKurs))
       ? "Kurs weicht ab: CSV \"" + csvKurs + "\" / Azubis-Liste \"" + (treffer.kurs||"—") + "\""
       : null;
     return { status:"treffer", azubi:treffer, ueberKurs, abweichung };
