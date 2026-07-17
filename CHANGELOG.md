@@ -4,6 +4,12 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.29.1 – 2026-07-18
+- **Fix Sprechblase verdeckt Eingabefelder** (z. B. Private Adresse bei 100 % Zoom):
+  Wenn die Blase an keine Seite eines breiten Ziels passt, wird sie jetzt auf die
+  Seite mit dem meisten Platz gelegt und **verdeckt das Ziel nie** – statt wie bisher
+  mittig darüber. Die Eingabefelder bleiben frei.
+
 ## v0.29.0 – 2026-07-18
 - **Einstellungen umgebaut:** keine aufklappbaren Reiter mehr – alle Abschnitte
   flach auf einer Seite, in logischer Reihenfolge (SharePoint zuerst, Gefahrenzone

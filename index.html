@@ -1481,7 +1481,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.29.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.29.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3901,18 +3901,21 @@ const Onboarding = {
     const klemmX=x=>Math.min(Math.max(vp.left+rand, x), vpR-bw-rand);
     const klemmY=y=>Math.min(Math.max(vp.top+rand, y), vpB-bh-rand);
     const mx=(loch.left+loch.right)/2, my=(loch.top+loch.bottom)/2;
+    /* Kandidaten: seitlich am Loch zentriert (rechts/links), sonst darunter/darüber.
+       platz = verfügbarer Raum auf dieser Seite; passt = reicht für die Blase.
+       Alle vier Positionen überlappen das Loch NIE (nur möglicher Viewport-Überlauf). */
     const kandidaten=[
-      { seite:"rechts", passt: vpR-loch.right >= bw+luft+rand, top: klemmY(my-bh/2), left: loch.right+luft },
-      { seite:"links",  passt: loch.left-vp.left >= bw+luft+rand, top: klemmY(my-bh/2), left: loch.left-bw-luft },
-      { seite:"unten",  passt: vpB-loch.bottom >= bh+luft+rand, top: loch.bottom+luft, left: klemmX(mx-bw/2) },
-      { seite:"oben",   passt: loch.top-vp.top >= bh+luft+rand, top: loch.top-bh-luft, left: klemmX(mx-bw/2) }
+      { seite:"rechts", platz: vpR-loch.right,    passt: vpR-loch.right >= bw+luft+rand,    top: klemmY(my-bh/2), left: loch.right+luft },
+      { seite:"links",  platz: loch.left-vp.left, passt: loch.left-vp.left >= bw+luft+rand, top: klemmY(my-bh/2), left: loch.left-bw-luft },
+      { seite:"unten",  platz: vpB-loch.bottom,   passt: vpB-loch.bottom >= bh+luft+rand,   top: loch.bottom+luft, left: klemmX(mx-bw/2) },
+      { seite:"oben",   platz: loch.top-vp.top,   passt: loch.top-vp.top >= bh+luft+rand,   top: loch.top-bh-luft, left: klemmX(mx-bw/2) }
     ];
-    const ueberlappt=(top,left)=> !(left+bw<=loch.left || left>=loch.right || top+bh<=loch.top || top>=loch.bottom);
-    for(const k of kandidaten){
-      if(k.passt && !ueberlappt(k.top,k.left)) return { top:k.top, left:k.left, seite:k.seite };
-    }
-    /* Notfall: vertikal mittig im Viewport, horizontal am Loch geklemmt. */
-    return { top: klemmY(vp.top+(vp.height-bh)/2), left: klemmX(mx-bw/2), seite:"mitte" };
+    /* 1. bevorzugte Reihenfolge: erste Seite mit vollem Platz. */
+    for(const k of kandidaten){ if(k.passt) return { top:k.top, left:k.left, seite:k.seite }; }
+    /* 2. Notfall: Seite mit dem meisten Platz – verdeckt das Loch NICHT, damit die
+       Eingabefelder frei bleiben (nur ggf. Überlauf über den Viewport-Rand). */
+    const best=kandidaten.reduce((a,b)=> b.platz>a.platz ? b : a);
+    return { top: best.top, left: best.left, seite: best.seite, knapp:true };
   },
 
   _zeichnen(animieren, initial){

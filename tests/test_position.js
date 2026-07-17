@@ -84,12 +84,21 @@ t('_blasePosition existiert', typeof Ob._blasePosition === 'function');
   t('vp-offset: left nicht unter vp.left + rand', p.left >= vp.left + 10);
 }
 
-// 7 Blase groesser als Viewport -> Notfall mitte
+// 7 Enger Fall (breiter, vollbreiter Block, keine Seite mit vollem Platz)
+//   -> Notfall verdeckt das Loch NICHT (Eingabefelder bleiben frei)
 {
-  const kleinVp = { left: 0, top: 0, width: 300, height: 300 };
-  const loch = { left: 120, top: 140, right: 180, bottom: 170 };
-  const p = Ob._blasePosition(loch, BL, kleinVp);
-  t('notfall: seite=mitte', p.seite === 'mitte');
+  const loch = { left: 360, top: 300, right: 1190, bottom: 480 };
+  const gross = { w: 340, h: 320 };
+  const p = Ob._blasePosition(loch, gross, VP);
+  t('notfall: als knapp markiert', p.knapp === true);
+  t('notfall: Blase ueberlappt das Loch NICHT', !ueberlappt(p, loch, gross));
+}
+
+// 8 Kleines Ziel behaelt saubere Seitenplatzierung (Regression)
+{
+  const loch = { left: 100, top: 380, right: 260, bottom: 420 };
+  const p = Ob._blasePosition(loch, BL, VP);
+  t('klein: seite=rechts, keine Ueberlappung', p.seite === 'rechts' && !ueberlappt(p, loch, BL));
 }
 
 console.log('\n== ' + pass + ' bestanden, ' + fail + ' fehlgeschlagen ==');
