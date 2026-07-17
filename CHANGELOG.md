@@ -4,6 +4,15 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.30.0 – 2026-07-18
+- **Dashboard-Fundament (Rollen-Trennung).** Das Dashboard ist jetzt als
+  Kontrollzentrum strukturiert: Kopf mit Rollen-Badge (**Verwaltung** für Admins /
+  **Nur-Lese-Ansicht** für User), ein **Verwaltungs-Abschnitt** (nur Admins, aktuell
+  CSV-Import) und der **Auslastungs-Abschnitt** (für alle sichtbar, read-only).
+  Normale User sehen einen Hinweis, dass Verwaltung Administrator:innen vorbehalten
+  ist. Grundlage für die weiteren Dashboard-Etappen. Neuer Helfer
+  `Dashboard.darfVerwalten()` (headless getestet).
+
 ## v0.29.1 – 2026-07-18
 - **Fix Sprechblase verdeckt Eingabefelder** (z. B. Private Adresse bei 100 % Zoom):
   Wenn die Blase an keine Seite eines breiten Ziels passt, wird sie jetzt auf die

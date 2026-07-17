@@ -137,6 +137,9 @@
   .spalte .einst-block h2{font-size:13px;margin:16px 0 8px;color:var(--navy);text-transform:none;letter-spacing:0;font-weight:600;display:flex;align-items:center;gap:6px}
   .spalte .einst-block h2:first-child{margin-top:4px}
   .einst-info{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--sekundaer);color:var(--text-leise);font-size:10px;font-weight:700;cursor:help;user-select:none}
+  /* Dashboard: Rollen-Badge (Admin = Verwaltung, sonst Nur-Lese) */
+  .rollen-badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--sekundaer);color:var(--text-leise);vertical-align:middle;margin-left:8px}
+  .rollen-badge.admin{background:var(--navy);color:#fff}
   /* Einrichtungen: nach Bereich gruppiert, aufklappbar */
   .einr-gruppe{border:1px solid var(--rahmen);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;background:var(--flaeche)}
   .gruppe-kopf{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;border-radius:0;
@@ -1481,7 +1484,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.29.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.30.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3690,6 +3693,9 @@ const Kalender = {
    wie bezugslehrerAnzeige(). Fehlt die Zahl (Altdaten vor v0.25): null ->
    keine Ampel, Hinweis "Kapazitaet nicht hinterlegt" (Spec Abschnitt 6). */
 const Dashboard = {
+  /* v0.30: Rollen-Signal fürs Dashboard – nur Admins dürfen verwalten. Kein echter
+     Sicherheits-Layer (das leistet SharePoint), sondern Übersichtlichkeit. */
+  darfVerwalten(){ return (typeof SharePoint!=="undefined") && !!SharePoint.istAdmin; },
   soll(wert){
     const m=String(wert||"").match(/\((\d+)\)\s*$/);
     return m ? parseInt(m[1],10) : null;
@@ -4188,14 +4194,20 @@ const Oberflaeche = {
     const zurueck=`<button onclick="Oberflaeche.ansichtWechseln('start')" style="margin-bottom:12px">← Zurück zur Startseite</button>`;
     /* CSV-Import ist eine Admin-Funktion (Azubi-Daten sind für Bezugslehrer bereits
        geladen). Der Button lebt daher hier im Dashboard, nur für Admins sichtbar. */
-    const admin=(typeof SharePoint!=="undefined") && SharePoint.istAdmin;
-    const csvBtn=admin?`<button class="aktion" id="csvImport" style="margin-bottom:12px;margin-left:12px">CSV importieren</button>`:"";
+    const admin=Dashboard.darfVerwalten();
+    const badge=admin ? `<span class="rollen-badge admin">Verwaltung</span>`
+                      : `<span class="rollen-badge">Nur-Lese-Ansicht</span>`;
+    /* Verwaltungs-Abschnitt: nur Admins. Wächst mit den Dashboard-Etappen
+       (Kurse anlegen, Tausch genehmigen, DFA-Prüfung …). Aktuell: CSV-Import. */
+    const verwaltung = admin
+      ? `<section class="einst-block">
+          <h2>Verwaltung <span class="meta" style="font-weight:400">– nur Administration</span></h2>
+          <button class="aktion" id="csvImport">CSV importieren</button>
+        </section>`
+      : `<section class="einst-block">
+          <div class="meta">🔒 Verwaltungsfunktionen (Importe, Anlegen, Genehmigungen) sind Administrator:innen vorbehalten. Diese Ansicht ist für dich nur lesend.</div>
+        </section>`;
     const zeilen=Dashboard.auslastung(Azubis.alle());
-    if(zeilen.length===0){
-      return `<div class="spalte" style="grid-column:1/-1">${zurueck}${csvBtn}
-        <h2>Dashboard – Bezugslehrer-Auslastung</h2>
-        <div class="leer">Noch keine Azubis geladen. Bitte im Praxisbesuchsplaner unter „Einstellungen" bei SharePoint anmelden bzw. synchronisieren.</div></div>`;
-    }
     const rows=zeilen.map(z=>{
       const pz=z.quote!==null?Math.round(z.quote*100):null;
       const ausl=z.quote!==null
@@ -4208,11 +4220,18 @@ const Oberflaeche = {
       return `<tr><td>${z.name.replace(/</g,"&lt;")}</td><td>${z.ist}${z.soll!==null?" / "+z.soll:""}</td><td>${ausl}</td><td>${balken}</td></tr>`;
     }).join("");
     return `<div class="spalte" style="grid-column:1/-1">
-      ${zurueck}${csvBtn}
-      <h2>Dashboard – Bezugslehrer-Auslastung</h2>
-      <div class="meta" style="margin-bottom:10px">Ist = zugeordnete Azubis · Soll = Kapazität aus der Bezugslehrer-Spalte („Name (Zahl)"). Ansicht für alle Lehrkräfte, nur lesend – zeigt immer <b>alle</b> Bezugslehrer.</div>
-      <table><thead><tr><th>Bezugslehrer*in</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th></th></tr></thead>
-      <tbody>${rows}</tbody></table></div>`;
+      ${zurueck}
+      <div style="margin-bottom:10px"><b style="font-size:17px;color:var(--navy)">Dashboard</b>${badge}</div>
+      ${verwaltung}
+      <section class="einst-block">
+        <h2>Bezugslehrer-Auslastung</h2>
+        ${zeilen.length===0
+          ? `<div class="leer">Noch keine Azubis geladen. Bitte im Praxisbesuchsplaner unter „Einstellungen" bei SharePoint anmelden bzw. synchronisieren.</div>`
+          : `<div class="meta" style="margin-bottom:10px">Ist = zugeordnete Azubis · Soll = Kapazität aus der Bezugslehrer-Spalte („Name (Zahl)"). Zeigt immer <b>alle</b> Bezugslehrer.</div>
+        <table><thead><tr><th>Bezugslehrer*in</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table>`}
+      </section>
+    </div>`;
   },
 
   /* ---- Anstehende Besuche ---- */

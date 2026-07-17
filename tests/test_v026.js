@@ -63,6 +63,12 @@ p('auslastung: undefined -> leeres Ergebnis (kein Absturz)', Dashboard.auslastun
 p('auslastung: Anzeige-Name ohne "(Zahl)"',
   z.every(x => !/\(\d+\)\s*$/.test(x.name)));
 
+/* ---------- 5. darfVerwalten() spiegelt SharePoint.istAdmin (v0.30) --- */
+SharePoint.istAdmin = true;
+p('darfVerwalten: true wenn Admin', Dashboard.darfVerwalten() === true);
+SharePoint.istAdmin = false;
+p('darfVerwalten: false wenn kein Admin', Dashboard.darfVerwalten() === false);
+
 console.log(log.join('\n'));
 console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
 if (fail > 0) process.exit(1);
