@@ -1,0 +1,10 @@
+# Build-Artefakt der Tests (wird aus index.html erzeugt)
+tests/extracted_test_bundle.js
+
+# Interne Projekt-Doku – nur lokal, gehoert nicht in die public Repo
+kontext.md
+spec/
+
+# OS / Editor
+.DS_Store
+Thumbs.db

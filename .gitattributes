@@ -1,0 +1,7 @@
+# Grosse Binaerdatei (Startseiten-Animation) nie als Text behandeln
+*.mp4 binary
+
+# App/Tests/Doku konsistent mit LF speichern (wie der Claude-Chat-Export)
+*.html text eol=lf
+*.js   text eol=lf
+*.md   text eol=lf

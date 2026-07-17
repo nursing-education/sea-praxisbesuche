@@ -1487,7 +1487,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.28.2";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.28.3";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3896,6 +3896,31 @@ const Onboarding = {
     }
   },
 
+  /* Reine Geometrie (headless testbar): beste Position der Sprechblase relativ
+     zum Loch. Bevorzugt seitlich (rechts, sonst links), dann unter/über dem Loch;
+     jeweils an der Querachse des Lochs zentriert. Prüft Überlappungsfreiheit und
+     klemmt in den sichtbaren Viewport (visualViewport-tauglich).
+     loch/blase/vp in Viewport-Koordinaten (px). */
+  _blasePosition(loch, blase, vp){
+    const luft=14, rand=10, bw=blase.w, bh=blase.h;
+    const vpR=vp.left+vp.width, vpB=vp.top+vp.height;
+    const klemmX=x=>Math.min(Math.max(vp.left+rand, x), vpR-bw-rand);
+    const klemmY=y=>Math.min(Math.max(vp.top+rand, y), vpB-bh-rand);
+    const mx=(loch.left+loch.right)/2, my=(loch.top+loch.bottom)/2;
+    const kandidaten=[
+      { seite:"rechts", passt: vpR-loch.right >= bw+luft+rand, top: klemmY(my-bh/2), left: loch.right+luft },
+      { seite:"links",  passt: loch.left-vp.left >= bw+luft+rand, top: klemmY(my-bh/2), left: loch.left-bw-luft },
+      { seite:"unten",  passt: vpB-loch.bottom >= bh+luft+rand, top: loch.bottom+luft, left: klemmX(mx-bw/2) },
+      { seite:"oben",   passt: loch.top-vp.top >= bh+luft+rand, top: loch.top-bh-luft, left: klemmX(mx-bw/2) }
+    ];
+    const ueberlappt=(top,left)=> !(left+bw<=loch.left || left>=loch.right || top+bh<=loch.top || top>=loch.bottom);
+    for(const k of kandidaten){
+      if(k.passt && !ueberlappt(k.top,k.left)) return { top:k.top, left:k.left, seite:k.seite };
+    }
+    /* Notfall: vertikal mittig im Viewport, horizontal am Loch geklemmt. */
+    return { top: klemmY(vp.top+(vp.height-bh)/2), left: klemmX(mx-bw/2), seite:"mitte" };
+  },
+
   _zeichnen(animieren, initial){
     const s=this.aktiverSchritt(); if(!s) return;
     let ov=document.getElementById("obOverlay");
@@ -3944,28 +3969,13 @@ const Onboarding = {
     if(animieren) bl.style.animation="ob-fade .35s ease both"; else bl.style.animation="none";
 
     if(r){
-      const bw=bl.offsetWidth||320, bh=bl.offsetHeight||160, luft=14;
-      let top, left;
-      /* Blase bevorzugt SEITLICH neben das Loch (rechts, sonst links), damit das
-         Ziel-Element und die Aufforderung gleichzeitig sichtbar bleiben. Erst wenn
-         seitlich kein Platz ist, unter bzw. über das Loch. */
-      if(W-r.right > bw+luft+10){            // rechts daneben
-        left=r.right+luft;
-        top=Math.min(Math.max(10,r.top), H-bh-10);
-      } else if(r.left > bw+luft+10){        // links daneben
-        left=r.left-bw-luft;
-        top=Math.min(Math.max(10,r.top), H-bh-10);
-      } else if(H-r.bottom > bh+luft+10){    // darunter
-        top=r.bottom+luft;
-        left=Math.min(Math.max(10,r.left), W-bw-10);
-      } else if(r.top > bh+luft+10){         // darüber
-        top=r.top-bh-luft;
-        left=Math.min(Math.max(10,r.left), W-bw-10);
-      } else {                               // Notfall: vertikal mittig
-        top=Math.max(10,(H-bh)/2);
-        left=Math.min(Math.max(10,r.left), W-bw-10);
-      }
-      bl.style.top=top+"px"; bl.style.left=left+"px";
+      const bw=bl.offsetWidth||320, bh=bl.offsetHeight||160;
+      /* Zoom-fest: gegen den tatsächlich sichtbaren Viewport klemmen. */
+      const vv=window.visualViewport;
+      const vp = vv ? {left:vv.offsetLeft, top:vv.offsetTop, width:vv.width, height:vv.height}
+                    : {left:0, top:0, width:W, height:H};
+      const pos=this._blasePosition({left:r.left,top:r.top,right:r.right,bottom:r.bottom},{w:bw,h:bh},vp);
+      bl.style.top=pos.top+"px"; bl.style.left=pos.left+"px";
     } else {
       bl.style.top=""; bl.style.left="";
     }
