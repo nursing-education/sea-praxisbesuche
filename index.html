@@ -344,7 +344,7 @@
      (pointer-events:none), damit Live-Schritte (z.B. Adresse eintippen) in
      der echten UI bedienbar bleiben; nur die Sprechblase fängt Klicks ab. */
   .ob-overlay{position:fixed;inset:0;z-index:2050;pointer-events:none}
-  .ob-block{position:absolute;background:rgba(16,32,40,.55);pointer-events:auto}
+  .ob-block{position:absolute;background:rgba(16,32,40,.55);pointer-events:none}
   .ob-rahmen{position:absolute;border:2px solid var(--orange);border-radius:10px;pointer-events:none}
   .ob-blase{position:absolute;z-index:2060;pointer-events:auto;max-width:340px;width:min(340px,88vw);
     background:var(--flaeche);color:var(--text);border:1px solid var(--rahmen);border-radius:10px;
@@ -1487,7 +1487,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.28";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.28.2";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -2037,6 +2037,24 @@ const SharePoint = {
     }
     await this._ladenUndSyncen(token);
     this._statusAnzeigen();
+  },
+
+  /* Wie synchronisieren(), aber die Anmeldung läuft als POPUP (kein Seiten-Reload).
+     Genutzt im Onboarding-Wizard, damit der Wizard-Zustand die Anmeldung überlebt.
+     Gibt true bei Erfolg zurück, wirft bei Abbruch/Fehler. */
+  async synchronisierenPopup(){
+    await this._init();
+    if(!this._msal){ this._melden("Microsoft-Anmeldung steht in dieser Umgebung nicht zur Verfuegung.", true); throw new Error("kein MSAL"); }
+    let token=await this._tokenStill();
+    if(!token){
+      this._melden("Anmeldung ...");
+      await this._msal.loginPopup({ scopes: SP_CONFIG.scopes });   /* kleines Fenster, kein Reload */
+      token=await this._tokenStill();
+    }
+    if(!token) throw new Error("kein Token nach Anmeldung");
+    await this._ladenUndSyncen(token);
+    this._statusAnzeigen();
+    return true;
   },
 
   async _graphGet(url, token){
@@ -3758,25 +3776,29 @@ const Onboarding = {
       ziel:"#obZielAdresse", illu:"adresse",
       titel:"Private Startadresse (optional)",
       text:"Optional: deine private Startadresse als Startpunkt für die Fahrtkostenberechnung. Ohne Eingabe wird die Schuladresse genutzt. Diese Angabe bleibt nur lokal auf deinem Gerät." },
-    { id:"csv", modus:"live", block:"A", ansicht:"planer", tab:"azubis",
+    { id:"csv", modus:"live", block:"A", nurAdmin:true, ansicht:"dashboard",
       ziel:"#csvImport", illu:"csv",
       titel:"Azubis importieren",
-      text:"Über diese Schaltfläche liest du einen Easysoft-Export (CSV) ein. Daraus entstehen die Azubis mit ihren Einsatzplänen. Der Import ersetzt vorhandene Einsätze, statt sie zu ergänzen." },
+      text:"Über diese Schaltfläche liest du einen Easysoft-Export (CSV) ein. Daraus entstehen die Azubis mit ihren Einsatzplänen. Der Import ersetzt vorhandene Einsätze, statt sie zu ergänzen. (Nur für die Administration – Bezugslehrer*innen erhalten die Azubi-Daten bereits fertig.)" },
     { id:"fertig", modus:"info", illu:"fertig",
       titel:"Fertig!",
       text:"Die Einrichtung ist abgeschlossen. Über „Einführung erneut anzeigen“ in den Einstellungen kannst du diese Tour jederzeit wiederholen." }
   ],
 
   /* ---- reine Logik (headless testbar) ---- */
+  _istAdmin(){ return (typeof SharePoint!=="undefined") && !!SharePoint.istAdmin; },
+  _sichtbar(i){ const s=this.schritte[i]; if(!s) return false; if(s.nurAdmin && !this._istAdmin()) return false; return true; },
+  /* nächster sichtbarer Schritt-Index in Richtung dir (+1/-1). */
+  _naechster(idx, dir){ let i=idx+dir; while(this.schritte[i] && !this._sichtbar(i)) i+=dir; return i; },
   einrichtungErledigt(){ return !!(Daten.state && Daten.state.bezugslehrerWert); },
   sollStarten(){ return !this.einrichtungErledigt(); },   /* Einrichtung offen -> Wizard anbieten */
-  _blockAStart(){ const i=this.schritte.findIndex(s=>s.block==="A"); return i<0?0:i; },
-  istErster(){ return this._idx<=this._startIdx; },
-  istLetzter(){ return this._idx>=this.schritte.length-1; },
+  _blockAStart(){ let i=this.schritte.findIndex(s=>s.block==="A"); if(i<0) i=0; if(!this._sichtbar(i)) i=this._naechster(i,1); return i; },
+  istErster(){ return this._naechster(this._idx,-1) < this._startIdx; },
+  istLetzter(){ return this._naechster(this._idx,1) >= this.schritte.length; },
   aktiverSchritt(){ return this.schritte[this._idx]||null; },
   fortschritt(){
-    /* nur die tatsächlich durchlaufenen Schritte ab Einstiegspunkt anzeigen */
-    return this.schritte.map((_,i)=>({ an:i===this._idx, fertig:i<this._idx, sichtbar:i>=this._startIdx }))
+    /* nur tatsächlich durchlaufene, sichtbare Schritte ab Einstiegspunkt */
+    return this.schritte.map((_,i)=>({ an:i===this._idx, fertig:i<this._idx, sichtbar:i>=this._startIdx && this._sichtbar(i) }))
                         .filter(p=>p.sichtbar);
   },
 
@@ -3787,14 +3809,14 @@ const Onboarding = {
     else this.startAb(this._blockAStart());               /* Folgestart: nur die Pflicht-Einrichtung */
   },
   starten(){ this.startAb(0); },
-  startAb(idx){ this._startIdx=idx; this._idx=idx; this._offen=true; this._zeigeSchritt(true); },
+  startAb(idx){ if(!this._sichtbar(idx)) idx=this._naechster(idx,1); this._startIdx=idx; this._idx=idx; this._offen=true; this._zeigeSchritt(true); },
   erneutAnzeigen(){
     if(Daten.state) Daten.state.onboardingGesehen=false;
     Daten.speichern(false, true);
     this.starten();
   },
-  weiter(){ if(this.istLetzter()){ this.abschliessen(); return; } this._idx++; this._zeigeSchritt(true); },
-  zurueck(){ if(!this.istErster()){ this._idx--; this._zeigeSchritt(true); } },
+  weiter(){ const n=this._naechster(this._idx,1); if(n>=this.schritte.length){ this.abschliessen(); return; } this._idx=n; this._zeigeSchritt(true); },
+  zurueck(){ const p=this._naechster(this._idx,-1); if(p>=this._startIdx){ this._idx=p; this._zeigeSchritt(true); } },
   spaeterErledigen(){ this.weiter(); },   /* Block A: Schritt-Aktion später in den Einstellungen */
   /* Aussperr-Schutz: Wizard pro Sitzung schließbar OHNE die Pflicht zu tilgen.
      onboardingGesehen bleibt unverändert -> bei offener Einrichtung kommt der
@@ -3809,6 +3831,22 @@ const Onboarding = {
     if(this._cleanup){ this._cleanup(); this._cleanup=null; }
     const o=document.getElementById("obOverlay"); if(o) o.remove();
     const b=document.getElementById("obBlase"); if(b) b.remove();
+    /* SharePoint-Button wieder auf das normale (Redirect-)Verhalten zurücksetzen. */
+    const spb=document.querySelector("#spSyncBtn");
+    if(spb && typeof SharePoint!=="undefined") spb.onclick=()=>SharePoint.synchronisieren(true);
+  },
+
+  /* Anmeldung im Wizard: Popup (kein Reload). Bei Erfolg eine Stufe weiter;
+     bei Abbruch/Fehler bleibt der Schritt, Hinweis auf „später erledigen". */
+  async _sharepointAnmelden(){
+    try{
+      await SharePoint.synchronisierenPopup();
+      if(typeof Oberflaeche!=="undefined") Oberflaeche.toast("Mit SharePoint verbunden ✓");
+      this.weiter();
+    }catch(e){
+      if(typeof Oberflaeche!=="undefined")
+        Oberflaeche.toast("Anmeldung nicht möglich – du kannst das später in den Einstellungen nachholen.", true);
+    }
   },
 
   /* ---- Darstellung (DOM) ---- */
@@ -3822,16 +3860,43 @@ const Onboarding = {
       neuRendern=true;
     }
     if(neuRendern) Oberflaeche.render();
-    this._zeichnen(animieren);
+    this._zeichnen(animieren, true);   /* true = Erst-Zeichnung: Ziel einmalig in den Blick scrollen */
+    /* Im SharePoint-Schritt die Anmeldung auf POPUP umleiten (kein Reload), damit
+       der Wizard die Anmeldung übersteht. Nach Erfolg schaltet der Wizard weiter. */
+    if(s.id==="sharepoint"){
+      const spb=document.querySelector("#spSyncBtn");
+      if(spb) spb.onclick=()=>this._sharepointAnmelden();
+    }
     if(!this._cleanup){
-      const rp=()=>{ if(this._offen) this._zeichnen(false); };
+      /* Reposition bei scroll/resize OHNE erneutes scrollIntoView -- sonst würde
+         die Ansicht bei jedem Scrollen zum Ziel zurückspringen (Scrollen wäre blockiert). */
+      const rp=()=>{ if(this._offen) this._zeichnen(false, false); };
       window.addEventListener("resize",rp);
       window.addEventListener("scroll",rp,true);
-      this._cleanup=()=>{ window.removeEventListener("resize",rp); window.removeEventListener("scroll",rp,true); };
+      /* Klick-Blockierung per Capture (statt pointer-events auf den Blockern):
+         Klicks außerhalb von Loch + Sprechblase werden geschluckt, Scrollen (wheel/touch)
+         bleibt frei. So kann nicht in die App geklickt, aber überall gescrollt werden. */
+      const fang=(ev)=>{
+        if(!this._offen) return;
+        const bl=document.getElementById("obBlase");
+        if(bl && bl.contains(ev.target)) return;              /* Sprechblase bedienbar */
+        const lr=this._lochRect;
+        if(lr){
+          const x=ev.clientX, y=ev.clientY;
+          if(x>=lr.left && x<=lr.right && y>=lr.top && y<=lr.bottom) return; /* Loch bedienbar */
+        }
+        ev.preventDefault(); ev.stopPropagation();
+      };
+      ["mousedown","mouseup","click"].forEach(t=>document.addEventListener(t,fang,true));
+      this._cleanup=()=>{
+        window.removeEventListener("resize",rp);
+        window.removeEventListener("scroll",rp,true);
+        ["mousedown","mouseup","click"].forEach(t=>document.removeEventListener(t,fang,true));
+      };
     }
   },
 
-  _zeichnen(animieren){
+  _zeichnen(animieren, initial){
     const s=this.aktiverSchritt(); if(!s) return;
     let ov=document.getElementById("obOverlay");
     if(!ov){ ov=document.createElement("div"); ov.id="obOverlay"; ov.className="ob-overlay"; document.body.appendChild(ov); }
@@ -3841,7 +3906,8 @@ const Onboarding = {
     let r=null;
     if(s.ziel){
       const el=document.querySelector(s.ziel);
-      if(el){ try{ el.scrollIntoView({block:"center"}); }catch(_){}; r=el.getBoundingClientRect(); }
+      /* scrollIntoView nur bei der Erst-Zeichnung; danach nur noch neu berechnen. */
+      if(el){ if(initial){ try{ el.scrollIntoView({block:"center"}); }catch(_){}; } r=el.getBoundingClientRect(); }
     }
     const W=window.innerWidth, H=window.innerHeight, pad=8;
 
@@ -3854,6 +3920,7 @@ const Onboarding = {
     if(r && r.width>0 && r.height>0){
       const x=Math.max(0,r.left-pad), y=Math.max(0,r.top-pad),
             xr=Math.min(W,r.right+pad), yb=Math.min(H,r.bottom+pad);
+      this._lochRect={left:x,top:y,right:xr,bottom:yb};   // für Klick-Capture
       rect(0,0,W,y);                 // oben
       rect(0,yb,W,H-yb);             // unten
       rect(0,y,x,yb-y);              // links
@@ -3862,6 +3929,7 @@ const Onboarding = {
         '<div class="ob-rahmen" style="left:'+x+'px;top:'+y+'px;width:'+(xr-x)+'px;height:'+(yb-y)+'px"></div>';
     } else {
       r=null;
+      this._lochRect=null;
       rect(0,0,W,H);                 // Vollbild
       ov.innerHTML=bloecke.join("");
     }
@@ -3877,11 +3945,26 @@ const Onboarding = {
 
     if(r){
       const bw=bl.offsetWidth||320, bh=bl.offsetHeight||160, luft=14;
-      let top;
-      if(H-r.bottom > bh+luft+10) top=r.bottom+luft;
-      else if(r.top > bh+luft+10) top=r.top-bh-luft;
-      else top=Math.max(10,(H-bh)/2);
-      const left=Math.min(Math.max(10,r.left), W-bw-10);
+      let top, left;
+      /* Blase bevorzugt SEITLICH neben das Loch (rechts, sonst links), damit das
+         Ziel-Element und die Aufforderung gleichzeitig sichtbar bleiben. Erst wenn
+         seitlich kein Platz ist, unter bzw. über das Loch. */
+      if(W-r.right > bw+luft+10){            // rechts daneben
+        left=r.right+luft;
+        top=Math.min(Math.max(10,r.top), H-bh-10);
+      } else if(r.left > bw+luft+10){        // links daneben
+        left=r.left-bw-luft;
+        top=Math.min(Math.max(10,r.top), H-bh-10);
+      } else if(H-r.bottom > bh+luft+10){    // darunter
+        top=r.bottom+luft;
+        left=Math.min(Math.max(10,r.left), W-bw-10);
+      } else if(r.top > bh+luft+10){         // darüber
+        top=r.top-bh-luft;
+        left=Math.min(Math.max(10,r.left), W-bw-10);
+      } else {                               // Notfall: vertikal mittig
+        top=Math.max(10,(H-bh)/2);
+        left=Math.min(Math.max(10,r.left), W-bw-10);
+      }
       bl.style.top=top+"px"; bl.style.left=left+"px";
     } else {
       bl.style.top=""; bl.style.left="";
@@ -4096,9 +4179,13 @@ const Oberflaeche = {
      (Spec Abschnitt 6, letzter Punkt). ---- */
   viewDashboard(){
     const zurueck=`<button onclick="Oberflaeche.ansichtWechseln('start')" style="margin-bottom:12px">← Zurück zur Startseite</button>`;
+    /* CSV-Import ist eine Admin-Funktion (Azubi-Daten sind für Bezugslehrer bereits
+       geladen). Der Button lebt daher hier im Dashboard, nur für Admins sichtbar. */
+    const admin=(typeof SharePoint!=="undefined") && SharePoint.istAdmin;
+    const csvBtn=admin?`<button class="aktion" id="csvImport" style="margin-bottom:12px;margin-left:12px">CSV importieren</button>`:"";
     const zeilen=Dashboard.auslastung(Azubis.alle());
     if(zeilen.length===0){
-      return `<div class="spalte" style="grid-column:1/-1">${zurueck}
+      return `<div class="spalte" style="grid-column:1/-1">${zurueck}${csvBtn}
         <h2>Dashboard – Bezugslehrer-Auslastung</h2>
         <div class="leer">Noch keine Azubis geladen. Bitte im Praxisbesuchsplaner unter „Einstellungen" bei SharePoint anmelden bzw. synchronisieren.</div></div>`;
     }
@@ -4114,7 +4201,7 @@ const Oberflaeche = {
       return `<tr><td>${z.name.replace(/</g,"&lt;")}</td><td>${z.ist}${z.soll!==null?" / "+z.soll:""}</td><td>${ausl}</td><td>${balken}</td></tr>`;
     }).join("");
     return `<div class="spalte" style="grid-column:1/-1">
-      ${zurueck}
+      ${zurueck}${csvBtn}
       <h2>Dashboard – Bezugslehrer-Auslastung</h2>
       <div class="meta" style="margin-bottom:10px">Ist = zugeordnete Azubis · Soll = Kapazität aus der Bezugslehrer-Spalte („Name (Zahl)"). Ansicht für alle Lehrkräfte, nur lesend – zeigt immer <b>alle</b> Bezugslehrer.</div>
       <table><thead><tr><th>Bezugslehrer*in</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th></th></tr></thead>
@@ -4212,11 +4299,11 @@ const Oberflaeche = {
         <div><div class="haupt">${nm||a.id}</div>
         <div class="meta">${a.ausbildung} · ${a.kurs||"—"} · ${a.einsaetze.length} Einsätze</div></div>
         <div class="rechts"><span class="pill">${f.erledigt}/${f.gesamt} Besuche</span>${fehlt?`<span class="pill fehlt">${fehlt} fehlt</span>`:""}</div></div>`;
-    }).join("") || `<div class="leer">Noch keine Azubis. Über „CSV importieren" einlesen.</div>`;
+    }).join("") || `<div class="leer">Noch keine Azubis geladen.</div>`;
     return `<div class="spalte">
         <h2>Azubis</h2>
         ${modusBlock}
-        <div class="werkzeug">${umschalter}<button class="aktion" id="csvImport">CSV importieren</button></div>
+        <div class="werkzeug">${umschalter}</div>
         ${liste}
       </div>
       <div class="spalte" id="azubiDetail"><div class="leer">Azubi links auswählen.</div></div>`;
@@ -4237,8 +4324,8 @@ const Oberflaeche = {
       return `<div class="spalte" style="grid-column:1/-1">
         <h2>Azubis</h2>
         ${modusBlock}
-        <div class="werkzeug">${umschalter}<button class="aktion" id="csvImport">CSV importieren</button></div>
-        <div class="leer">Noch keine Azubis. Über „CSV importieren" einlesen.</div></div>`;
+        <div class="werkzeug">${umschalter}</div>
+        <div class="leer">Noch keine Azubis geladen.</div></div>`;
     }
 
     // Rasterlinien-HTML (einmal je Spur eingesetzt) und Kopf-Ticks (mit Beschriftung)
@@ -4319,7 +4406,6 @@ const Oberflaeche = {
         <span class="kal-titel">${Kalender.fensterLabel(zoom, fenster)}</span>
         <button class="kal-pfeil" id="kalVor" title="vor">›</button>
         <button id="kalHeuteBtn">Heute</button>
-        <button class="aktion" id="csvImport" style="margin-left:auto">CSV importieren</button>
       </div>
       <div id="kalScroll">
         <div style="position:relative;width:${168+breite}px">
