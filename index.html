@@ -344,7 +344,8 @@
      (pointer-events:none), damit Live-Schritte (z.B. Adresse eintippen) in
      der echten UI bedienbar bleiben; nur die Sprechblase fängt Klicks ab. */
   .ob-overlay{position:fixed;inset:0;z-index:2050;pointer-events:none}
-  .ob-overlay svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .ob-block{position:absolute;background:rgba(16,32,40,.55);pointer-events:auto}
+  .ob-rahmen{position:absolute;border:2px solid var(--orange);border-radius:10px;pointer-events:none}
   .ob-blase{position:absolute;z-index:2060;pointer-events:auto;max-width:340px;width:min(340px,88vw);
     background:var(--flaeche);color:var(--text);border:1px solid var(--rahmen);border-radius:10px;
     box-shadow:0 8px 28px rgba(0,0,0,.28);padding:16px 18px}
@@ -359,7 +360,8 @@
   .ob-fort i.an{background:var(--navy);transform:scale(1.25)}
   .ob-fort i.fertig{background:var(--forest)}
   .ob-aktionen{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap}
-  .ob-aktionen .rechts{display:flex;gap:8px;margin-left:auto}
+  .ob-aktionen .links{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .ob-aktionen .rechts{display:flex;gap:8px;margin-left:auto;align-items:center}
   .ob-aktionen button{font-size:14px}
   .ob-skip{background:transparent;border:none;color:var(--text-leise);text-decoration:underline;padding:4px 2px}
   .ob-skip:hover{color:var(--navy)}
@@ -1485,7 +1487,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.27";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.28";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3730,53 +3732,74 @@ const Dashboard = {
 const Onboarding = {
   _offen:false,
   _idx:0,
+  _startIdx:0,       /* Einstiegs-Index (0 = voller Wizard, sonst Block-A-Start) */
   _cleanup:null,     /* entfernt die Reposition-Listener beim Schließen */
 
   _esc(v){ return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); },
 
   /* Schritt-Definitionen. modus:"info" = zentriertes Panel ohne Ziel;
-     modus:"live" = Spotlight auf ein echtes Element (ziel = CSS-Selektor). */
+     modus:"live" = Spotlight auf ein echtes Element (ziel = CSS-Selektor).
+     block:"A" = obligatorische Einrichtung (Aussperr-Schutz siehe Trigger-Logik).
+     v0.28 Runde 1: Block A (Einrichtung). Der Demo-Rundgang (Block B) wird in
+     Runde 2 zwischen "willkommen" und dem ersten Block-A-Schritt eingefügt. */
   schritte: [
-    { id:"willkommen", modus:"info", illu:"willkommen",
+    { id:"willkommen", modus:"info", ansicht:"start", illu:"willkommen",
       titel:"Willkommen bei SEA Praxisbesuche",
-      text:"Diese kurze Einführung zeigt dir in wenigen Schritten, wie die App aufgebaut ist. Du kannst sie jederzeit über „Später“ beenden und in den Einstellungen erneut starten." },
-    { id:"privatadresse", modus:"live", ansicht:"planer", tab:"einstellungen",
+      text:"Diese kurze Einführung richtet die App für deine Arbeit ein. Sie dauert nur einen Moment – los geht’s." },
+    { id:"sharepoint", modus:"live", block:"A", ansicht:"planer", tab:"einstellungen",
+      ziel:"#spSyncBtn", illu:"sharepoint",
+      titel:"Mit SharePoint verbinden",
+      text:"Über diese Schaltfläche meldest du dich einmalig bei Microsoft an. Danach lädt die App Einrichtungen, Azubis und Einsatzpläne automatisch. Ohne Internet kannst du das später in den Einstellungen nachholen." },
+    { id:"ichbin", modus:"live", block:"A", ansicht:"planer", tab:"einstellungen",
+      ziel:"#bezugslehrerWert", illu:"ichbin",
+      titel:"Wähle „Ich bin …“",
+      text:"Wähle hier deinen Namen aus der Bezugslehrer-Liste. Das steuert die Ansicht „Nur meine Azubis“ und erscheint auf dem DFA-Formular. Die Auswahl steht nach dem ersten Import zur Verfügung." },
+    { id:"privatadresse", modus:"live", block:"A", ansicht:"planer", tab:"einstellungen",
       ziel:"#obZielAdresse", illu:"adresse",
       titel:"Private Startadresse (optional)",
-      text:"Hier kannst du optional deine private Startadresse eintragen – sie dient als Startpunkt für die Fahrtkostenberechnung. Ohne Eingabe wird die Schuladresse genutzt. Diese Angabe bleibt nur lokal auf deinem Gerät." },
-    { id:"aufbau", modus:"live", ansicht:"planer", tab:"anstehend",
-      ziel:"nav", illu:"aufbau",
-      titel:"So ist die App aufgebaut",
-      text:"Über diese Reiter erreichst du alle Bereiche: anstehende Besuche, deine Azubis, die Einrichtungen, die Touren- und Fahrtkostenplanung sowie die Einstellungen." },
-    { id:"praxisbesuche", modus:"info", ansicht:"planer", tab:"anstehend", illu:"besuch",
-      titel:"Praxisbesuche dokumentieren",
-      text:"Im Reiter „Anstehend“ siehst du alle fälligen Pflichtbesuche. Ein Klick auf einen Eintrag öffnet den Dialog, in dem du Datum, Uhrzeit und Status festhältst." },
-    { id:"touren", modus:"info", ansicht:"planer", tab:"touren", illu:"touren",
-      titel:"Touren & Fahrtkosten",
-      text:"Im Reiter „Touren“ planst du Besuchsfahrten auf der Karte und erzeugst daraus die Dienstfahrtenabrechnung (DFA) als PDF." },
+      text:"Optional: deine private Startadresse als Startpunkt für die Fahrtkostenberechnung. Ohne Eingabe wird die Schuladresse genutzt. Diese Angabe bleibt nur lokal auf deinem Gerät." },
+    { id:"csv", modus:"live", block:"A", ansicht:"planer", tab:"azubis",
+      ziel:"#csvImport", illu:"csv",
+      titel:"Azubis importieren",
+      text:"Über diese Schaltfläche liest du einen Easysoft-Export (CSV) ein. Daraus entstehen die Azubis mit ihren Einsatzplänen. Der Import ersetzt vorhandene Einsätze, statt sie zu ergänzen." },
     { id:"fertig", modus:"info", illu:"fertig",
       titel:"Fertig!",
-      text:"Das war die Kurz-Einführung. Sobald die SharePoint-Anbindung steht, kommen noch die Schritte zur Anmeldung und zum Import deiner Azubis dazu." }
+      text:"Die Einrichtung ist abgeschlossen. Über „Einführung erneut anzeigen“ in den Einstellungen kannst du diese Tour jederzeit wiederholen." }
   ],
 
   /* ---- reine Logik (headless testbar) ---- */
-  sollStarten(){ return !!(Daten.state && !Daten.state.onboardingGesehen); },
-  istErster(){ return this._idx<=0; },
+  einrichtungErledigt(){ return !!(Daten.state && Daten.state.bezugslehrerWert); },
+  sollStarten(){ return !this.einrichtungErledigt(); },   /* Einrichtung offen -> Wizard anbieten */
+  _blockAStart(){ const i=this.schritte.findIndex(s=>s.block==="A"); return i<0?0:i; },
+  istErster(){ return this._idx<=this._startIdx; },
   istLetzter(){ return this._idx>=this.schritte.length-1; },
   aktiverSchritt(){ return this.schritte[this._idx]||null; },
-  fortschritt(){ return this.schritte.map((_,i)=>({ an:i===this._idx, fertig:i<this._idx })); },
+  fortschritt(){
+    /* nur die tatsächlich durchlaufenen Schritte ab Einstiegspunkt anzeigen */
+    return this.schritte.map((_,i)=>({ an:i===this._idx, fertig:i<this._idx, sichtbar:i>=this._startIdx }))
+                        .filter(p=>p.sichtbar);
+  },
 
   /* ---- Ablaufsteuerung ---- */
-  pruefeStart(){ if(this.sollStarten()) this.starten(); },
-  starten(){ this._idx=0; this._offen=true; this._zeigeSchritt(true); },
+  pruefeStart(){
+    if(!this.sollStarten()) return;                       /* eingerichtet -> kein Auto-Start */
+    if(Daten.state && !Daten.state.onboardingGesehen) this.starten();      /* Erststart: voller Wizard */
+    else this.startAb(this._blockAStart());               /* Folgestart: nur die Pflicht-Einrichtung */
+  },
+  starten(){ this.startAb(0); },
+  startAb(idx){ this._startIdx=idx; this._idx=idx; this._offen=true; this._zeigeSchritt(true); },
   erneutAnzeigen(){
-    Daten.state.onboardingGesehen=false;
+    if(Daten.state) Daten.state.onboardingGesehen=false;
     Daten.speichern(false, true);
     this.starten();
   },
   weiter(){ if(this.istLetzter()){ this.abschliessen(); return; } this._idx++; this._zeigeSchritt(true); },
   zurueck(){ if(!this.istErster()){ this._idx--; this._zeigeSchritt(true); } },
-  spaeter(){ this.abschliessen(); },
+  spaeterErledigen(){ this.weiter(); },   /* Block A: Schritt-Aktion später in den Einstellungen */
+  /* Aussperr-Schutz: Wizard pro Sitzung schließbar OHNE die Pflicht zu tilgen.
+     onboardingGesehen bleibt unverändert -> bei offener Einrichtung kommt der
+     Wizard beim nächsten Start erneut (Block A). */
+  beenden(){ this._schliessen(); },
   abschliessen(){
     if(Daten.state){ Daten.state.onboardingGesehen=true; Daten.speichern(false, true); }
     this._schliessen();
@@ -3822,30 +3845,33 @@ const Onboarding = {
     }
     const W=window.innerWidth, H=window.innerHeight, pad=8;
 
+    // Abdunkelung als klickblockierende Rechtecke. Bei einem Ziel bleibt nur
+    // das freigestanzte Loch bedienbar (vier Blocker rundherum); ohne Ziel
+    // deckt ein Vollbild-Blocker alles ab. So kann NICHT durchs Overlay in die
+    // App geklickt werden -- nur das Loch (z.B. der Azubi-Eintrag) ist aktiv.
+    const bloecke=[];
+    const rect=(x,y,w,h)=>{ if(w>0&&h>0) bloecke.push('<div class="ob-block" style="left:'+x+'px;top:'+y+'px;width:'+w+'px;height:'+h+'px"></div>'); };
     if(r && r.width>0 && r.height>0){
       const x=Math.max(0,r.left-pad), y=Math.max(0,r.top-pad),
-            w=Math.min(W,r.right+pad)-x, h=Math.min(H,r.bottom+pad)-y;
-      ov.innerHTML =
-        '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+
-          '<defs><mask id="obLoch">'+
-            '<rect width="'+W+'" height="'+H+'" fill="white"/>'+
-            '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="10" fill="black"/>'+
-          '</mask></defs>'+
-          '<rect width="'+W+'" height="'+H+'" fill="rgba(16,32,40,.55)" mask="url(#obLoch)"/>'+
-          '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="10" fill="none" stroke="#F05100" stroke-width="2"/>'+
-        '</svg>';
+            xr=Math.min(W,r.right+pad), yb=Math.min(H,r.bottom+pad);
+      rect(0,0,W,y);                 // oben
+      rect(0,yb,W,H-yb);             // unten
+      rect(0,y,x,yb-y);              // links
+      rect(xr,y,W-xr,yb-y);          // rechts
+      ov.innerHTML=bloecke.join("")+
+        '<div class="ob-rahmen" style="left:'+x+'px;top:'+y+'px;width:'+(xr-x)+'px;height:'+(yb-y)+'px"></div>';
     } else {
       r=null;
-      ov.innerHTML =
-        '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+
-          '<rect width="'+W+'" height="'+H+'" fill="rgba(16,32,40,.55)"/></svg>';
+      rect(0,0,W,H);                 // Vollbild
+      ov.innerHTML=bloecke.join("");
     }
 
     bl.className = r ? "ob-blase" : "ob-blase mitte";
     bl.innerHTML = this._blaseHtml(s);
     const b1=bl.querySelector('[data-ob="weiter"]'); if(b1) b1.onclick=()=>this.weiter();
     const b2=bl.querySelector('[data-ob="zurueck"]'); if(b2) b2.onclick=()=>this.zurueck();
-    const b3=bl.querySelector('[data-ob="spaeter"]'); if(b3) b3.onclick=()=>this.spaeter();
+    const b3=bl.querySelector('[data-ob="spaeter"]'); if(b3) b3.onclick=()=>this.spaeterErledigen();
+    const b4=bl.querySelector('[data-ob="beenden"]'); if(b4) b4.onclick=()=>this.beenden();
 
     if(animieren) bl.style.animation="ob-fade .35s ease both"; else bl.style.animation="none";
 
@@ -3865,13 +3891,18 @@ const Onboarding = {
   _blaseHtml(s){
     const punkte=this.fortschritt().map(p=>'<i class="'+(p.fertig?'fertig':'')+(p.an?' an':'')+'"></i>').join("");
     const zurueckBtn=this.istErster()?"":'<button data-ob="zurueck">Zurück</button>';
-    const weiterLabel=this.istLetzter()?"Fertig":"Weiter";
+    const weiterLabel=this.istLetzter()?"Fertig":(this._idx===this._startIdx?"Los geht’s":"Weiter");
+    /* Block A: "später erledigen" als dezenter Ausweg pro Schritt (kein globaler Skip). */
+    const spaeterLink=(s.block==="A")?'<button class="ob-skip" data-ob="spaeter">später erledigen</button>':"";
+    /* Aussperr-Schutz: Einführung pro Sitzung schließbar; bei offener Einrichtung
+       kommt sie beim nächsten Start erneut. */
+    const beendenLink=this.istLetzter()?"":'<button class="ob-skip" data-ob="beenden">Einführung schließen</button>';
     return (s.illu?'<div class="ob-illu">'+this._illu(s.illu)+'</div>':"")+
       '<h3>'+this._esc(s.titel)+'</h3>'+
       '<p>'+this._esc(s.text)+'</p>'+
       '<div class="ob-fort">'+punkte+'</div>'+
       '<div class="ob-aktionen">'+
-        '<button class="ob-skip" data-ob="spaeter">Später</button>'+
+        '<span class="links">'+beendenLink+spaeterLink+'</span>'+
         '<span class="rechts">'+zurueckBtn+'<button class="primaer" data-ob="weiter">'+weiterLabel+'</button></span>'+
       '</div>';
   },
@@ -3910,6 +3941,34 @@ const Onboarding = {
       '<circle class="anim-pop" style="animation-delay:.3s" cx="52" cy="30" r="5" fill="'+NAVY+'"/>'+
       '<circle class="anim-pop" style="animation-delay:.5s" cx="82" cy="58" r="5" fill="'+NAVY+'"/>'+
       '<circle class="anim-pop" style="animation-delay:.7s" cx="108" cy="26" r="5" fill="'+FOREST+'"/></svg>';
+    if(art==="sharepoint") return '<svg viewBox="0 0 132 88">'+
+      '<g class="anim-fade">'+
+      '<path d="M44 58 a13 13 0 0 1 1 -25 a17 17 0 0 1 32 -4 a12 12 0 0 1 12 12 a11 11 0 0 1 -2 17 z" fill="#fff" stroke="'+NAVY+'" stroke-width="2.6" stroke-linejoin="round"/>'+
+      '</g>'+
+      '<g class="anim-pop" style="animation-delay:.35s">'+
+      '<path d="M60 62 a10 10 0 1 1 3 7" fill="none" stroke="'+ORANGE+'" stroke-width="3" stroke-linecap="round"/>'+
+      '<path d="M60 54 l0 8 l8 0" fill="none" stroke="'+ORANGE+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+
+      '</g></svg>';
+    if(art==="ichbin") return '<svg viewBox="0 0 132 88">'+
+      '<g class="anim-fade">'+
+      '<circle cx="66" cy="36" r="12" fill="#fff" stroke="'+NAVY+'" stroke-width="3"/>'+
+      '<path d="M46 66 a20 18 0 0 1 40 0" fill="#fff" stroke="'+NAVY+'" stroke-width="3" stroke-linecap="round"/>'+
+      '</g>'+
+      '<circle class="anim-pop" style="animation-delay:.35s" cx="86" cy="30" r="10" fill="'+FOREST+'"/>'+
+      '<path class="anim-pop" style="animation-delay:.5s" d="M81 30 l3.5 3.5 l7 -7.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    if(art==="csv") return '<svg viewBox="0 0 132 88">'+
+      '<g class="anim-fade">'+
+      '<rect x="52" y="20" width="44" height="50" rx="4" fill="#fff" stroke="'+NAVY+'" stroke-width="2.6"/>'+
+      '<line x1="52" y1="34" x2="96" y2="34" stroke="'+NAVY+'" stroke-width="2"/>'+
+      '<line x1="52" y1="46" x2="96" y2="46" stroke="'+NAVY+'" stroke-width="2" opacity=".5"/>'+
+      '<line x1="52" y1="58" x2="96" y2="58" stroke="'+NAVY+'" stroke-width="2" opacity=".5"/>'+
+      '<line x1="66" y1="20" x2="66" y2="70" stroke="'+NAVY+'" stroke-width="2" opacity=".5"/>'+
+      '<line x1="82" y1="20" x2="82" y2="70" stroke="'+NAVY+'" stroke-width="2" opacity=".5"/>'+
+      '</g>'+
+      '<g class="anim-pop" style="animation-delay:.4s">'+
+      '<line x1="24" y1="45" x2="44" y2="45" stroke="'+ORANGE+'" stroke-width="3" stroke-linecap="round"/>'+
+      '<path d="M38 39 l7 6 l-7 6" fill="none" stroke="'+ORANGE+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+
+      '</g></svg>';
     /* fertig */
     return '<svg viewBox="0 0 132 88">'+
       '<circle cx="66" cy="44" r="24" fill="none" stroke="'+FOREST+'" stroke-width="3" opacity=".35"/>'+
