@@ -132,17 +132,11 @@
   .werkzeug{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
   .werkzeug input[type=search]{flex:1;min-width:160px}
 
-  /* Einstellungen: aufklappbare Sektionen (v0.21) */
-  .einst-gruppe{border:1px solid var(--rahmen);border-radius:var(--radius);margin-bottom:10px;background:var(--flaeche);overflow:hidden}
-  .einst-gruppe>summary{list-style:none;cursor:pointer;padding:11px 14px;font-size:13px;font-weight:600;color:var(--navy);
-    text-transform:uppercase;letter-spacing:.04em;background:var(--sekundaer);display:flex;align-items:center;gap:8px;user-select:none}
-  .einst-gruppe>summary::-webkit-details-marker{display:none}
-  .einst-gruppe>summary::before{content:"\25B8";font-size:11px;color:var(--text-leise);transition:transform .15s}
-  .einst-gruppe[open]>summary::before{transform:rotate(90deg)}
-  .einst-gruppe>summary:hover{background:var(--rahmen)}
-  .einst-inhalt{padding:14px}
-  .spalte .einst-inhalt h2{font-size:13px;margin:16px 0 8px;color:var(--navy);text-transform:none;letter-spacing:0;font-weight:600}
-  .spalte .einst-inhalt h2:first-child{margin-top:0}
+  /* Einstellungen: flache Abschnitte auf einer Seite (v0.29) */
+  .einst-block{border:1px solid var(--rahmen);border-radius:var(--radius);margin-bottom:12px;background:var(--flaeche);padding:12px 16px 16px}
+  .spalte .einst-block h2{font-size:13px;margin:16px 0 8px;color:var(--navy);text-transform:none;letter-spacing:0;font-weight:600;display:flex;align-items:center;gap:6px}
+  .spalte .einst-block h2:first-child{margin-top:4px}
+  .einst-info{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--sekundaer);color:var(--text-leise);font-size:10px;font-weight:700;cursor:help;user-select:none}
   /* Einrichtungen: nach Bereich gruppiert, aufklappbar */
   .einr-gruppe{border:1px solid var(--rahmen);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;background:var(--flaeche)}
   .gruppe-kopf{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;border-radius:0;
@@ -346,7 +340,7 @@
   .ob-overlay{position:fixed;inset:0;z-index:2050;pointer-events:none}
   .ob-block{position:absolute;background:rgba(16,32,40,.55);pointer-events:none}
   .ob-rahmen{position:absolute;border:2px solid var(--orange);border-radius:10px;pointer-events:none}
-  .ob-blase{position:absolute;z-index:2060;pointer-events:auto;max-width:340px;width:min(340px,88vw);
+  .ob-blase{position:fixed;z-index:2060;pointer-events:auto;max-width:340px;width:min(340px,88vw);
     background:var(--flaeche);color:var(--text);border:1px solid var(--rahmen);border-radius:10px;
     box-shadow:0 8px 28px rgba(0,0,0,.28);padding:16px 18px}
   .ob-blase.mitte{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:440px;width:min(440px,92vw);text-align:center}
@@ -1487,7 +1481,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.28.3";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.29.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -5454,25 +5448,30 @@ const Oberflaeche = {
       .sort((x,y)=>x.localeCompare(y,"de"));
     const bezugslehrerOptionen = `<option value="">– bitte wählen –</option>` +
       bezugslehrerWerte.map(w=>`<option value="${esc(w)}" ${s.bezugslehrerWert===w?"selected":""}>${esc(bezugslehrerAnzeige(w))}</option>`).join("");
+    /* v0.29: flache Abschnitte auf einer Seite (keine Akkordeons), logische
+       Reihenfolge (SharePoint zuerst), Erklärungen als ⓘ-Hover statt Fließtext. */
     return `<div class="spalte" style="grid-column:1/-1">
-      <details class="einst-gruppe" open>
-        <summary>Mein Profil &amp; Export</summary>
-        <div class="einst-inhalt">
-          <h2>Ich bin …</h2>
-          <div class="meta" style="margin-bottom:8px">Steuert die „Nur meine/Alle"-Ansicht im Azubi-Tab und wird als Name auf dem DFA-Formular sowie im Feedback verwendet. Werte kommen direkt aus der Bezugslehrer-Spalte der Azubis-Liste in SharePoint.</div>
-          <div class="feld" style="max-width:320px"><label>Bezugslehrer*in</label>
-            <select id="bezugslehrerWert">${bezugslehrerOptionen}</select></div>
+      <section class="einst-block">
+        <h2>Datenquelle SharePoint <span class="einst-info" title="Login und Live-Sync von Einrichtungen, Azubis und Einsatzplänen. Erste Anmeldung einmalig, danach Hintergrund-Sync. Manuell angelegte Einträge bleiben erhalten.">i</span></h2>
+        <div id="spStatus" class="meta" style="margin-bottom:8px">SharePoint: -</div>
+        <button id="spSyncBtn">Anmelden &amp; Daten aktualisieren</button>
+        <button id="startlisteNeuBtn">Einrichtungen neu von SharePoint laden</button>
+      </section>
 
-          <div id="obZielAdresse">
-          <h2>Private Startadresse (für Fahrtkosten)</h2>
-          <div class="meta" style="margin-bottom:8px">Wird als Startpunkt für die Fahrtkostenberechnung verwendet. Wenn nicht angegeben, wird die Schuladresse verwendet (Hammfelddamm 7, 41460 Neuss). 🔒 Wird nur lokal auf deinem Gerät gespeichert.</div>
+      <section class="einst-block">
+        <h2>Ich bin … <span class="einst-info" title="Steuert die Nur-meine/Alle-Ansicht im Azubi-Tab und liefert den Namen für DFA-Formular und Feedback. Werte aus der Bezugslehrer-Spalte in SharePoint.">i</span></h2>
+        <div class="feld" style="max-width:320px"><label>Bezugslehrer*in</label>
+          <select id="bezugslehrerWert">${bezugslehrerOptionen}</select></div>
+
+        <div id="obZielAdresse">
+          <h2>Private Startadresse <span class="einst-info" title="Startpunkt für die Fahrtkostenberechnung. Ohne Angabe wird die Schuladresse genutzt. Wird nur lokal auf diesem Gerät gespeichert.">i</span></h2>
           <div class="feld-reihe" style="max-width:560px">
             <div class="feld" style="flex:2"><label>Straße &amp; Hausnummer</label>
               <input id="privStrasse" value="${esc(a.strasse)}" placeholder="z.B. Musterweg 12"></div>
             <div class="feld" style="width:90px"><label>PLZ</label>
-              <input id="privPlz" value="${esc(a.plz)}" placeholder="41460"></div>
+              <input id="privPlz" value="${esc(a.plz)}" placeholder="z.B. 41460"></div>
             <div class="feld" style="flex:1"><label>Ort</label>
-              <input id="privOrt" value="${esc(a.ort)}" placeholder="Neuss"></div>
+              <input id="privOrt" value="${esc(a.ort)}" placeholder="z.B. Neuss"></div>
           </div>
           <div class="werkzeug" style="margin-top:8px">
             <button class="primaer" id="privSpeichern">Adresse speichern</button>
@@ -5480,61 +5479,34 @@ const Oberflaeche = {
             <button id="privVerorten">Privatadresse verorten</button>
             <span id="privVerortenStatus" class="meta">${a.lat!=null?"verortet ✓":""}</span>
           </div>
-          </div>
-
-          <h2>Automatische Sicherungen</h2>
-          <div id="sicherungsListe" class="leer">lädt…</div>
-
-          <h2>Einführung</h2>
-          <div class="meta" style="margin-bottom:8px">Zeigt die kurze Erst-Einführung durch die App erneut an.</div>
-          <button id="obErneutBtn">Einführung erneut anzeigen</button>
         </div>
-      </details>
+      </section>
 
-      <details class="einst-gruppe" open>
-        <summary>Planungs-Parameter</summary>
-        <div class="einst-inhalt">
-          <h2>Besuchsdauer</h2>
-          <div class="meta" style="margin-bottom:8px">Geplante Dauer eines Praxisbesuchs <b>pro Azubi</b> in Minuten – Grundlage für die Zeitplanung im Touren-Tab (Sammelbesuch: Anzahl Azubis × Dauer).</div>
-          <div class="feld" style="max-width:180px"><label>Minuten je Besuch</label>
-            <input id="besuchDauer" type="number" min="10" max="120" step="1" value="${s.besuchDauerMin||37}"></div>
+      <section class="einst-block">
+        <h2>Besuchsdauer <span class="einst-info" title="Geplante Dauer eines Praxisbesuchs pro Azubi in Minuten. Grundlage für die Zeitplanung im Touren-Tab (Sammelbesuch: Anzahl Azubis × Dauer).">i</span></h2>
+        <div class="feld" style="max-width:180px"><label>Minuten je Besuch</label>
+          <input id="besuchDauer" type="number" min="10" max="120" step="1" value="${s.besuchDauerMin||37}"></div>
 
-          <h2>Sammelbesuch-Größe</h2>
-          <div class="meta" style="margin-bottom:8px">Max. Anzahl Azubis, die gleichzeitig an einer Einrichtung besucht werden – gilt für Sammelbesuch-Vorschläge und den Tourenbuilder.</div>
-          <div class="feld" style="max-width:180px"><label>Max. Azubis je Einrichtung</label>
-            <input id="maxSammel" type="number" min="2" max="5" step="1" value="${s.maxSammelGroesse||3}"></div>
-        </div>
-      </details>
+        <h2>Sammelbesuch-Größe <span class="einst-info" title="Maximale Anzahl Azubis, die gleichzeitig an einer Einrichtung besucht werden. Gilt für Sammelbesuch-Vorschläge und den Tourenbuilder.">i</span></h2>
+        <div class="feld" style="max-width:180px"><label>Max. Azubis je Einrichtung</label>
+          <input id="maxSammel" type="number" min="2" max="5" step="1" value="${s.maxSammelGroesse||3}"></div>
+      </section>
 
-      <details class="einst-gruppe" open>
-        <summary>Datenquelle SharePoint</summary>
-        <div class="einst-inhalt">
-          <h2>Einrichtungen, Azubis &amp; Einsatzpläne (SharePoint)</h2>
-          <div class="meta" style="margin-bottom:8px">Einrichtungen, Azubis und Einsatzpläne kommen live aus SharePoint. Beim ersten Mal ist eine einmalige Microsoft-Anmeldung nötig; danach aktualisiert die App im Hintergrund. Zentrale Einrichtungen werden dabei abgeglichen, deine eigenen, manuell angelegten Einträge bleiben erhalten. Änderungen am Besuchsstatus werden sofort lokal gespeichert und anschließend nach SharePoint geschickt – ohne Verbindung werden sie beim nächsten Aktualisieren nachgereicht.</div>
-          <div id="spStatus" class="meta" style="margin-bottom:8px">SharePoint: -</div>
-          <button id="spSyncBtn">Anmelden &amp; Daten aktualisieren</button>
-          <button id="startlisteNeuBtn">Einrichtungen neu von SharePoint laden</button>
-        </div>
-      </details>
+      <section class="einst-block">
+        <h2>Karte / Koordinaten <span class="einst-info" title="Verortet die in Einsatzplänen genutzten Einrichtungen neu (für die Touren-Karte). OpenStreetMap/Nominatim, ca. 1 Sekunde je Einrichtung, nur mit Internet.">i</span></h2>
+        <button id="geoNeuBtn">Koordinaten aktualisieren</button>
+        <span id="geoNeuStatus" class="meta" style="margin-left:10px"></span>
+      </section>
 
-      <details class="einst-gruppe">
-        <summary>Karte / Koordinaten</summary>
-        <div class="einst-inhalt">
-          <h2>Karte / Koordinaten</h2>
-          <div class="meta" style="margin-bottom:8px">Verortet die in Einsatzplänen verwendeten Einrichtungen neu (für die Touren-Karte). Nutzt OpenStreetMap/Nominatim, ca. 1 Sekunde pro Einrichtung – nur bei Internet-Zugang.</div>
-          <button id="geoNeuBtn">Koordinaten aktualisieren</button>
-          <span id="geoNeuStatus" class="meta" style="margin-left:10px"></span>
-        </div>
-      </details>
+      <section class="einst-block">
+        <h2>Einführung <span class="einst-info" title="Zeigt die kurze Erst-Einführung durch die App erneut an.">i</span></h2>
+        <button id="obErneutBtn">Einführung erneut anzeigen</button>
+      </section>
 
-      <details class="einst-gruppe">
-        <summary>Gefahrenzone</summary>
-        <div class="einst-inhalt">
-          <h2>Gefahrenzone</h2>
-          <div class="meta" style="margin-bottom:8px">Lösche gezielt einzelne Datenpakete. Zentrale Einrichtungen aus SharePoint werden beim nächsten Abgleich automatisch neu geladen; deine manuell angelegten Einträge bleiben davon unberührt.</div>
-          <button class="gefahr" id="loeschBtn">Daten löschen…</button>
-        </div>
-      </details>
+      <section class="einst-block">
+        <h2>Gefahrenzone <span class="einst-info" title="Löscht gezielt einzelne Datenpakete. Zentrale SharePoint-Einrichtungen kommen beim nächsten Abgleich neu; manuell angelegte Einträge bleiben erhalten.">i</span></h2>
+        <button class="gefahr" id="loeschBtn">Daten löschen…</button>
+      </section>
     </div>`;
   },
 
@@ -5646,7 +5618,6 @@ const Oberflaeche = {
       if(st) st.textContent = ok ? "fertig." : "keine relevanten Einrichtungen gefunden.";
     };
     const lo=document.getElementById("loeschBtn"); if(lo) lo.onclick=()=>this._loeschen();
-    if(document.getElementById("sicherungsListe")) this._sicherungenZeigen();
   },
   _csvDialog(){
     const inp=document.createElement("input"); inp.type="file"; inp.accept=".csv"; inp.multiple=true;
@@ -5689,14 +5660,6 @@ const Oberflaeche = {
       naechster();
     };
     inp.click();
-  },
-  async _sicherungenZeigen(){
-    const keys=await Sicherung.liste();
-    const el=document.getElementById("sicherungsListe");
-    el.innerHTML = keys.length? keys.map(k=>`<div class="zeile"><div class="meta">${new Date(k).toLocaleString("de-DE")}</div>
-      <div class="rechts"><button data-restore="${k}">Wiederherstellen</button></div></div>`).join("")
-      : `<div class="leer">Noch keine Sicherung.</div>`;
-    el.querySelectorAll("[data-restore]").forEach(b=> b.onclick=()=>{ if(confirm("Diesen Stand wiederherstellen? Aktueller Stand wird ersetzt.")) Sicherung.wiederherstellen(b.dataset.restore); });
   },
   async _nasOrdnerAnzeigen(){
     /* entfällt ab v0.13 – automatische Ordner-Anbindung wird in der Citrix-Umgebung nicht unterstützt */

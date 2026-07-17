@@ -4,6 +4,16 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.29.0 – 2026-07-18
+- **Einstellungen umgebaut:** keine aufklappbaren Reiter mehr – alle Abschnitte
+  flach auf einer Seite, in logischer Reihenfolge (SharePoint zuerst, Gefahrenzone
+  zuletzt). Erklärungstexte als **ⓘ-Hover** (Tooltip) statt Fließtext.
+  „Automatische Sicherungen"-Anzeige entfernt (Backup-Mechanik läuft im Hintergrund
+  weiter).
+- **Fix „Sprechblase sitzt zu hoch" (Wurzel):** Die Wizard-Sprechblase ist jetzt
+  `position:fixed`. Der Scroll-Versatz auf langen Seiten (z. B. SharePoint-Schritt)
+  entfällt – die Blase steht unabhängig von der Seitenlänge korrekt am Ziel.
+
 ## v0.28.3 – 2026-07-17
 - **Fix Bug A:** Sprechblasen-Position im Onboarding-Wizard – jetzt seitlich am
   Ziel **zentriert** (behebt „sitzt zu hoch"), **überlappungsfrei** und
