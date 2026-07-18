@@ -4320,10 +4320,24 @@ const Oberflaeche = {
           <span class="kpi-zahl">${bu.nachzuholen}</span><span class="kpi-label">nachzuholen</span></div>
       </div>
     </section>`;
+    /* v0.32 -- neu per CSV angelegte Azubis haben bewusst keinen Bezugslehrer
+       (Etappe 2, Teil 1). Ohne diese Kachel wuerde das stillschweigend
+       untergehen: nur fuer Admins, nur wenn tatsaechlich etwas offen ist. */
+    const ohneBL = admin ? Azubis.ohneBezugslehrer() : [];
+    const bezugslehrerHinweis = ohneBL.length
+      ? `<section class="einst-block">
+          <div class="hinweis warn">⚠ <b>${ohneBL.length} Azubi(s) ohne Bezugslehrer*in</b> – Zuordnung fehlt noch:
+            <ul style="margin:6px 0 0 18px">
+              ${ohneBL.map(a=>`<li>${(Azubis.name(a.id)||a.kuerzel||"—").replace(/</g,"&lt;")} · ${(a.kurs||"—").replace(/</g,"&lt;")}</li>`).join("")}
+            </ul>
+          </div>
+        </section>`
+      : "";
     return `<div class="spalte" style="grid-column:1/-1">
       ${zurueck}
       <div style="margin-bottom:10px"><b style="font-size:17px;color:var(--navy)">Dashboard</b>${badge}</div>
       ${kacheln}
+      ${bezugslehrerHinweis}
       ${verwaltung}
       <section class="einst-block">
         <h2>Bezugslehrer-Auslastung</h2>
