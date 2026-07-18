@@ -18,6 +18,7 @@ const bloecke = [
   ['SPSync',           /const SPSync = \{[\s\S]*?\n\};/],
   ['Azubis',           /const Azubis = \{[\s\S]*?\n\};/],
   ['Dashboard',        /const Dashboard = \{[\s\S]*?\n\};/],
+  ['Eingang',          /const Eingang = \{[\s\S]*?\n\};/],
 ];
 
 const teile = [];

@@ -2677,7 +2677,7 @@ const Eingang = {
      gesucht (Plan-Spec 4.4). Ohne Anmeldung ist kein Import möglich – das
      ist gewollt: sonst entstünden lokale Datenstände, die niemand sieht.
      Rückgabe: {ok:true} oder {ok:false, grund, kandidaten} für den Aufrufer. */
-  async uebernehmen(plan, korrekturen){
+  async uebernehmen(plan, korrekturen, neuAnlegen, kursWert){
     // korrekturen: array {typ, bereich, zuordnenId, durchgefuehrt, durchDatum} je Eintrag (gleiche Reihenfolge)
     plan.eintraege.forEach((e,i)=>{
       const k=korrekturen[i];
@@ -2709,16 +2709,23 @@ const Eingang = {
       return {ok:false, grund:"nichtAngemeldet"};
     }
 
-    // Azubi in der SharePoint-Liste suchen (Nachname, bei Mehrdeutigkeit + Kurs)
-    let azubisSp;
-    try { azubisSp=await SPSync.azubisBestand(token); }
-    catch(e){
-      Oberflaeche.toast("Azubi-Liste konnte nicht von SharePoint geladen werden: " + ((e&&e.message)||e), true);
-      return {ok:false, grund:"ladefehler"};
+    // Azubi in der SharePoint-Liste suchen (Nachname, bei Mehrdeutigkeit + Kurs) --
+    // oder, wenn neuAnlegen gesetzt ist, direkt neu anlegen (v0.32, Etappe 2 Teil 1:
+    // "kein Treffer" fuehrt dann nicht mehr in eine Sackgasse).
+    let treffer;
+    if(neuAnlegen){
+      treffer={ status:"treffer", azubi: await SPSync.azubiAnlegen(token, plan, kursWert) };
+    } else {
+      let azubisSp;
+      try { azubisSp=await SPSync.azubisBestand(token); }
+      catch(e){
+        Oberflaeche.toast("Azubi-Liste konnte nicht von SharePoint geladen werden: " + ((e&&e.message)||e), true);
+        return {ok:false, grund:"ladefehler"};
+      }
+      treffer = (plan.azubiSpId)
+        ? {status:"treffer", azubi: azubisSp.find(a=>String(a.spId)===String(plan.azubiSpId)), abweichung:null}
+        : SPSync.zuordnen(plan.id, plan.kurs, azubisSp);
     }
-    const treffer = (plan.azubiSpId)
-      ? {status:"treffer", azubi: azubisSp.find(a=>String(a.spId)===String(plan.azubiSpId)), abweichung:null}
-      : SPSync.zuordnen(plan.id, plan.kurs, azubisSp);
 
     if(treffer.status!=="treffer" || !treffer.azubi){
       return {ok:false, grund:treffer.status, kandidaten:treffer.kandidaten||[]};

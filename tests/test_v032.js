@@ -14,10 +14,13 @@ function p(name, cond) {
 
 let SharePoint = { istAdmin: false, _graphGet: async () => { throw new Error('kein Netzwerk im Test'); } };
 let Daten = { state: { azubis: [], azubiNamen: {}, bezugslehrerWert: '', ansichtModus: 'meine' } };
+let Einrichtungen = { alle: () => [], aliasHinzufuegen: () => {}, sicherstellen: () => {} };
+let Oberflaeche = { toast: () => {} };
+let pflichtbesucheMarkieren = () => {};
 
-const wrapped = new Function('SharePoint', 'Daten',
-  bundle + '\nreturn { kursVorschlagAusCsv, SPSync, Azubis };');
-const { kursVorschlagAusCsv, SPSync, Azubis } = wrapped(SharePoint, Daten);
+const wrapped = new Function('SharePoint', 'Daten', 'Einrichtungen', 'Oberflaeche', 'pflichtbesucheMarkieren',
+  bundle + '\nreturn { kursVorschlagAusCsv, SPSync, Azubis, Eingang };');
+const { kursVorschlagAusCsv, SPSync, Azubis, Eingang } = wrapped(SharePoint, Daten, Einrichtungen, Oberflaeche, pflichtbesucheMarkieren);
 
 (async () => {
   /* ---------- 1. kursVorschlagAusCsv(): CSV-Langform -> Azubis-Kurzform ---------- */
@@ -70,6 +73,37 @@ const { kursVorschlagAusCsv, SPSync, Azubis } = wrapped(SharePoint, Daten);
   p('ohneBezugslehrer: genau 2 Treffer', ohne.length === 2);
   p('ohneBezugslehrer: leere Liste -> leeres Ergebnis (kein Absturz)',
     (() => { Daten.state.azubis = []; return Azubis.ohneBezugslehrer().length === 0; })());
+
+  /* ---------- 4. Eingang.uebernehmen(..., neuAnlegen=true) ------------ */
+  SharePoint._tokenStill = async () => 'tok';
+  let azubiAnlegenAufruf = null;
+  SPSync.azubiAnlegen = async (token, plan, kursWert) => {
+    azubiAnlegenAufruf = { token, plan, kursWert };
+    return { spId: '999', name: 'Mustermann', kurs: kursWert, stammeinrichtung: plan.stammeinrichtung, bezugslehrer: '' };
+  };
+  let zuordnenAufgerufen = false;
+  SPSync.zuordnen = () => { zuordnenAufgerufen = true; return { status: 'keinTreffer', kandidaten: [] }; };
+  let hochgeladenMit = null;
+  SPSync.einsatzplanHochladen = async (token, spId, planId, einsaetze) => {
+    hochgeladenMit = { spId, planId, einsaetze };
+    return { neu: 1, geaendert: 0, entfernt: 0 };
+  };
+
+  const planNeu = {
+    id: 'Mustermann, Erika', kurs: 'PFK 041 N 2024 H', ausbildung: 'PFK',
+    stammeinrichtung: 'Krankenhaus X',
+    eintraege: [{ typ: 'OE', einrichtungName: 'Krankenhaus X', von: '2025-01-01', bis: '2025-01-15', std: 40 }]
+  };
+  const korrNeu = [{ bereich: 'Akut', typ: 'OE', zuordnenId: '', durchgefuehrt: false, durchDatum: '' }];
+
+  const ergNeu = await Eingang.uebernehmen(planNeu, korrNeu, true, 'PFK N 041');
+  p('uebernehmen(neuAnlegen=true): Erfolg', ergNeu.ok === true);
+  p('uebernehmen(neuAnlegen=true): SPSync.zuordnen wird NICHT aufgerufen', zuordnenAufgerufen === false);
+  p('uebernehmen(neuAnlegen=true): SPSync.azubiAnlegen wird mit kursWert aufgerufen',
+    azubiAnlegenAufruf && azubiAnlegenAufruf.kursWert === 'PFK N 041');
+  p('uebernehmen(neuAnlegen=true): Einsatzplan wird mit der neuen spId hochgeladen',
+    hochgeladenMit && hochgeladenMit.spId === '999');
+  p('uebernehmen(neuAnlegen=true): Bericht wird durchgereicht', ergNeu.bericht.neu === 1);
 
   console.log(log.join('\n'));
   console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
