@@ -105,6 +105,10 @@ const { kursVorschlagAusCsv, SPSync, Azubis, Eingang } = wrapped(SharePoint, Dat
     hochgeladenMit && hochgeladenMit.spId === '999');
   p('uebernehmen(neuAnlegen=true): Bericht wird durchgereicht', ergNeu.bericht.neu === 1);
 
+  SPSync.azubiAnlegen = async () => { throw new Error('SharePoint-Schreibfehler (Test)'); };
+  const ergFehler = await Eingang.uebernehmen(planNeu, korrNeu, true, 'PFK N 041');
+  p('uebernehmen(neuAnlegen=true): Schreibfehler bei azubiAnlegen wird abgefangen, kein Wurf', ergFehler && ergFehler.ok === false && ergFehler.grund === 'schreibfehler');
+
   console.log(log.join('\n'));
   console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
   if (fail > 0) process.exit(1);

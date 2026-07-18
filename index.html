@@ -2714,7 +2714,13 @@ const Eingang = {
     // "kein Treffer" fuehrt dann nicht mehr in eine Sackgasse).
     let treffer;
     if(neuAnlegen){
-      treffer={ status:"treffer", azubi: await SPSync.azubiAnlegen(token, plan, kursWert) };
+      let neuerAzubi;
+      try { neuerAzubi=await SPSync.azubiAnlegen(token, plan, kursWert); }
+      catch(e){
+        Oberflaeche.toast("Azubi konnte nicht in SharePoint angelegt werden: " + ((e&&e.message)||e), true);
+        return {ok:false, grund:"schreibfehler"};
+      }
+      treffer={ status:"treffer", azubi: neuerAzubi };
     } else {
       let azubisSp;
       try { azubisSp=await SPSync.azubisBestand(token); }
