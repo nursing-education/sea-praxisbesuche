@@ -1662,6 +1662,20 @@ function ausbildungAusKurs(kurs){
   return /pflass/i.test(String(kurs||"")) ? "PFA" : "PFK";
 }
 
+/* Wandelt den CSV-Kurswert (Easysoft-Langform, z.B. "PFK 041 N 2024 H") in einen
+   VORSCHLAG fuer die in SharePoint gepflegte Kurzform um (z.B. "PFK N 041").
+   Nur ein Vorschlag -- der Admin sieht und bestaetigt/korrigiert ihn im
+   "Azubi anlegen"-Dialog (Eingang.uebernehmen/_azubiKeinTreffer), bevor er
+   geschrieben wird. Basis: ein verifiziertes Beispiel-Paar (Christian, 18.07.2026);
+   erkennt die Regel das Muster nicht, wird der Wert unveraendert zurueckgegeben. */
+function kursVorschlagAusCsv(csvKurs){
+  const s=String(csvKurs||"").trim();
+  const m=s.match(/^([A-Za-zÄÖÜäöüß]+)\s+(\d{2,3})(?:\s+([A-Z]))?/);
+  if(!m) return s;
+  const typ=m[1], nr=m[2], ort=m[3];
+  return ort ? (typ+" "+ort+" "+nr) : (typ+" "+nr);
+}
+
 /* Anzeige: ISO (YYYY-MM-DD) -> DD.MM.YYYY */
 function fmtDatum(iso){ const m=(iso||"").match(/^(\d{4})-(\d{2})-(\d{2})/); return m?`${m[3]}.${m[2]}.${m[1]}`:(iso||""); }
 /* kleines Kalender-Icon (monochrom, nimmt die Textfarbe an) für die Datumszeile der Anstehend-Karten */

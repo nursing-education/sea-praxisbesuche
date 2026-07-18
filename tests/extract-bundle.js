@@ -13,6 +13,7 @@ const bloecke = [
   ['SP_CONFIG',        /const SP_CONFIG = \{[\s\S]*?\n\};/],
   ['SP_FELDER_ADMINS', /const SP_FELDER_ADMINS = \{[^\n]*?\};/],
   ['bezugslehrerAnzeige', /function bezugslehrerAnzeige\([\s\S]*?\n\}/],
+  ['kursVorschlagAusCsv', /function kursVorschlagAusCsv\([\s\S]*?\n\}/],
   ['SPSync',           /const SPSync = \{[\s\S]*?\n\};/],
   ['Azubis',           /const Azubis = \{[\s\S]*?\n\};/],
   ['Dashboard',        /const Dashboard = \{[\s\S]*?\n\};/],
