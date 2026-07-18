@@ -30,6 +30,33 @@ const { kursVorschlagAusCsv, SPSync, Azubis } = wrapped(SharePoint, Daten);
   p('leer/undefined -> leerer String',
     kursVorschlagAusCsv('') === '' && kursVorschlagAusCsv(undefined) === '');
 
+  /* ---------- 2. SPSync.azubiAnlegen(): POST + Rueckgabeform + Cache-Pflege ---- */
+  const planNeuAz = { id: 'Mustermann, Erika', kurs: 'PFK 041 N 2024 H', stammeinrichtung: 'Krankenhaus X' };
+  let gesendeteFelder = null;
+  SPSync._itemsUrl = async () => 'https://graph.example/items';
+  SPSync._schreiben = async (url, token, methode, body) => {
+    gesendeteFelder = body.fields;
+    return { id: '4711' };
+  };
+
+  const neuAz = await SPSync.azubiAnlegen('tok', planNeuAz, 'PFK N 041');
+  p('azubiAnlegen: Title = Nachname aus plan.id', gesendeteFelder.Title === 'Mustermann');
+  p('azubiAnlegen: Kurs = uebergebener kursWert (nicht plan.kurs roh)', gesendeteFelder.field_1 === 'PFK N 041');
+  p('azubiAnlegen: Stammeinrichtung aus plan.stammeinrichtung', gesendeteFelder.field_2 === 'Krankenhaus X');
+  p('azubiAnlegen: Bezugslehrer/Bemerkung/Praxisanleitung leer',
+    gesendeteFelder.field_3 === '' && gesendeteFelder.field_4 === '' && gesendeteFelder.field_5 === '');
+  p('azubiAnlegen: Rueckgabe enthaelt spId aus der SharePoint-Antwort', neuAz.spId === '4711');
+  p('azubiAnlegen: Rueckgabe hat leeren bezugslehrer', neuAz.bezugslehrer === '');
+
+  SPSync._azubisCache = [{ spId: '1', name: 'Bestand' }];
+  const neuAz2 = await SPSync.azubiAnlegen('tok', planNeuAz, 'PFK N 041');
+  p('azubiAnlegen: neuer Azubi landet im bestehenden Cache (verhindert Duplikate im selben Import)',
+    SPSync._azubisCache.length === 2 && SPSync._azubisCache[1].spId === '4711');
+
+  SPSync._azubisCache = null;
+  await SPSync.azubiAnlegen('tok', planNeuAz, 'PFK N 041');
+  p('azubiAnlegen: kein Cache vorhanden -> kein Absturz', SPSync._azubisCache === null);
+
   console.log(log.join('\n'));
   console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
   if (fail > 0) process.exit(1);

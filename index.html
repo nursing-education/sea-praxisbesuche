@@ -2359,6 +2359,31 @@ const SPSync = {
     this._azubisCache=await this.azubisLaden(token);
     return this._azubisCache;
   },
+
+  /* v0.32 -- Neuen Azubi anlegen, wenn der CSV-Import keinen Treffer in der
+     Azubis-Liste findet (Etappe 2, Teil 1). kursWert kommt bereits admin-
+     bestaetigt aus dem "Azubi anlegen"-Dialog (siehe kursVorschlagAusCsv).
+     Bezugslehrer/Bemerkung/Praxisanleitung bleiben bewusst leer -- werden
+     spaeter manuell in SharePoint nachgetragen (siehe Dashboard-Kachel
+     "Azubis ohne Bezugslehrer"). Neuer Azubi landet zusaetzlich im laufenden
+     Cache, damit ein zweiter CSV-Block mit demselben (neuen) Namen im selben
+     Import-Vorgang ihn ueber zuordnen() findet statt einen Duplikat anzulegen. */
+  async azubiAnlegen(token, plan, kursWert){
+    const url=await this._itemsUrl(token, SP_CONFIG.listAzubis);
+    const F=SP_FELDER_AZUBIS;
+    const felder={};
+    felder[F.name]=this.nachnameAus(plan.id);
+    felder[F.kurs]=kursWert||"";
+    felder[F.stammeinrichtung]=plan.stammeinrichtung||"";
+    felder[F.bezugslehrer]="";
+    felder[F.bemerkung]="";
+    felder[F.praxisanleitung]="";
+    const r=await this._schreiben(url, token, "POST", { fields: felder });
+    const neu={ spId: r && r.id, name: felder[F.name], kurs: felder[F.kurs],
+                stammeinrichtung: felder[F.stammeinrichtung], bezugslehrer:"" };
+    if(this._azubisCache) this._azubisCache.push(neu);
+    return neu;
+  },
   _adminsCache: null,
   /* v0.25 -- Admin-Erkennung: SharePoint-Liste "Admins" (eine Spalte mit
      Microsoft-Anmelde-Adressen). Bewusst NICHT ueber einen Namens-Text
