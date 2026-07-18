@@ -4878,7 +4878,7 @@ const Oberflaeche = {
         return;
       }
       if(erg && erg.grund==="mehrdeutig"){ this._azubiAuswahl(plan, korr, erg.kandidaten, queue, weiter); return; }
-      if(erg && erg.grund==="keinTreffer"){ this._azubiKeinTreffer(plan, queue, weiter); return; }
+      if(erg && erg.grund==="keinTreffer"){ this._azubiKeinTreffer(plan, korr, queue, weiter); return; }
       /* nichtAngemeldet / Lade- oder Schreibfehler: Meldung kam bereits per Toast.
          Dialog offen lassen, damit der Import nach Anmeldung wiederholt werden kann. */
     };
@@ -4915,20 +4915,37 @@ const Oberflaeche = {
   },
 
   /* v0.22 – Kein passender Azubi in SharePoint (z. B. Tippfehler in der
-     manuell gepflegten Liste). Es wird bewusst NICHTS automatisch angelegt. */
-  _azubiKeinTreffer(plan, queue, weiter){
+     manuell gepflegten Liste). v0.32: Admin kann den Azubi jetzt direkt aus
+     den CSV-Daten anlegen (Etappe 2, Teil 1) statt manuell in SharePoint. */
+  _azubiKeinTreffer(plan, korr, queue, weiter){
     const nn=SPSync.nachnameAus(plan.id);
+    const kursVorschlag=kursVorschlagAusCsv(plan.kurs);
     this.modal(`<h3>Azubi nicht gefunden</h3>
       <div class="hinweis warn">In der SharePoint-Liste „Azubis" gibt es keinen Eintrag mit dem Nachnamen
         <b>${(nn||"—").replace(/</g,"&lt;")}</b> (aus der CSV: „${(plan.id||"").replace(/</g,"&lt;")}",
         Kurs ${(plan.kurs||"—").replace(/</g,"&lt;")}).</div>
-      <div class="meta">Der Einsatzplan wurde <b>nicht</b> hochgeladen. Mögliche Ursachen:
-        Tippfehler im Nachnamen in der Azubis-Liste, oder der Azubi fehlt dort noch.
-        Bitte die Liste „Azubis" in SharePoint prüfen bzw. ergänzen und den Import danach erneut starten.</div>
+      <div class="meta">Trägerhaus (aus CSV): <b>${(plan.stammeinrichtung||"—").replace(/</g,"&lt;")}</b></div>
+      <label style="display:block;margin-top:10px">Kurs (bitte prüfen, ggf. korrigieren)
+        <input type="text" id="azNeuKurs" value="${kursVorschlag.replace(/"/g,"&quot;")}" style="width:100%;margin-top:4px;box-sizing:border-box">
+      </label>
       <div class="modal-aktionen">
-        <button class="aktion" id="azKeinOk">Verstanden – weiter</button>
+        <button id="azKeinUeber">Diesen Azubi überspringen</button>
+        <button class="aktion" id="azNeuAnlegen">Azubi anlegen</button>
       </div>`);
-    document.getElementById("azKeinOk").onclick=()=>{ this.modalZu(); weiter(); };
+    document.getElementById("azKeinUeber").onclick=()=>{ this.modalZu(); weiter(); };
+    document.getElementById("azNeuAnlegen").onclick=async()=>{
+      const btn=document.getElementById("azNeuAnlegen"); btn.disabled=true;
+      const kursWert=document.getElementById("azNeuKurs").value.trim();
+      const erg=await Eingang.uebernehmen(plan, korr, true, kursWert);
+      if(erg && erg.ok){
+        if(queue&&queue.onImport) queue.onImport();
+        this.modalZu(); weiter();
+        return;
+      }
+      btn.disabled=false;
+      /* Fehler-Toast kam bereits aus uebernehmen()/tieferen Ebenen (Schreib-
+         /Ladefehler); Dialog bleibt offen fuer einen erneuten Versuch. */
+    };
   },
 
   /* ---- Touren (Karte) ---- */
