@@ -57,6 +57,20 @@ const { kursVorschlagAusCsv, SPSync, Azubis } = wrapped(SharePoint, Daten);
   await SPSync.azubiAnlegen('tok', planNeuAz, 'PFK N 041');
   p('azubiAnlegen: kein Cache vorhanden -> kein Absturz', SPSync._azubisCache === null);
 
+  /* ---------- 3. Azubis.ohneBezugslehrer() ---------------------------- */
+  Daten.state.azubis = [
+    { id: '1', kuerzel: 'Mustermann', kurs: 'PFK N 041', bezugslehrer: 'Meier, Anna (10)' },
+    { id: '2', kuerzel: 'Schmidt', kurs: 'PFK N 041', bezugslehrer: '' },
+    { id: '3', kuerzel: 'Weber', kurs: 'PFK N 042', bezugslehrer: '   ' },
+  ];
+  const ohne = Azubis.ohneBezugslehrer();
+  p('ohneBezugslehrer: findet leeren String', ohne.some(a => a.id === '2'));
+  p('ohneBezugslehrer: findet nur-Leerzeichen als leer', ohne.some(a => a.id === '3'));
+  p('ohneBezugslehrer: lässt zugeordnete Azubis weg', !ohne.some(a => a.id === '1'));
+  p('ohneBezugslehrer: genau 2 Treffer', ohne.length === 2);
+  p('ohneBezugslehrer: leere Liste -> leeres Ergebnis (kein Absturz)',
+    (() => { Daten.state.azubis = []; return Azubis.ohneBezugslehrer().length === 0; })());
+
   console.log(log.join('\n'));
   console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
   if (fail > 0) process.exit(1);

@@ -2765,6 +2765,11 @@ const Azubis = {
     const n=SPSync._norm(wert);
     return alle.filter(a=> SPSync._norm(a.bezugslehrer)===n);
   },
+  /* v0.32 -- Azubis ohne Bezugslehrer-Zuordnung (z.B. frisch per CSV-Import
+     angelegt). Grundlage der Dashboard-Kachel "Azubis ohne Bezugslehrer". */
+  ohneBezugslehrer(){
+    return this.alle().filter(a=> !(a.bezugslehrer && a.bezugslehrer.trim()));
+  },
   name(id){ return Daten.state.azubiNamen[id]||""; },
   async nameSetzen(id,name){ Daten.state.azubiNamen[id]=name; await Daten.speichern("Name gespeichert (lokal)"); },
   fortschritt(a){
