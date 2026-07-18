@@ -4,6 +4,18 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.32.0 – 2026-07-18
+- **CSV-Import: neue Azubis direkt anlegen (Dashboard Etappe 2, Teil 1).** Findet
+  der Import keinen passenden Azubi in SharePoint, führt das nicht mehr in eine
+  Sackgasse. Der Dialog „Azubi nicht gefunden" bekommt einen Button „Azubi
+  anlegen": legt den Azubi mit Nachname, Kurs (Vorschlag aus der CSV-Langform,
+  editierbar) und Trägerhaus in SharePoint an und lädt den Einsatzplan direkt im
+  selben Schritt hoch. Bezugslehrer bleibt bewusst leer.
+- **Dashboard-Kachel „Azubis ohne Bezugslehrer*in".** Neuer Warn-Abschnitt für
+  Admins, sichtbar sobald mindestens ein Azubi ohne Bezugslehrer-Zuordnung
+  existiert (v.a. frisch importierte Azubis) – macht die offene Zuordnungsaufgabe
+  sichtbar, die sonst stillschweigend untergehen könnte.
+
 ## v0.31.1 – 2026-07-18
 - **Fix Feedback-Formular stürzt ab bei gewählter Bezugslehrer-Auswahl.** Die
   `esc`-Hilfsfunktion war im Feedback-Formular nicht im Scope (nur lokal in anderen
