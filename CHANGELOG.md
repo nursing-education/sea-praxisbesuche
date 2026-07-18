@@ -4,6 +4,15 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.31.0 – 2026-07-18
+- **Dashboard Etappe 1: Besuchs-Kennzahlen.** Neuer Abschnitt „Praxisbesuche im
+  Überblick" oben im Dashboard mit vier Kennzahlen-Kacheln (schulweit über alle
+  Azubis, read-only für alle Rollen): **Pflichtbesuche gesamt**, **durchgeführt**,
+  **geplant**, **nachzuholen**. Gezählt werden einzelne Pflichtbesuch-Einträge nach
+  `besuchStatus` (nicht typ-dedupliziert wie die Anstehend-Liste; per ⓘ-Hover
+  erklärt). Erklärungen zu jeder Kachel als `title`-Hover. Neuer Helfer
+  `Dashboard.besuchsUebersicht()` (headless getestet, `tests/test_v031.js`).
+
 ## v0.30.0 – 2026-07-18
 - **Dashboard-Fundament (Rollen-Trennung).** Das Dashboard ist jetzt als
   Kontrollzentrum strukturiert: Kopf mit Rollen-Badge (**Verwaltung** für Admins /

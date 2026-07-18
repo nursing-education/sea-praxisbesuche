@@ -140,6 +140,14 @@
   /* Dashboard: Rollen-Badge (Admin = Verwaltung, sonst Nur-Lese) */
   .rollen-badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--sekundaer);color:var(--text-leise);vertical-align:middle;margin-left:8px}
   .rollen-badge.admin{background:var(--navy);color:#fff}
+  /* Dashboard Etappe 1: Besuchs-Kennzahlen-Kacheln (read-only, Erklärung per title-Hover) */
+  .kpi-reihe{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:6px}
+  .kpi{display:flex;flex-direction:column;gap:3px;padding:12px 14px;border:1px solid var(--rahmen);border-radius:var(--radius);background:var(--flaeche);cursor:help}
+  .kpi-zahl{font-size:26px;font-weight:700;line-height:1;color:var(--text)}
+  .kpi-label{font-size:12px;color:var(--text-leise)}
+  .kpi-forest .kpi-zahl{color:var(--forest)}
+  .kpi-navy .kpi-zahl{color:var(--navy)}
+  .kpi-danger .kpi-zahl{color:var(--danger)}
   /* Einrichtungen: nach Bereich gruppiert, aufklappbar */
   .einr-gruppe{border:1px solid var(--rahmen);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;background:var(--flaeche)}
   .gruppe-kopf{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;border-radius:0;
@@ -1484,7 +1492,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.30.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.31.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3733,6 +3741,25 @@ const Dashboard = {
       return (y.ist-x.ist)||x.name.localeCompare(y.name,"de");
     });
     return zeilen;
+  },
+  /* v0.31 (Dashboard Etappe 1): Besuchs-Kennzahlen fürs Dashboard. Rein lesend,
+     schulweit über alle geladenen Azubis. Gezählt werden EINZELNE Pflichtbesuch-
+     Einträge (einsatz.pflichtbesuch===true) nach besuchStatus – bewusst NICHT
+     typ-dedupliziert wie Anstehend.sammeln(). Deshalb können die Zahlen leicht
+     von der Anstehend-Liste abweichen (im Dashboard per ⓘ-Hover erklärt).
+     offen/vorläufig fliessen nur in "gesamt", bekommen keine eigene Kachel. */
+  besuchsUebersicht(azubis){
+    const z={gesamt:0, durchgeführt:0, geplant:0, nachzuholen:0};
+    (azubis||[]).forEach(a=>{
+      ((a&&a.einsaetze)||[]).forEach(e=>{
+        if(!e||!e.pflichtbesuch) return;
+        z.gesamt++;
+        if(e.besuchStatus==="durchgeführt")      z.durchgeführt++;
+        else if(e.besuchStatus==="geplant")      z.geplant++;
+        else if(e.besuchStatus==="nachzuholen")  z.nachzuholen++;
+      });
+    });
+    return z;
   }
 };
 
@@ -4219,9 +4246,26 @@ const Oberflaeche = {
         : "";
       return `<tr><td>${z.name.replace(/</g,"&lt;")}</td><td>${z.ist}${z.soll!==null?" / "+z.soll:""}</td><td>${ausl}</td><td>${balken}</td></tr>`;
     }).join("");
+    /* Etappe 1: Besuchs-Kennzahlen (schulweit, read-only für alle). Erklärungen
+       ausschliesslich per title-Hover (ⓘ auf der Überschrift + je Kachel). */
+    const bu=Dashboard.besuchsUebersicht(Azubis.alle());
+    const kacheln=`<section class="einst-block">
+      <h2>Praxisbesuche im Überblick <span class="einst-info" title="Schulweit über alle geladenen Azubis. Gezählt werden einzelne Pflichtbesuch-Einträge nach ihrem Status – nicht nach Besuchstyp zusammengefasst wie in der Anstehend-Liste. Die Zahlen können daher leicht von „Anstehend“ abweichen.">i</span></h2>
+      <div class="kpi-reihe">
+        <div class="kpi" title="Alle Pflichtbesuch-Einträge über alle Azubis (Summe aller Status – auch offen und vorläufig).">
+          <span class="kpi-zahl">${bu.gesamt}</span><span class="kpi-label">Pflichtbesuche gesamt</span></div>
+        <div class="kpi kpi-forest" title="Besuche mit Status „durchgeführt“ – bereits erledigt.">
+          <span class="kpi-zahl">${bu.durchgeführt}</span><span class="kpi-label">durchgeführt</span></div>
+        <div class="kpi kpi-navy" title="Besuche mit Status „geplant“ – Termin steht, aber noch nicht durchgeführt.">
+          <span class="kpi-zahl">${bu.geplant}</span><span class="kpi-label">geplant</span></div>
+        <div class="kpi kpi-danger" title="Besuche mit Status „nachzuholen“ – Termin verpasst, muss neu angesetzt werden.">
+          <span class="kpi-zahl">${bu.nachzuholen}</span><span class="kpi-label">nachzuholen</span></div>
+      </div>
+    </section>`;
     return `<div class="spalte" style="grid-column:1/-1">
       ${zurueck}
       <div style="margin-bottom:10px"><b style="font-size:17px;color:var(--navy)">Dashboard</b>${badge}</div>
+      ${kacheln}
       ${verwaltung}
       <section class="einst-block">
         <h2>Bezugslehrer-Auslastung</h2>
