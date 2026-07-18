@@ -4,6 +4,17 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.31.1 – 2026-07-18
+- **Fix Feedback-Formular stürzt ab bei gewählter Bezugslehrer-Auswahl.** Die
+  `esc`-Hilfsfunktion war im Feedback-Formular nicht im Scope (nur lokal in anderen
+  Methoden definiert). War eine Bezugslehrer*in gewählt, warf das Öffnen einen
+  `ReferenceError`. `esc` ist jetzt lokal im Formular definiert.
+- **Fix Onboarding-Illustrationen: gezeichnete Linien werden nicht mehr abgeschnitten.**
+  Die „Zeichnen"-Animation nutzte einen festen `stroke-dasharray:140`, an die Pfad-
+  Geometrie gekoppelt. Die gezeichneten Pfade (Touren-Zickzack, Häkchen) bekommen
+  jetzt `pathLength="140"` – dadurch deckt die Animation jeden Pfad exakt ab,
+  unabhängig von der realen Länge.
+
 ## v0.31.0 – 2026-07-18
 - **Dashboard Etappe 1: Besuchs-Kennzahlen.** Neuer Abschnitt „Praxisbesuche im
   Überblick" oben im Dashboard mit vier Kennzahlen-Kacheln (schulweit über alle

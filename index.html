@@ -1492,7 +1492,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.31.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.31.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -4059,7 +4059,7 @@ const Onboarding = {
       '<circle class="anim-pop" style="animation-delay:.3s" cx="86" cy="60" r="10" fill="'+FOREST+'"/>'+
       '<path class="anim-pop" style="animation-delay:.45s" d="M81 60 l3.5 3.5 l7 -7.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     if(art==="touren") return '<svg viewBox="0 0 132 88">'+
-      '<polyline class="anim-draw" points="24,64 52,30 82,58 108,26" fill="none" stroke="'+ORANGE+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+
+      '<polyline class="anim-draw" pathLength="140" points="24,64 52,30 82,58 108,26" fill="none" stroke="'+ORANGE+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+
       '<circle class="anim-pop" cx="24" cy="64" r="5" fill="'+NAVY+'"/>'+
       '<circle class="anim-pop" style="animation-delay:.3s" cx="52" cy="30" r="5" fill="'+NAVY+'"/>'+
       '<circle class="anim-pop" style="animation-delay:.5s" cx="82" cy="58" r="5" fill="'+NAVY+'"/>'+
@@ -4095,7 +4095,7 @@ const Onboarding = {
     /* fertig */
     return '<svg viewBox="0 0 132 88">'+
       '<circle cx="66" cy="44" r="24" fill="none" stroke="'+FOREST+'" stroke-width="3" opacity=".35"/>'+
-      '<path class="anim-draw" d="M54 45 l8 8 l17 -19" fill="none" stroke="'+FOREST+'" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      '<path class="anim-draw" pathLength="140" d="M54 45 l8 8 l17 -19" fill="none" stroke="'+FOREST+'" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   }
 };
 
@@ -4140,6 +4140,7 @@ const Oberflaeche = {
     const kats=[["fehler","Fehler"],["wunsch","Wunsch"],["frage","Frage"]];
     const segs=kats.map((k,i)=>`<label class="seg"><input type="radio" name="fbKat" value="${k[0]}" ${i===0?"checked":""}> ${k[1]}</label>`).join("");
     const wer=bezugslehrerAnzeige(Daten.state.bezugslehrerWert)||"";
+    const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
     this.modal(`<h3>Feedback an Christian</h3>
       <div class="meta" style="margin-bottom:10px">Deine Meldung wird lokal auf diesem Gerät gespeichert. Kein automatischer Versand.</div>
       <div class="feld"><label>Art</label><div class="seg-reihe">${segs}</div></div>
