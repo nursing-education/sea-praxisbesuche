@@ -105,9 +105,46 @@ const { kursVorschlagAusCsv, SPSync, Azubis, Eingang } = wrapped(SharePoint, Dat
     hochgeladenMit && hochgeladenMit.spId === '999');
   p('uebernehmen(neuAnlegen=true): Bericht wird durchgereicht', ergNeu.bericht.neu === 1);
 
+  /* v0.32-Fix: ergNeu ist bereits erfolgreich durchgelaufen und hat planNeu.azubiSpId
+     gestempelt. Fuer den (davon unabhaengigen) Testfall "azubiAnlegen selbst wirft"
+     braucht es einen Azubi, der noch KEIN azubiSpId hat -- sonst wuerde die neue
+     Dedup-Weiche gar nicht erst bei azubiAnlegen landen. */
+  delete planNeu.azubiSpId;
   SPSync.azubiAnlegen = async () => { throw new Error('SharePoint-Schreibfehler (Test)'); };
   const ergFehler = await Eingang.uebernehmen(planNeu, korrNeu, true, 'PFK N 041');
   p('uebernehmen(neuAnlegen=true): Schreibfehler bei azubiAnlegen wird abgefangen, kein Wurf', ergFehler && ergFehler.ok === false && ergFehler.grund === 'schreibfehler');
+
+  const planRetry = {
+    id: 'Weber, Jonas', kurs: 'PFK 042 N 2024 H', ausbildung: 'PFK',
+    stammeinrichtung: 'Krankenhaus Y',
+    eintraege: [{ typ: 'OE', einrichtungName: 'Krankenhaus Y', von: '2025-02-01', bis: '2025-02-15', std: 40 }]
+  };
+  const korrRetry = [{ bereich: 'Akut', typ: 'OE', zuordnenId: '', durchgefuehrt: false, durchDatum: '' }];
+
+  let azubiAnlegenAufrufe = 0;
+  SPSync.azubiAnlegen = async (token, plan, kursWert) => {
+    azubiAnlegenAufrufe++;
+    return { spId: '555', name: 'Weber', kurs: kursWert, stammeinrichtung: plan.stammeinrichtung, bezugslehrer: '' };
+  };
+  let einsatzplanAufrufe = 0;
+  SPSync.einsatzplanHochladen = async () => {
+    einsatzplanAufrufe++;
+    if (einsatzplanAufrufe === 1) throw new Error('Netzwerk-Fehler (Test)');
+    return { neu: 1, geaendert: 0, entfernt: 0 };
+  };
+
+  const ergErsterVersuch = await Eingang.uebernehmen(planRetry, korrRetry, true, 'PFK N 042');
+  p('Retry-Szenario: erster Versuch scheitert am Einsatzplan-Upload (nach erfolgreichem Anlegen)',
+    ergErsterVersuch && ergErsterVersuch.ok === false && ergErsterVersuch.grund === 'schreibfehler');
+  p('Retry-Szenario: azubiSpId wird auf dem plan-Objekt gemerkt', planRetry.azubiSpId === '555');
+
+  let azubisBestandAufgerufen = false;
+  SPSync.azubisBestand = async () => { azubisBestandAufgerufen = true; return [{ spId: '555', name: 'Weber', kurs: 'PFK N 042', bezugslehrer: '' }]; };
+
+  const ergZweiterVersuch = await Eingang.uebernehmen(planRetry, korrRetry, true, 'PFK N 042');
+  p('Retry-Szenario: zweiter Versuch legt NICHT nochmal an (azubiAnlegen weiterhin nur 1x aufgerufen)', azubiAnlegenAufrufe === 1);
+  p('Retry-Szenario: zweiter Versuch nutzt SPSync.azubisBestand statt erneutem Anlegen', azubisBestandAufgerufen === true);
+  p('Retry-Szenario: zweiter Versuch gelingt', ergZweiterVersuch && ergZweiterVersuch.ok === true);
 
   console.log(log.join('\n'));
   console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');

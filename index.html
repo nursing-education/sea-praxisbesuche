@@ -2714,13 +2714,28 @@ const Eingang = {
     // "kein Treffer" fuehrt dann nicht mehr in eine Sackgasse).
     let treffer;
     if(neuAnlegen){
-      let neuerAzubi;
-      try { neuerAzubi=await SPSync.azubiAnlegen(token, plan, kursWert); }
-      catch(e){
-        Oberflaeche.toast("Azubi konnte nicht in SharePoint angelegt werden: " + ((e&&e.message)||e), true);
-        return {ok:false, grund:"schreibfehler"};
+      if(plan.azubiSpId){
+        /* v0.32-Fix: schon in einem vorherigen (teilweise fehlgeschlagenen) Versuch
+           angelegt -- z.B. Azubi wurde erstellt, aber der Einsatzplan-Upload
+           schlug danach fehl. Beim Retry nicht nochmal anlegen (Duplikat), sondern
+           den bereits angelegten Azubi wiederverwenden. */
+        let azubisSp;
+        try { azubisSp=await SPSync.azubisBestand(token); }
+        catch(e){
+          Oberflaeche.toast("Azubi-Liste konnte nicht von SharePoint geladen werden: " + ((e&&e.message)||e), true);
+          return {ok:false, grund:"ladefehler"};
+        }
+        treffer={ status:"treffer", azubi: azubisSp.find(a=>String(a.spId)===String(plan.azubiSpId)) };
+      } else {
+        let neuerAzubi;
+        try { neuerAzubi=await SPSync.azubiAnlegen(token, plan, kursWert); }
+        catch(e){
+          Oberflaeche.toast("Azubi konnte nicht in SharePoint angelegt werden: " + ((e&&e.message)||e), true);
+          return {ok:false, grund:"schreibfehler"};
+        }
+        plan.azubiSpId=neuerAzubi.spId;
+        treffer={ status:"treffer", azubi: neuerAzubi };
       }
-      treffer={ status:"treffer", azubi: neuerAzubi };
     } else {
       let azubisSp;
       try { azubisSp=await SPSync.azubisBestand(token); }
