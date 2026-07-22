@@ -146,6 +146,16 @@ const { kursVorschlagAusCsv, SPSync, Azubis, Eingang } = wrapped(SharePoint, Dat
   p('Retry-Szenario: zweiter Versuch nutzt SPSync.azubisBestand statt erneutem Anlegen', azubisBestandAufgerufen === true);
   p('Retry-Szenario: zweiter Versuch gelingt', ergZweiterVersuch && ergZweiterVersuch.ok === true);
 
+  /* ---------- 5. SPSync._datumAus(): Excel-Serienzahl + Robustheit (v0.32.1) ----
+     Der Excel->SharePoint-Import kann Datumsfelder als rohe Serienzahl (z.B.
+     45303) hinterlassen; frueher wurde daraus "45303" -> Kalender-Absturz. */
+  p('datumAus: ISO-Zeitstempel -> Datum', SPSync._datumAus('2024-01-12T00:00:00Z') === '2024-01-12');
+  p('datumAus: reines ISO-Datum bleibt', SPSync._datumAus('2024-01-12') === '2024-01-12');
+  p('datumAus: Excel-Serienzahl 45303 -> 2024-01-12', SPSync._datumAus(45303) === '2024-01-12');
+  p('datumAus: Serienzahl als String -> 2024-01-12', SPSync._datumAus('45303') === '2024-01-12');
+  p('datumAus: leer/null -> null', SPSync._datumAus('') === null && SPSync._datumAus(null) === null);
+  p('datumAus: unparsebar -> null (kein kaputter String)', SPSync._datumAus('kaputt') === null);
+
   console.log(log.join('\n'));
   console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
   if (fail > 0) process.exit(1);

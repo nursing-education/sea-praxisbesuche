@@ -1492,7 +1492,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.32.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.32.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -2228,7 +2228,25 @@ const SPSync = {
     const z=(uhrzeit && /^\d{2}:\d{2}$/.test(uhrzeit)) ? uhrzeit : "00:00";
     return datum + "T" + z + ":00Z";
   },
-  _datumAus(v){ return v ? String(v).slice(0,10) : null; },
+  /* Wandelt einen SharePoint-Feldwert in ein ISO-Datum (YYYY-MM-DD).
+     Normalfall: Graph liefert Datumsfelder als ISO-String -> erste 10 Zeichen.
+     Sonderfall: der Excel->SharePoint-Import kann Datumsfelder als ROHE Excel-
+     Serienzahl hinterlassen (z.B. 45303 = Tage seit 1899-12-30 = 2024-01-12).
+     Solche Zahlen werden erkannt und umgerechnet. Alles Unbekannte -> null,
+     damit kein kaputter Datumsstring die Kalender-Rechnung abstuerzen laesst. */
+  _datumAus(v){
+    if(v==null || v==="") return null;
+    const s=String(v).trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);          // bereits ISO
+    if(/^\d{4,6}$/.test(s)){                                         // Excel-Serienzahl?
+      const n=Number(s);
+      if(n>=20000 && n<=60000){                                     // ~1954..2064 (plausibel)
+        const d=new Date(Date.UTC(1899,11,30)+n*86400000);
+        return isNaN(d.getTime()) ? null : d.toISOString().slice(0,10);
+      }
+    }
+    return null;
+  },
   _zeitAus(v){
     if(!v) return null;
     const z=String(v).slice(11,16);
@@ -3710,6 +3728,9 @@ const Kalender = {
   /* ---- Balkengeometrie in % (relativ zum Fenster); null = kein Überlapp ----
      bis ist INKLUSIV (letzter Einsatztag), daher exklusives Ende = bis+1. */
   geometrie(vonISO, bisISO, fenster){
+    // Schutz: fehlendes/ungueltiges Datum -> kein Balken statt Absturz.
+    const ok=x=>/^\d{4}-\d{2}-\d{2}$/.test(x||"");
+    if(!ok(vonISO) || !ok(bisISO)) return null;
     const gesamt=this._tageDiff(fenster.start, fenster.ende);
     const bStart    = vonISO > fenster.start ? vonISO : fenster.start;
     const bEndeExkl = this._plusTage(bisISO, 1);
@@ -4252,6 +4273,10 @@ const Oberflaeche = {
     if(this.ansicht!=="planer"){                       /* v0.26: Start/Dashboard ohne Tab-Leiste */
       if(nav) nav.style.display="none";
       el.innerHTML = this.ansicht==="dashboard" ? this.viewDashboard() : this.viewStart();
+      // v0.32.1: Auch das Dashboard braucht _verdrahten() -- der CSV-Import-Button
+      // (und kuenftige Verwaltungs-Buttons) lebt dort. Vorher lief _verdrahten() nur
+      // fuer die "planer"-Ansicht, der Dashboard-Button blieb funktionslos.
+      if(this.ansicht==="dashboard") this._verdrahten();
       return;
     }
     if(nav) nav.style.display="";

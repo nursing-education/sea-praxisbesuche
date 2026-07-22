@@ -4,6 +4,23 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.32.1 – 2026-07-22
+- **Fix: „CSV importieren"-Knopf im Dashboard ohne Funktion.** `render()` rief die
+  Verdrahtungs-Methode `_verdrahten()` (hängt die Klick-Handler an) nur für die
+  „planer"-Ansicht auf und kehrte für Dashboard/Start vorher zurück. Der CSV-Import-
+  Button lebt aber im Dashboard – er wurde gezeichnet, aber nie „scharf gemacht"
+  (Klick ohne Wirkung, kein Fehler). Jetzt wird das Dashboard ebenfalls verdrahtet;
+  künftige Verwaltungs-Buttons (Kurse, Tausch, DFA) profitieren automatisch mit.
+- **Fix: Absturz durch Excel-Datums-Serienzahlen aus SharePoint.** Beim Excel→
+  SharePoint-Import können Datumsfelder als rohe Excel-Serienzahl landen (z.B.
+  `45303` statt eines Datums = 12.01.2024). Die App machte daraus den kaputten
+  String `"45303"`, an dem die Kalender-/Zeitleisten-Berechnung abstürzte
+  (`RangeError: Invalid time value`) – das riss den ganzen Render-Durchlauf mit,
+  u.a. blieb der „CSV importieren"-Knopf funktionslos. `_datumAus()` erkennt jetzt
+  Excel-Serienzahlen und rechnet sie ins ISO-Datum um; unbekannte Werte werden zu
+  `null` statt zu einem kaputten String. Zusätzlich fängt `Kalender.geometrie()`
+  ungültige Datumswerte ab (kein Balken statt Absturz).
+
 ## v0.32.0 – 2026-07-18
 - **CSV-Import: neue Azubis direkt anlegen (Dashboard Etappe 2, Teil 1).** Findet
   der Import keinen passenden Azubi in SharePoint, führt das nicht mehr in eine
