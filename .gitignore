@@ -1,7 +1,10 @@
 # Build-Artefakt der Tests (wird aus index.html erzeugt)
 tests/extracted_test_bundle.js
 
-# Interne Projekt-Doku – nur lokal, gehoert nicht in die public Repo
+# Interne Projekt-Doku (kontext.md + spec/) – liegt jetzt im Unterordner planung/,
+# der ein eigenes, privates Git-Repo ist. Gehoert nicht in die public Repo.
+# Die Alt-Namen bleiben als Sicherheitsnetz stehen.
+planung/
 kontext.md
 spec/
 

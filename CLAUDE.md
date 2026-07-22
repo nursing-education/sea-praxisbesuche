@@ -3,6 +3,17 @@
 Single-File-Web-App zur Planung von Praxisbesuchen in der Pflegeausbildung. Die App
 heißt in der Oberfläche „SEA Praxisbesuche".
 
+## Planung & Kontext liegen im privaten Repo (nicht hier)
+
+`kontext.md` und `spec/` liegen **nicht** im App-Root, sondern im Unterordner
+**`planung/`** – das ist ein **eigenes, privates Git-Repo**, per `.gitignore` aus
+diesem öffentlichen Repo ausgeschlossen. Grund: Planung/Kontext könnten Interna enthalten.
+
+- Projekt-`kontext.md` → `planung/kontext.md`
+- Spezifikationen → `planung/spec/…`
+- `/sitzungsende` archiviert/schreibt diese `planung/kontext.md` (nicht `./kontext.md`).
+- Zwei getrennte Repos: **App öffentlich**, **Planung privat** – jeweils eigener Commit/Push.
+
 ## Tech-Stack
 
 - **Vanilla JS**, eine einzige Datei: `index.html` (HTML + CSS + JS inline, kein Build).
