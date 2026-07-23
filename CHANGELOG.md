@@ -4,6 +4,15 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.33.0 – 2026-07-23
+- **Feature: Bereich „ohne Adresse" über der Einrichtungsliste.** Beim CSV-Import neu
+  gelernte Einrichtungen haben zunächst keine Adresse (Straße/PLZ fehlen) und waren in
+  den zugeklappten Bereichs-Gruppen schwer zu finden. Jetzt erscheint über der Liste
+  eine auffällige Box mit genau diesen Einrichtungen und je einem Knopf „Adresse
+  ergänzen", der direkt das bestehende Bearbeiten-Formular öffnet. Die Box verschwindet
+  von selbst, sobald keine Adresse mehr fehlt. Rein additiv – bestehende Bearbeitung/
+  Löschung in der Liste bleibt unverändert.
+
 ## v0.32.1 – 2026-07-22
 - **Fix: „CSV importieren"-Knopf im Dashboard ohne Funktion.** `render()` rief die
   Verdrahtungs-Methode `_verdrahten()` (hängt die Klick-Handler an) nur für die

@@ -1492,7 +1492,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.32.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.33.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -4741,6 +4741,7 @@ const Oberflaeche = {
         <button id="einrToggle">${this._einrToggleLabel()}</button>
         <input type="search" id="einrSuche" placeholder="Suchen: Name, Ort, Straße, Alias…" value="${this.einrFilter.replace(/"/g,'&quot;')}">
       </div>
+      <div id="einrOhneAdresse"></div>
       <div id="einrGruppen"></div>
     </div>`;
   },
@@ -4814,6 +4815,26 @@ const Oberflaeche = {
     });
     document.querySelectorAll("#einrGruppen [data-edit]").forEach(b=> b.onclick=()=>this.einrFormular(Einrichtungen.alle().find(e=>e.id===b.dataset.edit)));
     document.querySelectorAll("#einrGruppen [data-del]").forEach(b=> b.onclick=()=>{ if(confirm("Einrichtung löschen?")) Einrichtungen.loeschen(b.dataset.del); });
+  },
+  /* Auffaellige Box UEBER der Liste: alle Einrichtungen, denen Strasse oder PLZ
+     fehlt (z.B. frisch aus dem CSV-Import gelernt). Direkt ueber "Adresse
+     ergaenzen" pflegbar -- oeffnet dasselbe Bearbeiten-Formular wie in der Liste.
+     Nur sichtbar, solange mindestens eine Adresse fehlt; sonst verschwindet sie. */
+  _einrOhneAdresseRender(){
+    const box=document.getElementById("einrOhneAdresse"); if(!box) return;
+    const offen=Einrichtungen.alle().filter(e=>!e.schule && (!e.strasse||!e.plz))
+      .sort((a,b)=>a.name.localeCompare(b.name,"de"));
+    if(!offen.length){ box.innerHTML=""; return; }
+    const zeilen=offen.map(e=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span>${this._hebHervor(e.name,"")}${(e.bereiche&&e.bereiche.length)?"":' <span class="pill warn">ohne Bereich</span>'}</span>
+        <button class="primaer" data-edit-adr="${e.id}">Adresse ergänzen</button>
+      </div>`).join("");
+    box.innerHTML=`<div class="hinweis warn" style="border-left-width:4px">
+        <strong>📍 ${offen.length} Einrichtung${offen.length!==1?"en":""} ohne Adresse</strong> – bitte ergänzen:
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">${zeilen}</div>
+      </div>`;
+    box.querySelectorAll("[data-edit-adr]").forEach(b=>
+      b.onclick=()=>this.einrFormular(Einrichtungen.alle().find(e=>e.id===b.dataset.editAdr)));
   },
   einrFormular(e){
     e=e||{}; const sel=new Set(e.bereiche||[]);
@@ -5754,6 +5775,7 @@ const Oberflaeche = {
     const suche=document.getElementById("einrSuche");
     if(suche){ suche.oninput=()=>{ this.einrFilter=suche.value; this._einrGruppenRender(); };
       this._einrGruppenRender(); }   // Zeilen + Gruppen werden hier gebunden
+    this._einrOhneAdresseRender();   // Box "ohne Adresse" ueber der Liste
     // Einstellungen
     const obBtn=document.getElementById("obErneutBtn"); if(obBtn) obBtn.onclick=()=>Onboarding.erneutAnzeigen();
     const g=document.getElementById("bezugslehrerWert"); if(g) g.onchange=()=>{ Daten.state.bezugslehrerWert=g.value; Daten.speichern("Auswahl gespeichert"); Oberflaeche.render(); };
