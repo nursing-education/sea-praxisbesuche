@@ -1492,7 +1492,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.33.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.33.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -2493,11 +2493,18 @@ const SPSync = {
     for(const e of einsaetze){
       const alt=nachVon.get(e.von);
       if(alt){
-        /* Besuchsstand des bestehenden Eintrags bewahren */
-        e.besuchStatus  = alt.besuchStatus;
-        e.besuchDatum   = alt.besuchDatum;
-        e.besuchUhrzeit = alt.besuchUhrzeit;
-        e.besuchNotiz   = alt.besuchNotiz;
+        /* Besuchsstand des bestehenden Eintrags bewahren, damit ein erneuter
+           Import bereits erfasste Besuche nicht ueberschreibt. AUSNAHME: Bringt
+           der Import selbst einen Status mit (im Pruefschritt "bereits
+           durchgefuehrt" angehakt -> Status != "offen"), gewinnt diese frische
+           Eingabe -- sonst wuerde die Bewahr-Logik das gerade gesetzte
+           "durchgefuehrt" wieder auf den alten Wert (meist "offen") zuruecksetzen. */
+        if(!e.besuchStatus || e.besuchStatus==="offen"){
+          e.besuchStatus  = alt.besuchStatus;
+          e.besuchDatum   = alt.besuchDatum;
+          e.besuchUhrzeit = alt.besuchUhrzeit;
+        }
+        if(!e.besuchNotiz) e.besuchNotiz = alt.besuchNotiz;   /* Notiz gehoert zum erfassten Besuch */
         await this._schreiben(url + "/" + alt.spId + "/fields", token, "PATCH",
                               this._felderFuer(e, azubiSpId, vollName));
         e.spId=alt.spId; behalten.add(alt.spId); geaendert++;

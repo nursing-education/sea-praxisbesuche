@@ -4,6 +4,20 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.33.1 – 2026-07-24
+- **Fix: „durchgeführt" beim Doppelimport wurde wieder auf „offen" zurückgesetzt.**
+  Beim erneuten Hochladen eines Einsatzplans erkennt `einsatzplanHochladen()`
+  bestehende Einträge am Startdatum und bewahrt bewusst deren Besuchsstand, damit
+  ein Re-Import bereits erfasste Besuche nicht wegwirft. Diese Bewahr-Logik überfuhr
+  aber die frische Angabe „bereits durchgeführt" aus dem Prüfschritt: `BesuchStatus`
+  wurde vor dem Schreiben mit dem alten SharePoint-Wert („offen") überschrieben – der
+  PATCH war erfolgreich (keine Fehlermeldung), schrieb nur den falschen Wert.
+  `PflichtManuell` (im selben PATCH) blieb korrekt gesetzt, was das Symptom erklärte
+  („Pflicht Manuell angekreuzt, Status offen"). Neu gilt: bringt der Import selbst
+  einen Status mit (≠ „offen"), gewinnt diese Eingabe; ohne eigenen Status bleibt der
+  erfasste Bestand erhalten. Notizen werden weiterhin bewahrt. 3 neue Tests
+  (`tests/test_v033.js`); `SP_FELDER_EINSAETZE` dafür ins Test-Bundle aufgenommen.
+
 ## v0.33.0 – 2026-07-23
 - **Feature: Bereich „ohne Adresse" über der Einrichtungsliste.** Beim CSV-Import neu
   gelernte Einrichtungen haben zunächst keine Adresse (Straße/PLZ fehlen) und waren in
