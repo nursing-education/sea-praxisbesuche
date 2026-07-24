@@ -4,6 +4,36 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.35.1 – 2026-07-24
+- **Fix: korrekter Name der SharePoint-Liste.** Die Lehrkräfte-Liste heißt in SharePoint
+  „Bezugslehrende" (nicht „Bezugslehrer") – `SP_CONFIG.listBezugslehrer` entsprechend
+  angepasst, sonst hätte die App die Liste nicht gefunden.
+
+## v0.35.0 – 2026-07-24
+- **Feature (Fundament): eigene SharePoint-Liste „Bezugslehrer" + Verwaltung (Admin).**
+  Erster Schritt der Stammdaten-Verwaltung: Lehrkräfte bekommen eine echte Liste (Name,
+  Stellenumfang, Kapazität, Aktiv-Flag) statt nur als Textwert am Azubi zu existieren. Neu:
+  Verwaltungs-Abschnitt im Dashboard mit Lehrkräfte-Liste und Dialog „Neuer Bezugslehrer".
+  Die **Kapazität wird aus dem Stellenumfang vorgeschlagen** (100 % = 25 Azubis, gerundet)
+  und bleibt überschreibbar (Sonderfälle). Die Liste wird beim Sync mitgeladen (defensiv –
+  fehlt sie noch, bricht nichts). Neu: `SP_FELDER_BEZUGSLEHRER`, `SPSync.lehrerListeLaden()`
+  /`lehrerAnlegen()`, Modul `Bezugslehrer` (`kapazitaetVorschlag`, `finden`, `aktive`,
+  `anlegen`). **Rein additiv** – Auslastung/Board/Zuordnung noch unverändert (kommt in der
+  nächsten Scheibe). 15 neue Tests (`tests/test_v035.js`).
+
+## v0.34.0 – 2026-07-24
+- **Feature: Azubi-Zuordnungs-Board im Dashboard (Admin).** Neu per CSV angelegte Azubis
+  haben zunächst keine:n Bezugslehrer:in. Der bisherige passive Hinweis „X Azubis ohne
+  Bezugslehrer*in" ist jetzt ein interaktives 2-Spalten-Board: links die unzugeordneten
+  Azubis, rechts die Lehrkräfte mit Auslastung (Ist/Soll + Ampel). Zuordnen per **Klick**
+  (Azubi wählen → Lehrkraft) **oder Drag-and-Drop** (Azubi auf Lehrkraft ziehen). Schreibt
+  nur das Bezugslehrer-Feld (`field_3`) der Azubis-Liste; kein Genehmigungs-Workflow (das
+  ist Etappe 4/Tausch). Offline-first wie beim Besuchsstatus: bei fehlendem Netz bleibt die
+  Zuordnung lokal (`blOffen`) und wird beim nächsten Sync nachgereicht (vor dem Re-Read).
+  Neu: `SPSync.bezugslehrerSenden()`, `Azubis.bezugslehrerSetzen()`, `Oberflaeche.
+  viewZuordnungsBoard()`; `Dashboard.auslastung()` liefert zusätzlich den Rohwert `wert`.
+  9 neue Tests (`tests/test_v034.js`). Reine Zusatzfunktion, bestehende Ansichten unberührt.
+
 ## v0.33.1 – 2026-07-24
 - **Fix: „durchgeführt" beim Doppelimport wurde wieder auf „offen" zurückgesetzt.**
   Beim erneuten Hochladen eines Einsatzplans erkennt `einsatzplanHochladen()`
