@@ -4,6 +4,13 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.36.1 – 2026-07-24
+- **Fix/UX: Zuordnungs-Board für Admins immer sichtbar.** Vorher erschien das Board nur,
+  wenn mindestens ein Azubi ohne Bezugslehrer:in war – dadurch war es nicht auffindbar,
+  wenn gerade alle zugeordnet waren. Jetzt ist es dauerhaft im Dashboard sichtbar; sind
+  alle zugeordnet, zeigt die linke Spalte „Alle Azubis sind zugeordnet ✓" und der Hinweis
+  passt sich an.
+
 ## v0.36.0 – 2026-07-24
 - **Feature (Scheibe 1b): Bezugslehrer-Liste an Auslastung/Board angebunden + bearbeiten/
   löschen (Admin).**
