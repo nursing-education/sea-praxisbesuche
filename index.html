@@ -145,6 +145,7 @@
   .zo-kopf .meta{font-weight:400}
   .zo-chips{display:flex;flex-wrap:wrap;gap:6px}
   .zo-chips .zb-azubi{margin-bottom:0;min-width:150px}
+  .zb-haus{font-style:italic}
   .lk-zeile.zb-ueber > td{background:#EEF4EF;box-shadow:inset 0 0 0 1px var(--forest)}
   .lk-voll{opacity:.5}
   .lk-aktion{white-space:nowrap}
@@ -1513,7 +1514,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.37.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.38.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -4021,12 +4022,15 @@ const Dashboard = {
      das sind genau die Azubis der Zuordnungs-Leiste -- sie zusaetzlich als
      Tabellenzeile zu fuehren waere wieder dieselbe Doppelung. */
   lehrkraftZeilen(azubis){
+    const schwerpunkte=this.einrichtungsSchwerpunkte(azubis);
     return this.auslastung(azubis)
       .filter(z=> z.wert && String(z.wert).trim())
       .map(z=>{
         /* Namensabgleich exakt wie Bezugslehrer.finden() -- eine Fundstelle. */
         const l=(typeof Bezugslehrer!=="undefined") ? Bezugslehrer.finden(z.wert) : null;
+        const nk=SPSync._norm(bezugslehrerAnzeige(z.wert)||z.wert);
         return { wert:z.wert, name:z.name, ist:z.ist, soll:z.soll, quote:z.quote, ampel:z.ampel,
+                 einrichtung: schwerpunkte.get(nk) || null,
                  spId:          l ? l.spId : null,
                  stellenumfang: (l && l.stellenumfang!=null) ? l.stellenumfang : null,
                  kapazitaet:    (l && l.kapazitaet!=null)    ? l.kapazitaet    : null,
@@ -4037,15 +4041,51 @@ const Dashboard = {
                  frei:    (z.soll!=null) ? (z.soll - z.ist) : null };
       });
   },
+  /* v0.38: Traegerhaus-Schwerpunkt je Lehrkraft -- welche Stammeinrichtung kommt
+     unter ihren Azubis am haeufigsten vor? Fachlicher Nutzen beim Zuordnen: einen
+     neuen Azubi moeglichst zu der Lehrkraft, die sein Haus ohnehin betreut (kurze
+     Wege, bekannte Ansprechpartner). Schluessel ist der NORMALISIERTE Name, damit
+     unterschiedliche "(Zahl)"-Suffixe am selben Namen zusammenfallen.
+     Liefert Map: normalisierter Name -> {name, anzahl, gesamt, verschiedene, ohne}. */
+  einrichtungsSchwerpunkte(azubis){
+    const roh=new Map();
+    (azubis||[]).forEach(a=>{
+      const w=String((a&&a.bezugslehrer)||"").trim(); if(!w) return;
+      const k=SPSync._norm(bezugslehrerAnzeige(w)||w); if(!k) return;
+      if(!roh.has(k)) roh.set(k,{gesamt:0, ohne:0, zaehler:new Map()});
+      const e=roh.get(k);
+      e.gesamt++;
+      const haus=String((a&&a.stammeinrichtung)||"").trim();
+      if(!haus){ e.ohne++; return; }
+      e.zaehler.set(haus,(e.zaehler.get(haus)||0)+1);
+    });
+    const raus=new Map();
+    roh.forEach((v,k)=>{
+      let top=null;
+      /* Gleichstand: alphabetisch, damit die Anzeige stabil bleibt (kein Flackern). */
+      v.zaehler.forEach((n,name)=>{
+        if(!top || n>top.anzahl || (n===top.anzahl && name.localeCompare(top.name,"de")<0)) top={name,anzahl:n};
+      });
+      raus.set(k, top ? {name:top.name, anzahl:top.anzahl, gesamt:v.gesamt,
+                         verschiedene:v.zaehler.size, ohne:v.ohne} : null);
+    });
+    return raus;
+  },
   /* v0.37: Suche/Filter/Sortierung der Lehrkraft-Tabelle. Rein funktional (kein
      DOM) -- damit headless testbar. "alle" blendet Archivierte aus; "frei" ist der
-     direkte Weg zur haeufigsten Frage beim Zuordnen: wer hat ueberhaupt noch Platz? */
+     direkte Weg zur haeufigsten Frage beim Zuordnen: wer hat ueberhaupt noch Platz?
+     v0.38: Die Suche greift auch auf das Schwerpunkt-Traegerhaus -- so findet man
+     ueber den Hausnamen die Lehrkraefte, die dort ohnehin betreuen. */
   lehrkraftFiltern(zeilen, opt){
     const o=opt||{};
     const q=SPSync._norm(o.suche||"");
     const modus=o.modus||"alle";
     const raus=(zeilen||[]).filter(z=>{
-      if(q && SPSync._norm(z.name).indexOf(q)<0) return false;
+      if(q){
+        const imNamen=SPSync._norm(z.name).indexOf(q)>=0;
+        const imHaus=!!(z.einrichtung && SPSync._norm(z.einrichtung.name).indexOf(q)>=0);
+        if(!imNamen && !imHaus) return false;
+      }
       if(modus==="archiviert")  return !z.aktiv;
       if(!z.aktiv)              return false;
       if(modus==="frei")        return z.frei!=null && z.frei>0;
@@ -4664,8 +4704,13 @@ const Oberflaeche = {
       const offen=Azubis.ohneBezugslehrer();
       const chips=offen.map(a=>{
         const nm=Azubis.name(a.id)||a.kuerzel||"—";
+        /* v0.38: Traegerhaus mit auf den Chip -- es entscheidet mit, zu wem der
+           Azubi passt (siehe Schwerpunkt-Spalte der Tabelle). */
+        const haus=String(a.stammeinrichtung||"").trim();
         return `<div class="zb-azubi${sel===a.id?" gewaehlt":""}" draggable="true" data-zb-azubi="${a.id}">
-          <b>${nm.replace(/</g,"&lt;")}</b><span class="meta">${(a.kurs||"—").replace(/</g,"&lt;")}</span>
+          <b>${nm.replace(/</g,"&lt;")}</b>
+          <span class="meta">${(a.kurs||"—").replace(/</g,"&lt;")}</span>
+          <span class="meta zb-haus" title="Trägerhaus (Stammeinrichtung)">${(haus||"Trägerhaus fehlt").replace(/</g,"&lt;")}</span>
         </div>`;
       }).join("");
       leiste = offen.length
@@ -4686,10 +4731,10 @@ const Oberflaeche = {
         <button data-lsort="name" class="${this.lehrerSort==="name"?"an":""}">nach Name</button>
       </div>`;
     return `<section class="einst-block" id="bereichBezugslehrende">
-      <h2>Bezugslehrende <span class="einst-info" title="Eine Zeile je Lehrkraft. Ist = aktuell zugeordnete Azubis, Soll = Kapazität aus der SharePoint-Liste „Bezugslehrende“ (ersatzweise die „(Zahl)“ am Namen, solange die Liste jemanden nicht kennt).">i</span></h2>
+      <h2>Bezugslehrende <span class="einst-info" title="Eine Zeile je Lehrkraft. Ist = aktuell zugeordnete Azubis, Soll = Kapazität aus der SharePoint-Liste „Bezugslehrende“ (ersatzweise die „(Zahl)“ am Namen, solange die Liste jemanden nicht kennt). Trägerhaus (Schwerpunkt) = das Haus, aus dem die meisten ihrer Azubis kommen.">i</span></h2>
       ${leiste}
       <div class="werkzeug">
-        <input type="search" id="lehrerSuche" placeholder="Lehrkraft suchen…" value="${String(this.lehrerSuche||"").replace(/"/g,"&quot;")}">
+        <input type="search" id="lehrerSuche" placeholder="Lehrkraft oder Trägerhaus suchen…" value="${String(this.lehrerSuche||"").replace(/"/g,"&quot;")}">
         ${filter}${sortUms}
         ${admin?`<button class="primaer" id="lehrerNeu">＋ Neue Lehrkraft</button>`:""}
       </div>
@@ -4724,18 +4769,25 @@ const Oberflaeche = {
       const aktionen = (admin && z.inListe)
         ? `<button data-lehrer-edit="${z.spId}">Bearbeiten</button> <button class="gefahr" data-lehrer-del="${z.spId}">Löschen</button>`
         : "";
+      /* v0.38: Schwerpunkt-Trägerhaus. "5 / 7" heisst: 5 der 7 Azubis dieser Lehrkraft
+         kommen aus diesem Haus. Details (weitere Häuser, fehlende Angaben) im Hover. */
+      const e=z.einrichtung;
+      const haus = !e
+        ? `<span class="meta">—</span>`
+        : `${e.name.replace(/</g,"&lt;")} <span class="meta" title="${e.anzahl} von ${e.gesamt} Azubis dieser Lehrkraft kommen aus diesem Haus${e.verschiedene>1?" · insgesamt "+e.verschiedene+" verschiedene Häuser":""}${e.ohne?" · "+e.ohne+" ohne Angabe":""}">${e.anzahl} / ${e.gesamt}</span>`;
       return `<tr class="lk-zeile${voll?" lk-voll":""}"${admin?` data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"`:""}>
         <td>${z.name.replace(/</g,"&lt;")}</td>
         <td>${z.stellenumfang!=null?z.stellenumfang+"\u00a0%":`<span class="meta">—</span>`}</td>
         <td>${z.ist}${z.soll!==null?" / "+z.soll:""}</td>
         <td>${ausl}</td>
+        <td>${haus}</td>
         <td>${status}</td>
         ${admin?`<td class="lk-aktion">${aktionen}</td>`:""}
       </tr>`;
     }).join("");
     const hinweis = waehlt ? `<div class="hinweis">Azubi gewählt – jetzt die Zeile der gewünschten Lehrkraft anklicken.</div>` : "";
     return `${hinweis}<div class="meta" style="margin-bottom:8px">${zeilen.length} von ${alle.length} Lehrkräften</div>
-      <table><thead><tr><th>Name</th><th>Stelle</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th>Status</th>${admin?"<th></th>":""}</tr></thead>
+      <table><thead><tr><th>Name</th><th>Stelle</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th>Trägerhaus (Schwerpunkt)</th><th>Status</th>${admin?"<th></th>":""}</tr></thead>
       <tbody>${rows}</tbody></table>`;
   },
 

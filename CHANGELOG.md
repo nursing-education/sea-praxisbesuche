@@ -4,6 +4,26 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.38.0 – 2026-07-24
+- **Feature: Trägerhaus beim Zuordnen sichtbar.** Beim Verteilen neuer Azubis fehlte die
+  fachlich entscheidende Information – aus welchem Haus kommt der Azubi, und welche
+  Lehrkraft betreut dieses Haus ohnehin schon? Beides ist jetzt da:
+  - **Azubi-Chips** zeigen neben dem Kurs die **Stammeinrichtung** (Trägerhaus,
+    `field_2`). Fehlt sie, steht dort „Trägerhaus fehlt" statt einer stillen Lücke.
+  - Neue Spalte **„Trägerhaus (Schwerpunkt)"** je Lehrkraft: das Haus, aus dem die
+    meisten ihrer Azubis kommen, mit Anteil („St. Elisabeth 5 / 7" = 5 von 7 Azubis).
+    Der Hover nennt die Zahl der verschiedenen Häuser und fehlende Angaben.
+  - Die **Suche greift zusätzlich auf das Schwerpunkt-Haus** – über den Hausnamen findet
+    man direkt die Lehrkräfte, die dort betreuen. Feld heißt jetzt „Lehrkraft oder
+    Trägerhaus suchen…".
+  - Bei Gleichstand entscheidet die alphabetische Reihenfolge, damit die Anzeige nicht je
+    nach Einlesereihenfolge springt. Azubis ohne Haus-Angabe zählen in die Gesamtzahl,
+    erzeugen aber keinen Schwerpunkt; hat eine Lehrkraft nur solche Azubis, bleibt die
+    Spalte leer statt einen Wert zu erfinden. Unterschiedliche „(Zahl)"-Suffixe am selben
+    Namen werden zusammengefasst.
+  - Neu: `Dashboard.einrichtungsSchwerpunkte()`; `lehrkraftZeilen()` liefert zusätzlich
+    `einrichtung`. 20 neue Tests (`tests/test_v038.js`).
+
 ## v0.37.0 – 2026-07-24
 - **Umbau: Dashboard nach Aufgabe statt nach Entstehungsgeschichte – „eine Lehrkraft,
   eine Zeile".** Dieselbe Lehrkraft stand bisher in **drei** Abschnitten: im Zuordnungs-
