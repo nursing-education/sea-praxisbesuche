@@ -4,6 +4,11 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.35.1 – 2026-07-24
+- **Fix: korrekter Name der SharePoint-Liste.** Die Lehrkräfte-Liste heißt in SharePoint
+  „Bezugslehrende" (nicht „Bezugslehrer") – `SP_CONFIG.listBezugslehrer` entsprechend
+  angepasst, sonst hätte die App die Liste nicht gefunden.
+
 ## v0.35.0 – 2026-07-24
 - **Feature (Fundament): eigene SharePoint-Liste „Bezugslehrer" + Verwaltung (Admin).**
   Erster Schritt der Stammdaten-Verwaltung: Lehrkräfte bekommen eine echte Liste (Name,
