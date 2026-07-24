@@ -4,6 +4,19 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.34.0 – 2026-07-24
+- **Feature: Azubi-Zuordnungs-Board im Dashboard (Admin).** Neu per CSV angelegte Azubis
+  haben zunächst keine:n Bezugslehrer:in. Der bisherige passive Hinweis „X Azubis ohne
+  Bezugslehrer*in" ist jetzt ein interaktives 2-Spalten-Board: links die unzugeordneten
+  Azubis, rechts die Lehrkräfte mit Auslastung (Ist/Soll + Ampel). Zuordnen per **Klick**
+  (Azubi wählen → Lehrkraft) **oder Drag-and-Drop** (Azubi auf Lehrkraft ziehen). Schreibt
+  nur das Bezugslehrer-Feld (`field_3`) der Azubis-Liste; kein Genehmigungs-Workflow (das
+  ist Etappe 4/Tausch). Offline-first wie beim Besuchsstatus: bei fehlendem Netz bleibt die
+  Zuordnung lokal (`blOffen`) und wird beim nächsten Sync nachgereicht (vor dem Re-Read).
+  Neu: `SPSync.bezugslehrerSenden()`, `Azubis.bezugslehrerSetzen()`, `Oberflaeche.
+  viewZuordnungsBoard()`; `Dashboard.auslastung()` liefert zusätzlich den Rohwert `wert`.
+  9 neue Tests (`tests/test_v034.js`). Reine Zusatzfunktion, bestehende Ansichten unberührt.
+
 ## v0.33.1 – 2026-07-24
 - **Fix: „durchgeführt" beim Doppelimport wurde wieder auf „offen" zurückgesetzt.**
   Beim erneuten Hochladen eines Einsatzplans erkennt `einsatzplanHochladen()`
