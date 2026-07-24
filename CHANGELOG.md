@@ -4,6 +4,23 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.36.0 – 2026-07-24
+- **Feature (Scheibe 1b): Bezugslehrer-Liste an Auslastung/Board angebunden + bearbeiten/
+  löschen (Admin).**
+  - **Kapazität kommt jetzt aus der Stammliste** (`Dashboard.soll()` bevorzugt die
+    Kapazität aus „Bezugslehrende", Fallback auf die alte „(Zahl)"-Ableitung).
+  - **`Dashboard.auslastung()` ergänzt aktive Lehrkräfte ohne Azubis** → sie erscheinen im
+    Zuordnungs-Board (rechte Spalte) und im „Ich bin …"-Dropdown, auch bevor ihnen jemand
+    zugeordnet ist (behebt die v0.34-Grenze). Zuordnen schreibt den kanonischen Wert
+    „Name (Kapazität)". Bestehende Azubi-Zeilen bleiben unverändert (rein additiv).
+  - **Bearbeiten + Löschen** in der Bezugslehrer-Verwaltung: Dialog jetzt auch zum Ändern
+    (Name/Stellenumfang/Kapazität) und **Archivieren** (Aktiv-Häkchen). Löschen ist
+    geschützt – nur ohne zugeordnete Azubis möglich, sonst Hinweis „erst neu zuordnen oder
+    archivieren".
+  - Neu: `SPSync.lehrerAendern`/`lehrerLoeschen`, `Bezugslehrer.wertFuer`/`azubiAnzahl`/
+    `aendern`/`loeschen`. 15 neue Tests (`tests/test_v036.js`); bestehende Auslastungs-Tests
+    unverändert grün.
+
 ## v0.35.1 – 2026-07-24
 - **Fix: korrekter Name der SharePoint-Liste.** Die Lehrkräfte-Liste heißt in SharePoint
   „Bezugslehrende" (nicht „Bezugslehrer") – `SP_CONFIG.listBezugslehrer` entsprechend
