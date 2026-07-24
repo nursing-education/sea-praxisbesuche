@@ -4,7 +4,10 @@ tests/extracted_test_bundle.js
 # Interne Projekt-Doku (kontext.md + spec/) – liegt jetzt im Unterordner planung/,
 # der ein eigenes, privates Git-Repo ist. Gehoert nicht in die public Repo.
 # Die Alt-Namen bleiben als Sicherheitsnetz stehen.
+# "planung" ohne Slash faengt zusaetzlich den Fall ab, dass planung ein
+# Symlink auf das Planungs-Repo ist (Git sieht Symlinks nicht als Verzeichnis).
 planung/
+planung
 kontext.md
 spec/
 
