@@ -4,6 +4,18 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.35.0 – 2026-07-24
+- **Feature (Fundament): eigene SharePoint-Liste „Bezugslehrer" + Verwaltung (Admin).**
+  Erster Schritt der Stammdaten-Verwaltung: Lehrkräfte bekommen eine echte Liste (Name,
+  Stellenumfang, Kapazität, Aktiv-Flag) statt nur als Textwert am Azubi zu existieren. Neu:
+  Verwaltungs-Abschnitt im Dashboard mit Lehrkräfte-Liste und Dialog „Neuer Bezugslehrer".
+  Die **Kapazität wird aus dem Stellenumfang vorgeschlagen** (100 % = 25 Azubis, gerundet)
+  und bleibt überschreibbar (Sonderfälle). Die Liste wird beim Sync mitgeladen (defensiv –
+  fehlt sie noch, bricht nichts). Neu: `SP_FELDER_BEZUGSLEHRER`, `SPSync.lehrerListeLaden()`
+  /`lehrerAnlegen()`, Modul `Bezugslehrer` (`kapazitaetVorschlag`, `finden`, `aktive`,
+  `anlegen`). **Rein additiv** – Auslastung/Board/Zuordnung noch unverändert (kommt in der
+  nächsten Scheibe). 15 neue Tests (`tests/test_v035.js`).
+
 ## v0.34.0 – 2026-07-24
 - **Feature: Azubi-Zuordnungs-Board im Dashboard (Admin).** Neu per CSV angelegte Azubis
   haben zunächst keine:n Bezugslehrer:in. Der bisherige passive Hinweis „X Azubis ohne

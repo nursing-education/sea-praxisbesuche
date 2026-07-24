@@ -1501,7 +1501,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.34.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.35.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -1618,6 +1618,7 @@ const SP_CONFIG = {
   listAzubis    : "Azubis",                    /* v0.22: Stammdaten der Azubis */
   listEinsaetze : "Einsaetze",                 /* v0.22: Einsatzplaene (aus Easysoft-CSV) */
   listAdmins    : "Admins",                    /* v0.25: Admin-Erkennung (E-Mail-Abgleich) */
+  listBezugslehrer : "Bezugslehrer",           /* v0.35: Lehrkräfte-Stammliste (Kapazität, Archivieren) */
   scopes   : ["Sites.Selected"]
 };
 /* Zuordnung SharePoint-Spalte -> App-Feld. Heisst eine Spalte in SharePoint
@@ -1663,6 +1664,15 @@ const SP_FELDER_EINSAETZE = {
   besuchStatus  : "BesuchStatus",
   besuchDatum   : "BesuchDatum",        /* Datum UND Uhrzeit in einem Feld */
   besuchNotiz   : "BesuchNotizen"
+};
+
+/* v0.35 -- Feldzuordnung Liste "Bezugslehrer" (Lehrkräfte-Stammdaten). Einwort-
+   Spaltennamen -> interner SharePoint-Name = Anzeigename. */
+const SP_FELDER_BEZUGSLEHRER = {
+  name         : "Title",         /* "Nachname, Vorname" */
+  stellenumfang: "Stellenumfang", /* Stellenprozent (Zahl) */
+  kapazitaet   : "Kapazitaet",    /* max. Azubi-Zahl (Zahl) */
+  aktiv        : "Aktiv"          /* Ja/Nein: true=aktiv, false=archiviert */
 };
 
 /* Ausbildung ergibt sich aus dem Kurs-Text (bestaetigte Regel):
@@ -1749,7 +1759,8 @@ const Daten = {
              ansichtModus:"meine",                           /* v0.25: "meine" | "alle" (Admins-Umschalter, siehe Abschnitt 14) */
              onboardingGesehen:false,                        /* v0.27: Einführung schon durchlaufen/übersprungen? (lokal, steuert Auto-Start) */
              meldungen:[],                                   /* v0.19: Feedback der Kolleg:innen (fürs Dashboard) */
-             azubis:[], azubiNamen:{}, einrichtungen:[], termine:[], touren:[] };
+             azubis:[], azubiNamen:{}, einrichtungen:[], termine:[], touren:[],
+             lehrer:[] };                                    /* v0.35: Bezugslehrer-Stammliste */
   },
   async laden(){
     try{ this.state = await DB.get("app","haupt") || this.leererState(); }
@@ -2432,6 +2443,38 @@ const SPSync = {
     this._adminsCache=await this.adminsLaden(token);
     return this._adminsCache;
   },
+  /* v0.35 -- Lehrkräfte-Stammliste "Bezugslehrer" lesen (Kapazität + Aktiv-Flag). */
+  async lehrerListeLaden(token){
+    const url=await this._itemsUrl(token, SP_CONFIG.listBezugslehrer);
+    const r=await SharePoint._graphGet(url + "?$expand=fields&$top=999", token);
+    const F=SP_FELDER_BEZUGSLEHRER;
+    const zahl=v=> (v!=null && v!=="") ? Number(v) : null;
+    return (r.value||[]).map(it=>{
+      const f=it.fields||{};
+      return {
+        spId: it.id,
+        name: f[F.name]!=null ? String(f[F.name]) : "",
+        stellenumfang: zahl(f[F.stellenumfang]),
+        kapazitaet: zahl(f[F.kapazitaet]),
+        aktiv: f[F.aktiv]!==false        /* fehlt/true -> aktiv; nur explizit false = archiviert */
+      };
+    }).filter(l=> l.name);
+  },
+  /* v0.35 -- Neue Lehrkraft anlegen (Admin). Zahlen nur setzen, wenn vorhanden. */
+  async lehrerAnlegen(token, obj){
+    const url=await this._itemsUrl(token, SP_CONFIG.listBezugslehrer);
+    const F=SP_FELDER_BEZUGSLEHRER;
+    const felder={};
+    felder[F.name]=obj.name||"";
+    if(obj.stellenumfang!=null && obj.stellenumfang!=="") felder[F.stellenumfang]=Number(obj.stellenumfang);
+    if(obj.kapazitaet!=null    && obj.kapazitaet!=="")    felder[F.kapazitaet]=Number(obj.kapazitaet);
+    felder[F.aktiv]=true;
+    const r=await this._schreiben(url, token, "POST", { fields: felder });
+    return { spId: r && r.id, name: felder[F.name],
+             stellenumfang: felder[F.stellenumfang]!=null ? felder[F.stellenumfang] : null,
+             kapazitaet:    felder[F.kapazitaet]!=null    ? felder[F.kapazitaet]    : null,
+             aktiv: true };
+  },
   async istAdmin(token, upn){
     if(!upn) return false;
     let admins;
@@ -2609,6 +2652,10 @@ const SPSync = {
     const gesendet=await this.offeneSenden(token);
     const azubisSp=await this.azubisLaden(token);
     const einsaetze=await this.einsaetzeLaden(token);
+    /* v0.35: Lehrkräfte-Stammliste mitladen. Defensiv -- fehlt die Liste noch
+       (frisch angelegt / nicht erreichbar), bleibt der bisherige Stand erhalten. */
+    try{ Daten.state.lehrer=await this.lehrerListeLaden(token); }
+    catch(e){ if(!Array.isArray(Daten.state.lehrer)) Daten.state.lehrer=[]; }
 
     const proAzubi=new Map();
     einsaetze.forEach(e=>{
@@ -3920,6 +3967,43 @@ const Dashboard = {
   }
 };
 
+/* ---------- Bezugslehrer: Lehrkräfte-Stammliste (v0.35) ----------------
+   Eigene SharePoint-Liste "Bezugslehrer" als saubere Quelle für Kapazität +
+   Existenz (statt nur abgeleitet aus dem Azubi-Textfeld). Scheibe 1a: lesen +
+   anlegen. Kapazitäts-/Board-Umstellung + Archivieren folgen in Scheibe 1b/2. */
+const Bezugslehrer = {
+  alle(){ return (Daten.state && Daten.state.lehrer) || []; },
+  aktive(){ return this.alle().filter(l=> l.aktiv!==false); },
+  /* Lehrkraft zu einem (evtl. mit "(Zahl)" behafteten) Bezugslehrer-Wert finden. */
+  finden(wert){
+    const n=SPSync._norm(bezugslehrerAnzeige(wert)||wert);
+    return this.alle().find(l=> SPSync._norm(l.name)===n) || null;
+  },
+  /* Kapazitäts-Vorschlag: 100 % Stelle = 25 Azubis (Christian, 24.07.2026).
+     Gerundet, editierbar -- für Sonderfälle überschreibt der Admin. */
+  kapazitaetVorschlag(stellenumfang){
+    const s=Number(stellenumfang);
+    if(!isFinite(s) || s<=0) return null;
+    return Math.round(s/100*25);
+  },
+  /* Neue Lehrkraft anlegen (Admin). Erst SharePoint, dann lokal in den State. */
+  async anlegen(name, stellenumfang, kapazitaet){
+    let token=null;
+    try { token=await SharePoint._tokenStill(); } catch(e){ token=null; }
+    if(!token){ Oberflaeche.toast("Nicht bei SharePoint angemeldet – Bezugslehrer kann nicht angelegt werden.", true); return null; }
+    try{
+      const neu=await SPSync.lehrerAnlegen(token, {name, stellenumfang, kapazitaet});
+      if(!Array.isArray(Daten.state.lehrer)) Daten.state.lehrer=[];
+      Daten.state.lehrer.push(neu);
+      await Daten.speichern("Bezugslehrer angelegt");
+      return neu;
+    }catch(e){
+      Oberflaeche.toast("Bezugslehrer konnte nicht angelegt werden: " + ((e&&e.message)||e), true);
+      return null;
+    }
+  }
+};
+
 /* =========================================================================
    v0.27: Onboarding-Wizard (Etappe 1 -- rein lokale + informative Schritte)
    Spotlight-Konzept: schaltet in die ECHTE UI (Tab/Ansicht), dunkelt den
@@ -4429,12 +4513,14 @@ const Oberflaeche = {
        (Etappe 2, Teil 1). Statt des frueheren passiven Hinweises steht hier jetzt das
        interaktive Zuordnungs-Board (nur Admin, nur wenn tatsaechlich etwas offen ist). */
     const board = admin ? this.viewZuordnungsBoard() : "";
+    const lehrerVerwaltung = admin ? this.viewBezugslehrerVerwaltung() : "";   // v0.35
     return `<div class="spalte" style="grid-column:1/-1">
       ${zurueck}
       <div style="margin-bottom:10px"><b style="font-size:17px;color:var(--navy)">Dashboard</b>${badge}</div>
       ${kacheln}
       ${board}
       ${verwaltung}
+      ${lehrerVerwaltung}
       <section class="einst-block">
         <h2>Bezugslehrer-Auslastung</h2>
         ${zeilen.length===0
@@ -4482,6 +4568,56 @@ const Oberflaeche = {
         <div class="zb-spalte"><h3 class="zb-kopf">Bezugslehrer*innen (Ist / Soll)</h3>${lehrerKarten}</div>
       </div>
     </section>`;
+  },
+
+  /* ---- v0.35: Bezugslehrer-Verwaltung (Admin) ----------------------------
+     Liste der Lehrkräfte (Stammliste) + "Neuer Bezugslehrer" mit Kapazitäts-
+     Vorschlag (100 % = 25). Scheibe 1a: anlegen + anzeigen. Archivieren/Löschen
+     folgt. Nur Admin (Aufrufer prueft). */
+  viewBezugslehrerVerwaltung(){
+    const liste=Bezugslehrer.alle().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"de"));
+    const rows = liste.length
+      ? liste.map(l=>`<tr${l.aktiv===false?' style="opacity:.55"':''}>
+          <td>${String(l.name||"—").replace(/</g,"&lt;")}</td>
+          <td>${l.stellenumfang!=null?l.stellenumfang+" %":'<span class="meta">—</span>'}</td>
+          <td>${l.kapazitaet!=null?l.kapazitaet:'<span class="meta">—</span>'}</td>
+          <td>${l.aktiv===false?'<span class="pill warn">archiviert</span>':'<span class="pill">aktiv</span>'}</td>
+        </tr>`).join("")
+      : `<tr><td colspan="4" class="meta">Noch keine Bezugslehrer*innen in der Liste – lege welche an oder synchronisiere.</td></tr>`;
+    return `<section class="einst-block">
+      <h2>Bezugslehrer*innen <span class="meta" style="font-weight:400">– Verwaltung (${liste.length})</span></h2>
+      <div class="werkzeug"><button class="primaer" id="lehrerNeu">＋ Neuer Bezugslehrer</button></div>
+      <table><thead><tr><th>Name</th><th>Stellenumfang</th><th>Kapazität</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+    </section>`;
+  },
+  /* Dialog "Neuer Bezugslehrer": Name + Stellenumfang -> Kapazität wird vorgeschlagen
+     (100 % = 25), bleibt aber überschreibbar (Sonderfälle). */
+  lehrerFormular(){
+    this.modal(`<h3>Neuer Bezugslehrer</h3>
+      <div class="feld"><label>Name (Nachname, Vorname)</label><input id="lfName" placeholder="Muster, Alex"></div>
+      <div class="feld-reihe">
+        <div class="feld"><label>Stellenumfang %</label><input id="lfStelle" type="number" min="0" max="200" step="5" value="100"></div>
+        <div class="feld"><label>Kapazität (Azubis)</label><input id="lfKap" type="number" min="0"></div>
+      </div>
+      <div class="meta" style="margin-top:-4px">Vorschlag: 100 % = 25 Azubis. Kapazität wird aus dem Stellenumfang vorgeschlagen und ist überschreibbar.</div>
+      <div class="modal-aktionen">
+        <button onclick="Oberflaeche.modalZu()">Abbrechen</button>
+        <button class="primaer" id="lfSpeichern">Anlegen</button>
+      </div>`);
+    const stelle=document.getElementById("lfStelle"), kap=document.getElementById("lfKap");
+    const vorschlagen=()=>{ const v=Bezugslehrer.kapazitaetVorschlag(stelle.value);
+      if(v!=null && (kap.value==="" || kap.dataset.auto==="1")){ kap.value=v; kap.dataset.auto="1"; } };
+    kap.oninput=()=>{ kap.dataset.auto="0"; };     // manuell überschrieben -> Vorschlag nicht mehr aufzwingen
+    stelle.oninput=vorschlagen;
+    vorschlagen();                                  // initialer Vorschlag (100 % -> 25)
+    document.getElementById("lfSpeichern").onclick=async()=>{
+      const name=document.getElementById("lfName").value.trim();
+      if(!name){ this.toast("Name fehlt",true); return; }
+      const st=stelle.value!==""?Number(stelle.value):null;
+      const ka=kap.value!==""?Number(kap.value):null;
+      const neu=await Bezugslehrer.anlegen(name, st, ka);
+      if(neu){ this.modalZu(); this.toast("Bezugslehrer angelegt"); this.render(); }
+    };
   },
 
   /* ---- Anstehende Besuche ---- */
@@ -5828,6 +5964,8 @@ const Oberflaeche = {
     // Azubis
     const imp=document.getElementById("csvImport");
     if(imp) imp.onclick=()=>this._csvDialog();
+    const ln=document.getElementById("lehrerNeu");        // v0.35: Neuer Bezugslehrer
+    if(ln) ln.onclick=()=>this.lehrerFormular();
     // v0.34: Zuordnungs-Board (Dashboard, Admin). Klick-Weg (Azubi waehlen -> Lehrkraft)
     // + Drag-and-Drop. Elemente existieren nur im Dashboard -> sonst leere NodeLists.
     const zbZuordnen=(id, wert)=>{ if(id!=null && wert!=null){ this.boardAuswahl=null; Azubis.bezugslehrerSetzen(id, wert); } };
