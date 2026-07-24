@@ -139,6 +139,18 @@
   .zb-azubi.gewaehlt{outline:2px solid var(--navy);border-color:var(--navy)}
   .zb-lehrer{cursor:pointer}
   .zb-lehrer.zb-ueber{outline:2px dashed var(--forest);background:#EEF4EF}
+  /* v0.37: Zuordnungs-Leiste (Chips oben) + Lehrkraft-Zeile als Zuordnungs-Ziel */
+  .zo-leiste{background:var(--sekundaer);border-radius:var(--radius);padding:10px;margin-bottom:12px}
+  .zo-kopf{font-size:13px;color:var(--text-leise);font-weight:600;margin-bottom:6px}
+  .zo-kopf .meta{font-weight:400}
+  .zo-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .zo-chips .zb-azubi{margin-bottom:0;min-width:150px}
+  .lk-zeile.zb-ueber > td{background:#EEF4EF;box-shadow:inset 0 0 0 1px var(--forest)}
+  .lk-voll{opacity:.5}
+  .lk-aktion{white-space:nowrap}
+  .kpi.klickbar{cursor:pointer}
+  .kpi.klickbar:hover{border-color:var(--navy)}
+  .kpi-gold .kpi-zahl{color:var(--gold)}
   .werkzeug input[type=search]{flex:1;min-width:160px}
 
   /* Einstellungen: flache Abschnitte auf einer Seite (v0.29) */
@@ -1501,7 +1513,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.36.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.37.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3998,6 +4010,52 @@ const Dashboard = {
       });
     });
     return z;
+  },
+  /* ---------- v0.37: eine Lehrkraft = eine Zeile -------------------------
+     Verbindet die abgeleitete Auslastung (Ist/Soll/Ampel aus den Azubis) mit der
+     Stammliste (spId/Stellenumfang/Aktiv). Vorher standen dieselben Lehrkraft-
+     Daten in DREI Dashboard-Abschnitten nebeneinander (Board v0.34 / Verwaltung
+     v0.35 / Auslastung v0.26) -- bei 40 Lehrkraeften dreimal dieselben Namen.
+     auslastung() bleibt bewusst unveraendert (daran haengen v0.26/v0.34/v0.36).
+     Die Pseudo-Zeile "(ohne Bezugslehrer*in)" (wert === "") faellt hier RAUS:
+     das sind genau die Azubis der Zuordnungs-Leiste -- sie zusaetzlich als
+     Tabellenzeile zu fuehren waere wieder dieselbe Doppelung. */
+  lehrkraftZeilen(azubis){
+    return this.auslastung(azubis)
+      .filter(z=> z.wert && String(z.wert).trim())
+      .map(z=>{
+        /* Namensabgleich exakt wie Bezugslehrer.finden() -- eine Fundstelle. */
+        const l=(typeof Bezugslehrer!=="undefined") ? Bezugslehrer.finden(z.wert) : null;
+        return { wert:z.wert, name:z.name, ist:z.ist, soll:z.soll, quote:z.quote, ampel:z.ampel,
+                 spId:          l ? l.spId : null,
+                 stellenumfang: (l && l.stellenumfang!=null) ? l.stellenumfang : null,
+                 kapazitaet:    (l && l.kapazitaet!=null)    ? l.kapazitaet    : null,
+                 /* Nur-Text-Lehrkraft (nicht in der Stammliste) gilt als aktiv --
+                    sie hat ja Azubis. inListe=false steuert Markierung + Aktionen. */
+                 aktiv:   l ? (l.aktiv!==false) : true,
+                 inListe: !!l,
+                 frei:    (z.soll!=null) ? (z.soll - z.ist) : null };
+      });
+  },
+  /* v0.37: Suche/Filter/Sortierung der Lehrkraft-Tabelle. Rein funktional (kein
+     DOM) -- damit headless testbar. "alle" blendet Archivierte aus; "frei" ist der
+     direkte Weg zur haeufigsten Frage beim Zuordnen: wer hat ueberhaupt noch Platz? */
+  lehrkraftFiltern(zeilen, opt){
+    const o=opt||{};
+    const q=SPSync._norm(o.suche||"");
+    const modus=o.modus||"alle";
+    const raus=(zeilen||[]).filter(z=>{
+      if(q && SPSync._norm(z.name).indexOf(q)<0) return false;
+      if(modus==="archiviert")  return !z.aktiv;
+      if(!z.aktiv)              return false;
+      if(modus==="frei")        return z.frei!=null && z.frei>0;
+      if(modus==="ueberlastet") return z.ampel==="rot";
+      return true;
+    });
+    /* Ohne "name" bleibt die Reihenfolge aus auslastung(): hoechste Last zuerst. */
+    return (o.sortierung==="name")
+      ? raus.slice().sort((a,b)=> String(a.name).localeCompare(String(b.name),"de"))
+      : raus;
   }
 };
 
@@ -4415,7 +4473,10 @@ const Oberflaeche = {
   tab:"anstehend",
   einrFilter:"",            // aktueller Suchtext (Einrichtungen)
   einrOffen:new Set(),      // welche Bereich-Gruppen sind aufgeklappt
-  boardAuswahl:null,        // v0.34: im Zuordnungs-Board gewaehlter Azubi (id) fuer den Klick-Weg
+  boardAuswahl:null,        // v0.34: fuer die Zuordnung gewaehlter Azubi (id), Klick-Weg
+  lehrerSuche:"",           // v0.37: Suchtext im Arbeitsbereich Bezugslehrende
+  lehrerModus:"alle",       // v0.37: "alle" | "frei" | "ueberlastet" | "archiviert"
+  lehrerSort:"auslastung",  // v0.37: "auslastung" (wie bisher) | "name"
   azubiAnsicht:"liste",     // "liste" | "kalender" (Umschalter im Azubi-Tab)
   kalZoom:"quartal",        // "monat" | "quartal" | "jahr"
   kalAnker:null,            // Ankerdatum (ISO); null = heutiges Fenster
@@ -4521,7 +4582,7 @@ const Oberflaeche = {
         <button class="kachel" onclick="Oberflaeche.ansichtWechseln('dashboard')">
           <span class="kachel-ico">📊</span>
           <span class="kachel-titel">Dashboard</span>
-          <span class="kachel-text">Bezugslehrer-Auslastung (Ist / Soll) für alle Lehrkräfte – nur lesend.</span>
+          <span class="kachel-text">Praxisbesuche im Überblick und Auslastung der Bezugslehrenden (Ist / Soll).</span>
         </button>
         <button class="kachel" onclick="Oberflaeche.ansichtWechseln('planer')">
           <span class="kachel-ico">🗓️</span>
@@ -4531,9 +4592,9 @@ const Oberflaeche = {
       </div></div>`;
   },
 
-  /* ---- v0.26: Auslastungs-Dashboard. Rein lesend, ignoriert bewusst den
-     "Nur meine/Alle"-Umschalter -- zeigt immer ALLE Bezugslehrer
-     (Spec Abschnitt 6, letzter Punkt). ---- */
+  /* ---- v0.26/v0.37: Dashboard. Ignoriert bewusst den "Nur meine/Alle"-
+     Umschalter -- zeigt immer ALLE Bezugslehrer (Spec Abschnitt 6, letzter
+     Punkt). Aufbau seit v0.37: Kennzahlen -> Bezugslehrende -> Verwaltung. ---- */
   viewDashboard(){
     const zurueck=`<button onclick="Oberflaeche.ansichtWechseln('start')" style="margin-bottom:12px">← Zurück zur Startseite</button>`;
     /* CSV-Import ist eine Admin-Funktion (Azubi-Daten sind für Bezugslehrer bereits
@@ -4551,21 +4612,17 @@ const Oberflaeche = {
       : `<section class="einst-block">
           <div class="meta">🔒 Verwaltungsfunktionen (Importe, Anlegen, Genehmigungen) sind Administrator:innen vorbehalten. Diese Ansicht ist für dich nur lesend.</div>
         </section>`;
-    const zeilen=Dashboard.auslastung(Azubis.alle());
-    const rows=zeilen.map(z=>{
-      const pz=z.quote!==null?Math.round(z.quote*100):null;
-      const ausl=z.quote!==null
-        ? `<span class="ampel ${z.ampel}"></span>${pz}\u00a0%`
-        : `<span class="meta">Kapazität nicht hinterlegt</span>`;
-      const farbe=z.ampel==="rot"?"var(--danger)":z.ampel==="gelb"?"var(--gold)":"var(--forest)";
-      const balken=z.quote!==null
-        ? `<div class="ausl-balken"><i style="width:${Math.min(100,pz)}%;background:${farbe}"></i></div>`
-        : "";
-      return `<tr><td>${z.name.replace(/</g,"&lt;")}</td><td>${z.ist}${z.soll!==null?" / "+z.soll:""}</td><td>${ausl}</td><td>${balken}</td></tr>`;
-    }).join("");
     /* Etappe 1: Besuchs-Kennzahlen (schulweit, read-only für alle). Erklärungen
        ausschliesslich per title-Hover (ⓘ auf der Überschrift + je Kachel). */
     const bu=Dashboard.besuchsUebersicht(Azubis.alle());
+    /* v0.37: Kachel "ohne Zuordnung" nur für Admins -- nur sie können etwas dagegen
+       tun. Sie ersetzt die frühere Dauer-Sichtbarkeit des Boards (v0.36.1): die
+       offene Arbeit meldet sich jetzt ganz oben, statt sich in einer Liste zu verstecken. */
+    const ohneZuo = admin ? Azubis.ohneBezugslehrer().length : 0;
+    const kachelOhne = admin
+      ? `<div class="kpi klickbar${ohneZuo?" kpi-gold":""}" id="kpiOhneZuordnung" title="Azubis ohne Bezugslehrer*in – z.B. frisch per CSV angelegt. Klick springt zum Zuordnen.">
+          <span class="kpi-zahl">${ohneZuo}</span><span class="kpi-label">ohne Zuordnung</span></div>`
+      : "";
     const kacheln=`<section class="einst-block">
       <h2>Praxisbesuche im Überblick <span class="einst-info" title="Schulweit über alle geladenen Azubis. Gezählt werden einzelne Pflichtbesuch-Einträge nach ihrem Status – nicht nach Besuchstyp zusammengefasst wie in der Anstehend-Liste. Die Zahlen können daher leicht von „Anstehend“ abweichen.">i</span></h2>
       <div class="kpi-reihe">
@@ -4577,90 +4634,137 @@ const Oberflaeche = {
           <span class="kpi-zahl">${bu.geplant}</span><span class="kpi-label">geplant</span></div>
         <div class="kpi kpi-danger" title="Besuche mit Status „nachzuholen“ – Termin verpasst, muss neu angesetzt werden.">
           <span class="kpi-zahl">${bu.nachzuholen}</span><span class="kpi-label">nachzuholen</span></div>
+        ${kachelOhne}
       </div>
     </section>`;
-    /* v0.32/v0.34 -- neu per CSV angelegte Azubis haben bewusst keinen Bezugslehrer
-       (Etappe 2, Teil 1). Statt des frueheren passiven Hinweises steht hier jetzt das
-       interaktive Zuordnungs-Board (nur Admin, nur wenn tatsaechlich etwas offen ist). */
-    const board = admin ? this.viewZuordnungsBoard() : "";
-    const lehrerVerwaltung = admin ? this.viewBezugslehrerVerwaltung() : "";   // v0.35
     return `<div class="spalte" style="grid-column:1/-1">
       ${zurueck}
       <div style="margin-bottom:10px"><b style="font-size:17px;color:var(--navy)">Dashboard</b>${badge}</div>
       ${kacheln}
-      ${board}
+      ${this.viewBezugslehrende()}
       ${verwaltung}
-      ${lehrerVerwaltung}
-      <section class="einst-block">
-        <h2>Bezugslehrer-Auslastung</h2>
-        ${zeilen.length===0
-          ? `<div class="leer">Noch keine Azubis geladen. Bitte im Praxisbesuchsplaner unter „Einstellungen" bei SharePoint anmelden bzw. synchronisieren.</div>`
-          : `<div class="meta" style="margin-bottom:10px">Ist = zugeordnete Azubis · Soll = Kapazität aus der Bezugslehrer-Spalte („Name (Zahl)"). Zeigt immer <b>alle</b> Bezugslehrer.</div>
-        <table><thead><tr><th>Bezugslehrer*in</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th></th></tr></thead>
-        <tbody>${rows}</tbody></table>`}
-      </section>
     </div>`;
   },
 
-  /* ---- v0.34: Admin-Zuordnungs-Board -------------------------------------
-     Ordnet noch UNzugeordnete Azubis (frisch per CSV angelegt, Bezugslehrer leer)
-     einer Lehrkraft zu -- per Klick (Azubi waehlen, dann Lehrkraft) ODER per
-     Drag-and-Drop (Azubi auf Lehrkraft ziehen). Rechts die Lehrkraefte mit
-     Auslastung (Ist/Soll/Ampel). Schreibt nur das Bezugslehrer-Feld; KEIN
-     Genehmigungs-Workflow (das ist Etappe 4/Tausch). Nur Admin (Aufrufer prueft das).
-     Liefert "" wenn niemand offen ist -- so bleibt das Dashboard aufgeraeumt. */
-  viewZuordnungsBoard(){
-    const offen=Azubis.ohneBezugslehrer();
-    /* v0.36.1: Board für Admins IMMER sichtbar (auch wenn niemand offen ist) --
-       sonst ist es nicht auffindbar. Leerer Zustand zeigt einen Hinweis. */
+  /* ---- v0.37: Arbeitsbereich "Bezugslehrende" ---------------------------
+     Loest die drei frueheren Abschnitte ab, die dieselbe Lehrkraft dreifach
+     gefuehrt haben: Zuordnungs-Board (v0.34), Bezugslehrer-Verwaltung (v0.35)
+     und Bezugslehrer-Auslastung (v0.26). Jetzt gilt: eine Lehrkraft = eine
+     Zeile, die Auslastung, Stammdaten und Aktionen traegt -- und zugleich
+     Ziel der Zuordnung ist (Klick oder Drag-and-Drop).
+     Nicht-Admins sehen dieselbe Tabelle rein lesend: ohne Zuordnungs-Leiste,
+     ohne Aktionsspalte, ohne "Neue Lehrkraft" (Rollenmodell der Dashboard-Spec). */
+  viewBezugslehrende(){
+    const admin=Dashboard.darfVerwalten();
     const sel=this.boardAuswahl;
-    const lehrer=Dashboard.auslastung(Azubis.alle()).filter(z=> z.wert && z.wert.trim());
-    const azubiKarten=offen.map(a=>{
-      const nm=Azubis.name(a.id)||a.kuerzel||"—";
-      return `<div class="zb-azubi${sel===a.id?' gewaehlt':''}" draggable="true" data-zb-azubi="${a.id}">
-        <b>${nm.replace(/</g,"&lt;")}</b><span class="meta">${(a.kurs||"—").replace(/</g,"&lt;")}</span>
+    /* Zuordnungs-Leiste: die unzugeordneten Azubis als Chips OBEN. Die frueher
+       danebenstehende Lehrkraft-Spalte entfaellt -- die Tabelle darunter IST sie. */
+    let leiste="";
+    if(admin){
+      const offen=Azubis.ohneBezugslehrer();
+      const chips=offen.map(a=>{
+        const nm=Azubis.name(a.id)||a.kuerzel||"—";
+        return `<div class="zb-azubi${sel===a.id?" gewaehlt":""}" draggable="true" data-zb-azubi="${a.id}">
+          <b>${nm.replace(/</g,"&lt;")}</b><span class="meta">${(a.kurs||"—").replace(/</g,"&lt;")}</span>
+        </div>`;
+      }).join("");
+      leiste = offen.length
+        ? `<div class="zo-leiste">
+             <div class="zo-kopf">Ohne Zuordnung (${offen.length}) <span class="meta">– ${sel?"jetzt unten eine Lehrkraft anklicken":"Azubi anklicken oder auf eine Zeile ziehen"}</span></div>
+             <div class="zo-chips">${chips}</div>
+           </div>`
+        : `<div class="zo-leiste"><div class="zo-kopf">Alle Azubis sind zugeordnet ✓ <span class="meta">– neu importierte Azubis erscheinen hier</span></div></div>`;
+    }
+    const filter=`<div class="seg-knopf" id="lehrerFilterUms">
+        <button data-lmodus="alle" class="${this.lehrerModus==="alle"?"an":""}">Alle</button>
+        <button data-lmodus="frei" class="${this.lehrerModus==="frei"?"an":""}" title="Nur Lehrkräfte mit noch freier Kapazität">Freie Kapazität</button>
+        <button data-lmodus="ueberlastet" class="${this.lehrerModus==="ueberlastet"?"an":""}" title="Über der Kapazität (rote Ampel)">Überlastet</button>
+        <button data-lmodus="archiviert" class="${this.lehrerModus==="archiviert"?"an":""}">Archivierte</button>
       </div>`;
-    }).join("");
-    const lehrerKarten = lehrer.length
-      ? lehrer.map(z=>{
-          const pz=z.quote!==null?Math.round(z.quote*100)+" %":"—";
-          const amp=z.ampel?`<span class="ampel ${z.ampel}"></span>`:"";
-          return `<div class="zb-lehrer" data-zb-lehrer="${z.wert.replace(/"/g,'&quot;')}">
-            <b>${z.name.replace(/</g,"&lt;")}</b>
-            <span class="meta">${amp}${z.ist}${z.soll!==null?" / "+z.soll:""} · ${pz}</span>
-          </div>`;
-        }).join("")
-      : `<div class="leer">Noch keine Bezugslehrer*innen mit zugeordneten Azubis vorhanden.</div>`;
-    return `<section class="einst-block">
-      <h2>Azubis zuordnen <span class="meta" style="font-weight:400">${offen.length?('– '+offen.length+' ohne Bezugslehrer*in'):'– alle zugeordnet'}</span></h2>
-      <div class="meta" style="margin-bottom:8px">${offen.length?'Azubi anklicken und dann eine Lehrkraft wählen – oder den Azubi direkt auf eine Lehrkraft ziehen.':'Sobald Azubis ohne Zuordnung da sind (z.B. frisch per CSV angelegt), erscheinen sie hier und lassen sich per Klick/Ziehen einer Lehrkraft zuordnen.'}</div>
-      <div class="zb-board">
-        <div class="zb-spalte"><h3 class="zb-kopf">Ohne Zuordnung (${offen.length})</h3>${azubiKarten||'<div class="leer">Alle Azubis sind zugeordnet ✓</div>'}</div>
-        <div class="zb-spalte"><h3 class="zb-kopf">Bezugslehrer*innen (Ist / Soll)</h3>${lehrerKarten}</div>
+    const sortUms=`<div class="seg-knopf" id="lehrerSortUms">
+        <button data-lsort="auslastung" class="${this.lehrerSort==="auslastung"?"an":""}">nach Auslastung</button>
+        <button data-lsort="name" class="${this.lehrerSort==="name"?"an":""}">nach Name</button>
+      </div>`;
+    return `<section class="einst-block" id="bereichBezugslehrende">
+      <h2>Bezugslehrende <span class="einst-info" title="Eine Zeile je Lehrkraft. Ist = aktuell zugeordnete Azubis, Soll = Kapazität aus der SharePoint-Liste „Bezugslehrende“ (ersatzweise die „(Zahl)“ am Namen, solange die Liste jemanden nicht kennt).">i</span></h2>
+      ${leiste}
+      <div class="werkzeug">
+        <input type="search" id="lehrerSuche" placeholder="Lehrkraft suchen…" value="${String(this.lehrerSuche||"").replace(/"/g,"&quot;")}">
+        ${filter}${sortUms}
+        ${admin?`<button class="primaer" id="lehrerNeu">＋ Neue Lehrkraft</button>`:""}
       </div>
+      <div id="lehrerTabelle">${this._lehrerTabelleHtml()}</div>
     </section>`;
   },
 
-  /* ---- v0.35: Bezugslehrer-Verwaltung (Admin) ----------------------------
-     Liste der Lehrkräfte (Stammliste) + "Neuer Bezugslehrer" mit Kapazitäts-
-     Vorschlag (100 % = 25). Scheibe 1a: anlegen + anzeigen. Archivieren/Löschen
-     folgt. Nur Admin (Aufrufer prueft). */
-  viewBezugslehrerVerwaltung(){
-    const liste=Bezugslehrer.alle().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"de"));
-    const rows = liste.length
-      ? liste.map(l=>`<tr${l.aktiv===false?' style="opacity:.55"':''}>
-          <td>${String(l.name||"—").replace(/</g,"&lt;")}</td>
-          <td>${l.stellenumfang!=null?l.stellenumfang+" %":'<span class="meta">—</span>'}</td>
-          <td>${l.kapazitaet!=null?l.kapazitaet:'<span class="meta">—</span>'}</td>
-          <td>${l.aktiv===false?'<span class="pill warn">archiviert</span>':'<span class="pill">aktiv</span>'}</td>
-          <td><button data-lehrer-edit="${l.spId}">Bearbeiten</button> <button class="gefahr" data-lehrer-del="${l.spId}">Löschen</button></td>
-        </tr>`).join("")
-      : `<tr><td colspan="5" class="meta">Noch keine Bezugslehrer*innen in der Liste – lege welche an oder synchronisiere.</td></tr>`;
-    return `<section class="einst-block">
-      <h2>Bezugslehrer*innen <span class="meta" style="font-weight:400">– Verwaltung (${liste.length})</span></h2>
-      <div class="werkzeug"><button class="primaer" id="lehrerNeu">＋ Neuer Bezugslehrer</button></div>
-      <table><thead><tr><th>Name</th><th>Stellenumfang</th><th>Kapazität</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-    </section>`;
+  /* Tabellenteil des Arbeitsbereichs -- eigene Funktion, weil die Suche nur
+     diesen Teil neu zeichnet (siehe _lehrerTabelleRender). */
+  _lehrerTabelleHtml(){
+    const admin=Dashboard.darfVerwalten();
+    const alle=Dashboard.lehrkraftZeilen(Azubis.alle());
+    if(!alle.length) return `<div class="leer">Noch keine Azubis geladen. Bitte im Praxisbesuchsplaner unter „Einstellungen" bei SharePoint anmelden bzw. synchronisieren.</div>`;
+    const zeilen=Dashboard.lehrkraftFiltern(alle,{suche:this.lehrerSuche, modus:this.lehrerModus, sortierung:this.lehrerSort});
+    if(!zeilen.length) return `<div class="leer">Keine Lehrkraft passt zu Suche und Filter.</div>`;
+    const waehlt=admin && !!this.boardAuswahl;
+    const rows=zeilen.map(z=>{
+      const pz=z.quote!==null?Math.round(z.quote*100):null;
+      const farbe=z.ampel==="rot"?"var(--danger)":z.ampel==="gelb"?"var(--gold)":"var(--forest)";
+      const ausl=z.quote!==null
+        ? `<span class="ampel ${z.ampel}"></span>${pz}\u00a0%<div class="ausl-balken"><i style="width:${Math.min(100,pz)}%;background:${farbe}"></i></div>`
+        : `<span class="meta">Kapazität nicht hinterlegt</span>`;
+      /* Beim Zuordnen: volle Lehrkraefte gedimmt. Ueberbuchen bleibt moeglich --
+         es soll nur nicht unbemerkt passieren. */
+      const voll = waehlt && z.frei!=null && z.frei<=0;
+      /* inListe=false: Lehrkraft existiert nur als Text an den Azubis (Drift-Punkt 2
+         der Datenarchitektur). Sichtbar machen statt verstecken -- ohne spId gibt es
+         nichts zu bearbeiten. */
+      const status = !z.inListe
+        ? `<span class="pill warn" title="Steht nur als Text an den Azubis, nicht in der Liste „Bezugslehrende“ – daher nicht bearbeitbar.">nicht in Stammliste</span>`
+        : (z.aktiv ? `<span class="pill">aktiv</span>` : `<span class="pill warn">archiviert</span>`);
+      const aktionen = (admin && z.inListe)
+        ? `<button data-lehrer-edit="${z.spId}">Bearbeiten</button> <button class="gefahr" data-lehrer-del="${z.spId}">Löschen</button>`
+        : "";
+      return `<tr class="lk-zeile${voll?" lk-voll":""}"${admin?` data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"`:""}>
+        <td>${z.name.replace(/</g,"&lt;")}</td>
+        <td>${z.stellenumfang!=null?z.stellenumfang+"\u00a0%":`<span class="meta">—</span>`}</td>
+        <td>${z.ist}${z.soll!==null?" / "+z.soll:""}</td>
+        <td>${ausl}</td>
+        <td>${status}</td>
+        ${admin?`<td class="lk-aktion">${aktionen}</td>`:""}
+      </tr>`;
+    }).join("");
+    const hinweis = waehlt ? `<div class="hinweis">Azubi gewählt – jetzt die Zeile der gewünschten Lehrkraft anklicken.</div>` : "";
+    return `${hinweis}<div class="meta" style="margin-bottom:8px">${zeilen.length} von ${alle.length} Lehrkräften</div>
+      <table><thead><tr><th>Name</th><th>Stelle</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th>Status</th>${admin?"<th></th>":""}</tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  },
+
+  /* Teil-Neuzeichnung: nur die Tabelle. Ein volles render() bei jedem Tastendruck
+     wuerde den Fokus aus dem Suchfeld reissen -- gleiches Muster wie bei den
+     Einrichtungen (_einrGruppenRender / einrSuche). */
+  _lehrerTabelleRender(){
+    const el=document.getElementById("lehrerTabelle");
+    if(!el) return;
+    el.innerHTML=this._lehrerTabelleHtml();
+    this._lehrerZeilenVerdrahten();
+  },
+
+  /* Handler der Lehrkraft-Zeilen: Zuordnen (Klick/Drop) + Bearbeiten/Loeschen.
+     Eigene Funktion, weil die Tabelle auch ohne vollen Render neu entsteht. */
+  _lehrerZeilenVerdrahten(){
+    const zbZuordnen=(id, wert)=>{ if(id!=null && wert!=null){ this.boardAuswahl=null; Azubis.bezugslehrerSetzen(id, wert); } };
+    /* stopPropagation: die Zeile ist jetzt selbst Zuordnungs-Ziel -- ohne das
+       wuerde "Bearbeiten" bei gewaehltem Azubi zusaetzlich zuordnen. */
+    document.querySelectorAll("[data-lehrer-edit]").forEach(b=>
+      b.onclick=(ev)=>{ ev.stopPropagation(); this.lehrerFormular(Bezugslehrer.alle().find(l=>String(l.spId)===String(b.dataset.lehrerEdit))); });
+    document.querySelectorAll("[data-lehrer-del]").forEach(b=>
+      b.onclick=(ev)=>{ ev.stopPropagation(); this.lehrerLoeschenKlick(b.dataset.lehrerDel); });
+    document.querySelectorAll("[data-zb-lehrer]").forEach(z=>{
+      z.onclick=()=>{ if(this.boardAuswahl) zbZuordnen(this.boardAuswahl, z.dataset.zbLehrer); };
+      z.ondragover=(ev)=>{ ev.preventDefault(); z.classList.add("zb-ueber"); };
+      z.ondragleave=()=>z.classList.remove("zb-ueber");
+      z.ondrop=(ev)=>{ ev.preventDefault(); z.classList.remove("zb-ueber"); zbZuordnen(ev.dataTransfer.getData("text/plain"), z.dataset.zbLehrer); };
+    });
   },
   /* Dialog Bezugslehrer anlegen ODER bearbeiten. Mit Objekt l = bearbeiten (inkl.
      Aktiv/Archivieren), ohne = neu. Kapazität wird aus dem Stellenumfang vorgeschlagen
@@ -6060,25 +6164,29 @@ const Oberflaeche = {
     // Azubis
     const imp=document.getElementById("csvImport");
     if(imp) imp.onclick=()=>this._csvDialog();
-    const ln=document.getElementById("lehrerNeu");        // v0.35: Neuer Bezugslehrer
+    const ln=document.getElementById("lehrerNeu");        // v0.35: Neue Lehrkraft
     if(ln) ln.onclick=()=>this.lehrerFormular();
-    document.querySelectorAll("[data-lehrer-edit]").forEach(b=>                 // v0.36: bearbeiten
-      b.onclick=()=>this.lehrerFormular(Bezugslehrer.alle().find(l=>String(l.spId)===String(b.dataset.lehrerEdit))));
-    document.querySelectorAll("[data-lehrer-del]").forEach(b=>                  // v0.36: löschen
-      b.onclick=()=>this.lehrerLoeschenKlick(b.dataset.lehrerDel));
-    // v0.34: Zuordnungs-Board (Dashboard, Admin). Klick-Weg (Azubi waehlen -> Lehrkraft)
-    // + Drag-and-Drop. Elemente existieren nur im Dashboard -> sonst leere NodeLists.
-    const zbZuordnen=(id, wert)=>{ if(id!=null && wert!=null){ this.boardAuswahl=null; Azubis.bezugslehrerSetzen(id, wert); } };
+    // v0.37: Arbeitsbereich Bezugslehrende -- Suche/Filter/Sortierung. Die Suche zeichnet
+    // NUR die Tabelle neu (sonst springt der Fokus aus dem Feld); Filter/Sortierung
+    // duerfen voll rendern, weil sie per Klick kommen.
+    const ls=document.getElementById("lehrerSuche");
+    if(ls) ls.oninput=()=>{ this.lehrerSuche=ls.value; this._lehrerTabelleRender(); };
+    document.querySelectorAll("#lehrerFilterUms button").forEach(b=>{
+      b.onclick=()=>{ this.lehrerModus=b.dataset.lmodus; this.render(); };
+    });
+    document.querySelectorAll("#lehrerSortUms button").forEach(b=>{
+      b.onclick=()=>{ this.lehrerSort=b.dataset.lsort; this.render(); };
+    });
+    const kpiOZ=document.getElementById("kpiOhneZuordnung");   // Kachel -> zum Zuordnen springen
+    if(kpiOZ) kpiOZ.onclick=()=>{ const t=document.getElementById("bereichBezugslehrende");
+      if(t) t.scrollIntoView({behavior:"smooth", block:"start"}); };
+    // v0.34: Zuordnung per Klick (Azubi waehlen -> Lehrkraft-Zeile) ODER Drag-and-Drop.
+    // Elemente existieren nur im Dashboard -> sonst leere NodeLists.
     document.querySelectorAll("[data-zb-azubi]").forEach(k=>{
       k.onclick=()=>{ this.boardAuswahl = (this.boardAuswahl===k.dataset.zbAzubi) ? null : k.dataset.zbAzubi; this.render(); };
       k.ondragstart=(ev)=>{ ev.dataTransfer.setData("text/plain", k.dataset.zbAzubi); ev.dataTransfer.effectAllowed="move"; };
     });
-    document.querySelectorAll("[data-zb-lehrer]").forEach(z=>{
-      z.onclick=()=>{ if(this.boardAuswahl) zbZuordnen(this.boardAuswahl, z.dataset.zbLehrer); };
-      z.ondragover=(ev)=>{ ev.preventDefault(); z.classList.add("zb-ueber"); };
-      z.ondragleave=()=>z.classList.remove("zb-ueber");
-      z.ondrop=(ev)=>{ ev.preventDefault(); z.classList.remove("zb-ueber"); zbZuordnen(ev.dataTransfer.getData("text/plain"), z.dataset.zbLehrer); };
-    });
+    this._lehrerZeilenVerdrahten();
     document.querySelectorAll("[data-azubi]").forEach(z=> z.onclick=()=>this.azubiDetail(z.dataset.azubi));
     // Azubis: Umschalter Liste|Kalender
     document.querySelectorAll("#azubiAnsichtUmschalter button").forEach(b=>{

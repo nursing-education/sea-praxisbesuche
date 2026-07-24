@@ -4,6 +4,40 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.37.0 – 2026-07-24
+- **Umbau: Dashboard nach Aufgabe statt nach Entstehungsgeschichte – „eine Lehrkraft,
+  eine Zeile".** Dieselbe Lehrkraft stand bisher in **drei** Abschnitten: im Zuordnungs-
+  Board (v0.34, rechte Spalte), in der Bezugslehrer-Verwaltung (v0.35/36) und in der
+  Auslastungs-Tabelle (v0.26). Name und Kapazität erschienen dreifach, Ist-Zahl und Ampel
+  doppelt – bei 40 Lehrkräften also dreimal dieselben 40 Namen untereinander. Wer
+  bearbeiten wollte, suchte in Tabelle 2; wer die Auslastung sehen wollte, in Tabelle 3;
+  wer zuordnen wollte, im Board.
+  - Die drei Abschnitte sind jetzt **ein Arbeitsbereich „Bezugslehrende"**: pro Lehrkraft
+    eine Zeile mit Name · Stellenumfang · Azubis (Ist/Soll) · Auslastung mit Balken und
+    Ampel · Status · Bearbeiten/Löschen. Diese Zeile ist zugleich **Ziel der Zuordnung**
+    (Klick oder Drag-and-Drop) – die frühere zweite Board-Spalte entfällt damit ersatzlos.
+  - **Zuordnungs-Leiste** oben im Bereich: unzugeordnete Azubis als Chips statt als eigene
+    Spalte. Neue **KPI-Kachel „ohne Zuordnung"** (Admin) macht offene Arbeit schon ganz
+    oben sichtbar und springt per Klick in den Bereich – ersetzt die Dauer-Sichtbarkeit
+    des Boards aus v0.36.1.
+  - **Suche, Filter und Sortierung** (bei 40 Lehrkräften nötig): Filter „Alle / Freie
+    Kapazität / Überlastet / Archivierte" und Sortierung nach Auslastung oder Name.
+    Der Filter „Freie Kapazität" beantwortet die häufigste Frage beim Zuordnen direkt.
+    Die Suche zeichnet nur die Tabelle neu, damit der Fokus im Suchfeld bleibt.
+  - Beim Zuordnen werden Lehrkräfte **ohne freie Kapazität gedimmt** – Überbuchen bleibt
+    möglich, passiert aber nicht mehr unbemerkt.
+  - Lehrkräfte, die nur als Text an den Azubis hängen und **nicht in der Stammliste**
+    stehen, werden als solche markiert (statt stillschweigend mitzulaufen) und sind
+    folgerichtig nicht bearbeitbar.
+  - **Nur-Lese-Rolle unverändert:** Nicht-Admins sehen dieselbe Tabelle ohne Zuordnungs-
+    Leiste, ohne Aktionsspalte und ohne „Neue Lehrkraft".
+  - Neu: `Dashboard.lehrkraftZeilen()` (verbindet Auslastung mit der Stammliste) und
+    `Dashboard.lehrkraftFiltern()` (Suche/Filter/Sortierung, rein funktional).
+    `Dashboard.auslastung()` bleibt bewusst unverändert. 29 neue Tests
+    (`tests/test_v037.js`); alle bestehenden Suiten unverändert grün.
+  - Nebenbei korrigiert: Der Hinweis unter der alten Auslastungs-Tabelle behauptete noch,
+    das Soll komme aus der „(Zahl)" am Bezugslehrer-Namen – seit v0.36 führt die Liste.
+
 ## v0.36.1 – 2026-07-24
 - **Fix/UX: Zuordnungs-Board für Admins immer sichtbar.** Vorher erschien das Board nur,
   wenn mindestens ein Azubi ohne Bezugslehrer:in war – dadurch war es nicht auffindbar,
