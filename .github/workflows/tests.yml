@@ -1,0 +1,42 @@
+# Führt die Logiktests automatisch bei GitHub aus – bei jedem Pull Request und
+# nach jedem Merge auf main. Ergebnis erscheint als grüner Haken bzw. rotes Kreuz
+# am Commit und im PR.
+#
+# Die Tests brauchen ausschliesslich Node-Builtins (keine Dependencies, kein
+# package.json) – deshalb kein "npm install", nur Node bereitstellen und den
+# vorhandenen Runner starten. Er baut das Bundle aus index.html selbst.
+#
+# Grenze: geprüft wird nur die Logik. Ob das Dashboard im Browser gut aussieht
+# und sich gut bedienen lässt, kann dieser Workflow nicht beantworten – die
+# Browser-Abnahme bleibt Handarbeit.
+
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    # Nur main: Bei Branches mit offenem PR würde sonst jeder Push doppelt laufen
+    # (einmal für "push", einmal für "pull_request").
+
+# Wird während eines laufenden Durchlaufs erneut gepusht, bricht der alte ab –
+# spart Wartezeit und zeigt immer den Stand des letzten Commits.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  logiktests:
+    name: node tests/run-all.js
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo auschecken
+        uses: actions/checkout@v4
+
+      - name: Node bereitstellen
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Logiktests ausführen
+        run: node tests/run-all.js
