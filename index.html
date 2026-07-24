@@ -1501,7 +1501,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.36.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.36.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -4611,7 +4611,8 @@ const Oberflaeche = {
      Liefert "" wenn niemand offen ist -- so bleibt das Dashboard aufgeraeumt. */
   viewZuordnungsBoard(){
     const offen=Azubis.ohneBezugslehrer();
-    if(!offen.length) return "";
+    /* v0.36.1: Board für Admins IMMER sichtbar (auch wenn niemand offen ist) --
+       sonst ist es nicht auffindbar. Leerer Zustand zeigt einen Hinweis. */
     const sel=this.boardAuswahl;
     const lehrer=Dashboard.auslastung(Azubis.alle()).filter(z=> z.wert && z.wert.trim());
     const azubiKarten=offen.map(a=>{
@@ -4631,10 +4632,10 @@ const Oberflaeche = {
         }).join("")
       : `<div class="leer">Noch keine Bezugslehrer*innen mit zugeordneten Azubis vorhanden.</div>`;
     return `<section class="einst-block">
-      <h2>Azubis zuordnen <span class="meta" style="font-weight:400">– ${offen.length} ohne Bezugslehrer*in</span></h2>
-      <div class="meta" style="margin-bottom:8px">Azubi anklicken und dann eine Lehrkraft wählen – oder den Azubi direkt auf eine Lehrkraft ziehen.</div>
+      <h2>Azubis zuordnen <span class="meta" style="font-weight:400">${offen.length?('– '+offen.length+' ohne Bezugslehrer*in'):'– alle zugeordnet'}</span></h2>
+      <div class="meta" style="margin-bottom:8px">${offen.length?'Azubi anklicken und dann eine Lehrkraft wählen – oder den Azubi direkt auf eine Lehrkraft ziehen.':'Sobald Azubis ohne Zuordnung da sind (z.B. frisch per CSV angelegt), erscheinen sie hier und lassen sich per Klick/Ziehen einer Lehrkraft zuordnen.'}</div>
       <div class="zb-board">
-        <div class="zb-spalte"><h3 class="zb-kopf">Ohne Zuordnung (${offen.length})</h3>${azubiKarten}</div>
+        <div class="zb-spalte"><h3 class="zb-kopf">Ohne Zuordnung (${offen.length})</h3>${azubiKarten||'<div class="leer">Alle Azubis sind zugeordnet ✓</div>'}</div>
         <div class="zb-spalte"><h3 class="zb-kopf">Bezugslehrer*innen (Ist / Soll)</h3>${lehrerKarten}</div>
       </div>
     </section>`;
