@@ -1501,7 +1501,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.35.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.36.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -2474,6 +2474,22 @@ const SPSync = {
              stellenumfang: felder[F.stellenumfang]!=null ? felder[F.stellenumfang] : null,
              kapazitaet:    felder[F.kapazitaet]!=null    ? felder[F.kapazitaet]    : null,
              aktiv: true };
+  },
+  /* v0.36 -- Lehrkraft ändern. Zahlenfelder werden auch geleert (null), wenn leer. */
+  async lehrerAendern(token, spId, obj){
+    const url=await this._itemsUrl(token, SP_CONFIG.listBezugslehrer);
+    const F=SP_FELDER_BEZUGSLEHRER;
+    const felder={};
+    if(obj.name!=null) felder[F.name]=obj.name;
+    felder[F.stellenumfang]=(obj.stellenumfang!=null && obj.stellenumfang!=="")?Number(obj.stellenumfang):null;
+    felder[F.kapazitaet]   =(obj.kapazitaet!=null    && obj.kapazitaet!=="")   ?Number(obj.kapazitaet):null;
+    if(obj.aktiv!=null) felder[F.aktiv]=!!obj.aktiv;
+    await this._schreiben(url + "/" + spId + "/fields", token, "PATCH", felder);
+  },
+  /* v0.36 -- Lehrkraft löschen. */
+  async lehrerLoeschen(token, spId){
+    const url=await this._itemsUrl(token, SP_CONFIG.listBezugslehrer);
+    await this._schreiben(url + "/" + spId, token, "DELETE");
   },
   async istAdmin(token, upn){
     if(!upn) return false;
@@ -3909,6 +3925,12 @@ const Dashboard = {
      Sicherheits-Layer (das leistet SharePoint), sondern Übersichtlichkeit. */
   darfVerwalten(){ return (typeof SharePoint!=="undefined") && !!SharePoint.istAdmin; },
   soll(wert){
+    /* v0.36: Kapazität bevorzugt aus der Bezugslehrer-Stammliste (per Name);
+       Fallback auf die alte "(Zahl)"-Ableitung, solange die Liste leer/unbekannt ist. */
+    if(typeof Bezugslehrer!=="undefined"){
+      const l=Bezugslehrer.finden(wert);
+      if(l && l.kapazitaet!=null) return l.kapazitaet;
+    }
     const m=String(wert||"").match(/\((\d+)\)\s*$/);
     return m ? parseInt(m[1],10) : null;
   },
@@ -3932,11 +3954,23 @@ const Dashboard = {
       map.set(w,(map.get(w)||0)+1);
     });
     const zeilen=[];
+    const vergeben=new Set();   /* normalisierte Namen, die über Azubis schon vorkommen */
     map.forEach((ist,w)=>{
       const s=w?this.soll(w):null;
       const quote=(s&&s>0)?ist/s:null;
+      if(w) vergeben.add(SPSync._norm(bezugslehrerAnzeige(w)));
       zeilen.push({ wert: w, name: w?bezugslehrerAnzeige(w):"(ohne Bezugslehrer*in)",
                     ist, soll:s, quote, ampel:this.ampel(ist,s) });
+    });
+    /* v0.36: aktive Lehrkräfte aus der Stammliste ergänzen, die noch KEINE Azubis
+       haben -- damit sie im Board/Dropdown als Zuordnungsziel auftauchen. */
+    (typeof Bezugslehrer!=="undefined" ? Bezugslehrer.aktive() : []).forEach(l=>{
+      const nn=SPSync._norm(l.name);
+      if(!nn || vergeben.has(nn)) return;
+      vergeben.add(nn);
+      const s=(l.kapazitaet!=null)?l.kapazitaet:null;
+      zeilen.push({ wert: Bezugslehrer.wertFuer(l), name: bezugslehrerAnzeige(l.name),
+                    ist:0, soll:s, quote:(s&&s>0)?0:null, ampel:this.ampel(0,s) });
     });
     zeilen.sort((x,y)=>{
       if(x.quote!==null&&y.quote!==null) return (y.quote-x.quote)||x.name.localeCompare(y.name,"de");
@@ -4001,6 +4035,42 @@ const Bezugslehrer = {
       Oberflaeche.toast("Bezugslehrer konnte nicht angelegt werden: " + ((e&&e.message)||e), true);
       return null;
     }
+  },
+  /* Kanonischer Bezugslehrer-Rohwert "Name (Kapazität)" -- so bleibt die bestehende
+     "(Zahl)"-Konvention erhalten (Fallback für soll(), Anzeige via bezugslehrerAnzeige). */
+  wertFuer(l){ return (l&&l.name?l.name:"") + (l&&l.kapazitaet!=null ? " ("+l.kapazitaet+")" : ""); },
+  /* Wie viele Azubis sind dieser Lehrkraft aktuell (per Name) zugeordnet? */
+  azubiAnzahl(l){
+    const nn=SPSync._norm(l&&l.name); if(!nn) return 0;
+    return ((Daten.state&&Daten.state.azubis)||[]).filter(a=> SPSync._norm(bezugslehrerAnzeige(a.bezugslehrer))===nn).length;
+  },
+  /* Lehrkraft ändern (Name/Stellenumfang/Kapazität/Aktiv). Erst SharePoint, dann lokal. */
+  async aendern(spId, obj){
+    let token=null; try { token=await SharePoint._tokenStill(); } catch(e){ token=null; }
+    if(!token){ Oberflaeche.toast("Nicht angemeldet – Änderung nicht möglich.", true); return false; }
+    try{
+      await SPSync.lehrerAendern(token, spId, obj);
+      const l=this.alle().find(x=>String(x.spId)===String(spId));
+      if(l){
+        if(obj.name!=null) l.name=obj.name;
+        l.stellenumfang=(obj.stellenumfang!=null && obj.stellenumfang!=="")?Number(obj.stellenumfang):null;
+        l.kapazitaet   =(obj.kapazitaet!=null    && obj.kapazitaet!=="")   ?Number(obj.kapazitaet):null;
+        if(obj.aktiv!=null) l.aktiv=!!obj.aktiv;
+      }
+      await Daten.speichern("Bezugslehrer geändert");
+      return true;
+    }catch(e){ Oberflaeche.toast("Änderung fehlgeschlagen: "+((e&&e.message)||e), true); return false; }
+  },
+  /* Lehrkraft löschen (nur sinnvoll ohne zugeordnete Azubis -- Aufrufer prüft das). */
+  async loeschen(spId){
+    let token=null; try { token=await SharePoint._tokenStill(); } catch(e){ token=null; }
+    if(!token){ Oberflaeche.toast("Nicht angemeldet – Löschen nicht möglich.", true); return false; }
+    try{
+      await SPSync.lehrerLoeschen(token, spId);
+      Daten.state.lehrer=this.alle().filter(x=>String(x.spId)!==String(spId));
+      await Daten.speichern("Bezugslehrer gelöscht");
+      return true;
+    }catch(e){ Oberflaeche.toast("Löschen fehlgeschlagen: "+((e&&e.message)||e), true); return false; }
   }
 };
 
@@ -4582,42 +4652,61 @@ const Oberflaeche = {
           <td>${l.stellenumfang!=null?l.stellenumfang+" %":'<span class="meta">—</span>'}</td>
           <td>${l.kapazitaet!=null?l.kapazitaet:'<span class="meta">—</span>'}</td>
           <td>${l.aktiv===false?'<span class="pill warn">archiviert</span>':'<span class="pill">aktiv</span>'}</td>
+          <td><button data-lehrer-edit="${l.spId}">Bearbeiten</button> <button class="gefahr" data-lehrer-del="${l.spId}">Löschen</button></td>
         </tr>`).join("")
-      : `<tr><td colspan="4" class="meta">Noch keine Bezugslehrer*innen in der Liste – lege welche an oder synchronisiere.</td></tr>`;
+      : `<tr><td colspan="5" class="meta">Noch keine Bezugslehrer*innen in der Liste – lege welche an oder synchronisiere.</td></tr>`;
     return `<section class="einst-block">
       <h2>Bezugslehrer*innen <span class="meta" style="font-weight:400">– Verwaltung (${liste.length})</span></h2>
       <div class="werkzeug"><button class="primaer" id="lehrerNeu">＋ Neuer Bezugslehrer</button></div>
-      <table><thead><tr><th>Name</th><th>Stellenumfang</th><th>Kapazität</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+      <table><thead><tr><th>Name</th><th>Stellenumfang</th><th>Kapazität</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table>
     </section>`;
   },
-  /* Dialog "Neuer Bezugslehrer": Name + Stellenumfang -> Kapazität wird vorgeschlagen
-     (100 % = 25), bleibt aber überschreibbar (Sonderfälle). */
-  lehrerFormular(){
-    this.modal(`<h3>Neuer Bezugslehrer</h3>
-      <div class="feld"><label>Name (Nachname, Vorname)</label><input id="lfName" placeholder="Muster, Alex"></div>
+  /* Dialog Bezugslehrer anlegen ODER bearbeiten. Mit Objekt l = bearbeiten (inkl.
+     Aktiv/Archivieren), ohne = neu. Kapazität wird aus dem Stellenumfang vorgeschlagen
+     (100 % = 25), bleibt überschreibbar; bei "bearbeiten" wird eine vorhandene Kapazität
+     nicht automatisch überschrieben. */
+  lehrerFormular(l){
+    const bearb=!!(l && l.spId!=null);
+    const esc=v=>String(v==null?"":v).replace(/"/g,'&quot;');
+    this.modal(`<h3>${bearb?"Bezugslehrer bearbeiten":"Neuer Bezugslehrer"}</h3>
+      <div class="feld"><label>Name (Nachname, Vorname)</label><input id="lfName" value="${bearb?esc(l.name):""}" placeholder="Muster, Alex"></div>
       <div class="feld-reihe">
-        <div class="feld"><label>Stellenumfang %</label><input id="lfStelle" type="number" min="0" max="200" step="5" value="100"></div>
-        <div class="feld"><label>Kapazität (Azubis)</label><input id="lfKap" type="number" min="0"></div>
+        <div class="feld"><label>Stellenumfang %</label><input id="lfStelle" type="number" min="0" max="200" step="5" value="${bearb?(l.stellenumfang!=null?l.stellenumfang:""):100}"></div>
+        <div class="feld"><label>Kapazität (Azubis)</label><input id="lfKap" type="number" min="0" value="${bearb&&l.kapazitaet!=null?l.kapazitaet:""}"></div>
       </div>
+      <div class="feld"><label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="lfAktiv" ${(!bearb || l.aktiv!==false)?"checked":""}> Aktiv (Häkchen entfernen = archiviert)</label></div>
       <div class="meta" style="margin-top:-4px">Vorschlag: 100 % = 25 Azubis. Kapazität wird aus dem Stellenumfang vorgeschlagen und ist überschreibbar.</div>
       <div class="modal-aktionen">
         <button onclick="Oberflaeche.modalZu()">Abbrechen</button>
-        <button class="primaer" id="lfSpeichern">Anlegen</button>
+        <button class="primaer" id="lfSpeichern">${bearb?"Speichern":"Anlegen"}</button>
       </div>`);
     const stelle=document.getElementById("lfStelle"), kap=document.getElementById("lfKap");
+    if(bearb && l.kapazitaet!=null) kap.dataset.auto="0";   // vorhandene Kapazität nicht überschreiben
     const vorschlagen=()=>{ const v=Bezugslehrer.kapazitaetVorschlag(stelle.value);
       if(v!=null && (kap.value==="" || kap.dataset.auto==="1")){ kap.value=v; kap.dataset.auto="1"; } };
     kap.oninput=()=>{ kap.dataset.auto="0"; };     // manuell überschrieben -> Vorschlag nicht mehr aufzwingen
     stelle.oninput=vorschlagen;
-    vorschlagen();                                  // initialer Vorschlag (100 % -> 25)
+    if(!bearb) vorschlagen();                        // nur bei "neu" initial vorschlagen (100 % -> 25)
     document.getElementById("lfSpeichern").onclick=async()=>{
       const name=document.getElementById("lfName").value.trim();
       if(!name){ this.toast("Name fehlt",true); return; }
       const st=stelle.value!==""?Number(stelle.value):null;
       const ka=kap.value!==""?Number(kap.value):null;
-      const neu=await Bezugslehrer.anlegen(name, st, ka);
-      if(neu){ this.modalZu(); this.toast("Bezugslehrer angelegt"); this.render(); }
+      const aktiv=document.getElementById("lfAktiv").checked;
+      const okSave = bearb
+        ? await Bezugslehrer.aendern(l.spId, {name, stellenumfang:st, kapazitaet:ka, aktiv})
+        : await Bezugslehrer.anlegen(name, st, ka);
+      if(okSave){ this.modalZu(); this.toast(bearb?"Bezugslehrer gespeichert":"Bezugslehrer angelegt"); this.render(); }
     };
+  },
+  /* Löschen mit Schutz: nur ohne zugeordnete Azubis. Sonst Hinweis -> erst neu zuordnen
+     oder über "Bearbeiten" archivieren (Datenmodell-Entscheidung 24.07.2026). */
+  async lehrerLoeschenKlick(spId){
+    const l=Bezugslehrer.alle().find(x=>String(x.spId)===String(spId)); if(!l) return;
+    const n=Bezugslehrer.azubiAnzahl(l);
+    if(n>0){ this.toast(`„${bezugslehrerAnzeige(l.name)}" hat noch ${n} zugeordnete Azubi(s). Erst neu zuordnen – oder über „Bearbeiten" archivieren.`, true); return; }
+    if(!confirm(`Bezugslehrer „${bezugslehrerAnzeige(l.name)}" wirklich löschen?`)) return;
+    if(await Bezugslehrer.loeschen(spId)){ this.toast("Bezugslehrer gelöscht"); this.render(); }
   },
 
   /* ---- Anstehende Besuche ---- */
@@ -5890,10 +5979,16 @@ const Oberflaeche = {
        Bezugslehrer-Werten der schon geladenen Azubis-Liste (kein neuer
        API-Aufruf). Rohwert bleibt fuehrend fuers Matching, Anzeige/Druck
        trennt die "(Zahl)" per bezugslehrerAnzeige() ab. */
-    const bezugslehrerWerte=[...new Set((s.azubis||[]).map(x=>x.bezugslehrer).filter(Boolean))]
-      .sort((x,y)=>x.localeCompare(y,"de"));
+    /* v0.36: zusätzlich die aktiven Lehrkräfte aus der Stammliste (auch ohne Azubis),
+       dedupliziert per Name -- der kanonische Listen-Rohwert gewinnt. */
+    const werteMap=new Map();
+    (s.azubis||[]).forEach(x=>{ const w=x.bezugslehrer; if(!w) return;
+      const k=SPSync._norm(bezugslehrerAnzeige(w)); if(!werteMap.has(k)) werteMap.set(k, w); });
+    (Bezugslehrer.aktive()||[]).forEach(l=>{ const k=SPSync._norm(l.name); if(k) werteMap.set(k, Bezugslehrer.wertFuer(l)); });
+    const bezugslehrerWerte=[...werteMap.values()].sort((x,y)=>x.localeCompare(y,"de"));
+    const selK=SPSync._norm(bezugslehrerAnzeige(s.bezugslehrerWert));
     const bezugslehrerOptionen = `<option value="">– bitte wählen –</option>` +
-      bezugslehrerWerte.map(w=>`<option value="${esc(w)}" ${s.bezugslehrerWert===w?"selected":""}>${esc(bezugslehrerAnzeige(w))}</option>`).join("");
+      bezugslehrerWerte.map(w=>`<option value="${esc(w)}" ${selK && selK===SPSync._norm(bezugslehrerAnzeige(w))?"selected":""}>${esc(bezugslehrerAnzeige(w))}</option>`).join("");
     /* v0.29: flache Abschnitte auf einer Seite (keine Akkordeons), logische
        Reihenfolge (SharePoint zuerst), Erklärungen als ⓘ-Hover statt Fließtext. */
     return `<div class="spalte" style="grid-column:1/-1">
@@ -5966,6 +6061,10 @@ const Oberflaeche = {
     if(imp) imp.onclick=()=>this._csvDialog();
     const ln=document.getElementById("lehrerNeu");        // v0.35: Neuer Bezugslehrer
     if(ln) ln.onclick=()=>this.lehrerFormular();
+    document.querySelectorAll("[data-lehrer-edit]").forEach(b=>                 // v0.36: bearbeiten
+      b.onclick=()=>this.lehrerFormular(Bezugslehrer.alle().find(l=>String(l.spId)===String(b.dataset.lehrerEdit))));
+    document.querySelectorAll("[data-lehrer-del]").forEach(b=>                  // v0.36: löschen
+      b.onclick=()=>this.lehrerLoeschenKlick(b.dataset.lehrerDel));
     // v0.34: Zuordnungs-Board (Dashboard, Admin). Klick-Weg (Azubi waehlen -> Lehrkraft)
     // + Drag-and-Drop. Elemente existieren nur im Dashboard -> sonst leere NodeLists.
     const zbZuordnen=(id, wert)=>{ if(id!=null && wert!=null){ this.boardAuswahl=null; Azubis.bezugslehrerSetzen(id, wert); } };
