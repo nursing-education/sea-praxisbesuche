@@ -4804,8 +4804,8 @@ const Oberflaeche = {
       const status = !z.inListe
         ? `<span class="pill warn" title="Steht nur als Text an den Azubis, nicht in der Liste „Bezugslehrende“ – daher nicht bearbeitbar.">nicht in Stammliste</span>`
         : (z.aktiv ? `<span class="pill">aktiv</span>` : `<span class="pill warn">archiviert</span>`);
-      const aktionen = (admin && z.inListe)
-        ? `<button data-lehrer-edit="${z.spId}">Bearbeiten</button> <button class="gefahr" data-lehrer-del="${z.spId}">Löschen</button>`
+      const aktionen = admin
+        ? this._aktionsMenueHtml(Dashboard.lehrkraftAktionen(z), z.spId)
         : "";
       /* v0.38: Schwerpunkt-Trägerhaus. "5 / 7" heisst: 5 der 7 Azubis dieser Lehrkraft
          kommen aus diesem Haus. Details (weitere Häuser, fehlende Angaben) im Hover. */
@@ -4863,6 +4863,9 @@ const Oberflaeche = {
       };
     });
     wurzel.querySelectorAll("[data-menue-liste]").forEach(l=>{
+      /* stopPropagation: die Liste hat Innenabstand -- ein Klick daneben (noch
+         in der Liste, neben den Knoepfen) darf nicht zur Zeile durchlaufen. */
+      l.onclick=(ev)=> ev.stopPropagation();
       l.querySelectorAll("[data-mp]").forEach(b=>{
         b.onclick=(ev)=>{ ev.stopPropagation(); this._aktionsMenueZu();
                           aufPunkt(b.dataset.mp, l.dataset.menueListe); };
@@ -4884,12 +4887,11 @@ const Oberflaeche = {
      Eigene Funktion, weil die Tabelle auch ohne vollen Render neu entsteht. */
   _lehrerZeilenVerdrahten(){
     const zbZuordnen=(id, wert)=>{ if(id!=null && wert!=null){ this.boardAuswahl=null; Azubis.bezugslehrerSetzen(id, wert); } };
-    /* stopPropagation: die Zeile ist jetzt selbst Zuordnungs-Ziel -- ohne das
-       wuerde "Bearbeiten" bei gewaehltem Azubi zusaetzlich zuordnen. */
-    document.querySelectorAll("[data-lehrer-edit]").forEach(b=>
-      b.onclick=(ev)=>{ ev.stopPropagation(); this.lehrerFormular(Bezugslehrer.alle().find(l=>String(l.spId)===String(b.dataset.lehrerEdit))); });
-    document.querySelectorAll("[data-lehrer-del]").forEach(b=>
-      b.onclick=(ev)=>{ ev.stopPropagation(); this.lehrerLoeschenKlick(b.dataset.lehrerDel); });
+    this._aktionsMenueVerdrahten("#lehrerTabelle", (punkt, spId)=>{
+      if(punkt==="edit")   this.lehrerFormular(Bezugslehrer.alle().find(l=>String(l.spId)===String(spId)));
+      if(punkt==="archiv") this.lehrerArchivKlick(spId);
+      if(punkt==="del")    this.lehrerLoeschenKlick(spId);
+    });
     document.querySelectorAll("[data-zb-lehrer]").forEach(z=>{
       z.onclick=()=>{ if(this.boardAuswahl) zbZuordnen(this.boardAuswahl, z.dataset.zbLehrer); };
       z.ondragover=(ev)=>{ ev.preventDefault(); z.classList.add("zb-ueber"); };
@@ -4943,6 +4945,20 @@ const Oberflaeche = {
     if(n>0){ this.toast(`„${bezugslehrerAnzeige(l.name)}" hat noch ${n} zugeordnete Azubi(s). Erst neu zuordnen – oder über „Bearbeiten" archivieren.`, true); return; }
     if(!confirm(`Bezugslehrer „${bezugslehrerAnzeige(l.name)}" wirklich löschen?`)) return;
     if(await Bezugslehrer.loeschen(spId)){ this.toast("Bezugslehrer gelöscht"); this.render(); }
+  },
+  /* v0.39: Archivieren/Reaktivieren direkt aus dem ⋮-Menü. Bisher steckte das nur
+     als Häkchen im Bearbeiten-Dialog. Name/Stellenumfang/Kapazität werden bewusst
+     NICHT mitgegeben -- seit v0.39 laesst aendern() ausgelassene Felder unberuehrt. */
+  async lehrerArchivKlick(spId){
+    const l=Bezugslehrer.alle().find(x=>String(x.spId)===String(spId)); if(!l) return;
+    const neu=!(l.aktiv!==false);
+    const nm=bezugslehrerAnzeige(l.name);
+    if(!neu && Bezugslehrer.azubiAnzahl(l)>0
+       && !confirm(`„${nm}" hat noch zugeordnete Azubis. Trotzdem archivieren?`)) return;
+    if(await Bezugslehrer.aendern(spId, {aktiv:neu})){
+      this.toast(neu?`„${nm}" ist wieder aktiv`:`„${nm}" archiviert`);
+      this.render();
+    }
   },
 
   /* ---- Anstehende Besuche ---- */
