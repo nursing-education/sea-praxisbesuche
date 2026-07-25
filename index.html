@@ -2494,8 +2494,12 @@ const SPSync = {
     const F=SP_FELDER_BEZUGSLEHRER;
     const felder={};
     if(obj.name!=null) felder[F.name]=obj.name;
-    felder[F.stellenumfang]=(obj.stellenumfang!=null && obj.stellenumfang!=="")?Number(obj.stellenumfang):null;
-    felder[F.kapazitaet]   =(obj.kapazitaet!=null    && obj.kapazitaet!=="")   ?Number(obj.kapazitaet):null;
+    /* v0.39: nur mitschreiben, was der Aufrufer wirklich meint. Vorher wurden
+       Stellenumfang/Kapazitaet bedingungslos gesetzt -- ein Teil-Update wie
+       {aktiv:false} haette beide in SharePoint auf null geschrieben.
+       "" bleibt bewusst das Signal zum Leeren. */
+    if(obj.stellenumfang!==undefined) felder[F.stellenumfang]=(obj.stellenumfang!=null && obj.stellenumfang!=="")?Number(obj.stellenumfang):null;
+    if(obj.kapazitaet!==undefined)    felder[F.kapazitaet]   =(obj.kapazitaet!=null    && obj.kapazitaet!=="")   ?Number(obj.kapazitaet):null;
     if(obj.aktiv!=null) felder[F.aktiv]=!!obj.aktiv;
     await this._schreiben(url + "/" + spId + "/fields", token, "PATCH", felder);
   },
@@ -4171,8 +4175,8 @@ const Bezugslehrer = {
       const l=this.alle().find(x=>String(x.spId)===String(spId));
       if(l){
         if(obj.name!=null) l.name=obj.name;
-        l.stellenumfang=(obj.stellenumfang!=null && obj.stellenumfang!=="")?Number(obj.stellenumfang):null;
-        l.kapazitaet   =(obj.kapazitaet!=null    && obj.kapazitaet!=="")   ?Number(obj.kapazitaet):null;
+        if(obj.stellenumfang!==undefined) l.stellenumfang=(obj.stellenumfang!=null && obj.stellenumfang!=="")?Number(obj.stellenumfang):null;
+        if(obj.kapazitaet!==undefined)    l.kapazitaet   =(obj.kapazitaet!=null    && obj.kapazitaet!=="")   ?Number(obj.kapazitaet):null;
         if(obj.aktiv!=null) l.aktiv=!!obj.aktiv;
       }
       await Daten.speichern("Bezugslehrer geändert");

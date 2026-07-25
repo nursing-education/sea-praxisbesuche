@@ -22,7 +22,7 @@ let pflichtbesucheMarkieren = () => {};
 
 const wrapped = new Function('SharePoint', 'Daten', 'Einrichtungen', 'Oberflaeche', 'pflichtbesucheMarkieren',
   bundle + '\nreturn { SPSync, Bezugslehrer, Dashboard, bezugslehrerAnzeige };');
-const { Dashboard } = wrapped(SharePoint, Daten, Einrichtungen, Oberflaeche, pflichtbesucheMarkieren);
+const { Dashboard, SPSync } = wrapped(SharePoint, Daten, Einrichtungen, Oberflaeche, pflichtbesucheMarkieren);
 
 const ids = liste => liste.map(x => x.id).join(',');
 
@@ -54,6 +54,28 @@ p('Einrichtung: nur zwei Punkte', ids(einr) === 'edit,del');
 p('Einrichtung: kein Archivieren', !einr.some(x => x.id === 'archiv'));
 p('Einrichtung: Loeschen ist als Gefahr markiert', einr[1].gefahr === true);
 
-console.log(log.join('\n'));
-console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
-process.exit(fail ? 1 : 0);
+/* --- Teil-Update darf Stellenumfang/Kapazitaet nicht loeschen --- */
+(async () => {
+  let gepatcht = null;
+  SPSync._itemsUrl = async () => 'https://x/items';
+  SPSync._schreiben = async (url, token, methode, felder) => { gepatcht = felder; };
+
+  await SPSync.lehrerAendern('tok', '1', { aktiv: false });
+  p('Teil-Update: Stellenumfang wird NICHT mitgeschrieben',
+    !Object.prototype.hasOwnProperty.call(gepatcht, 'Stellenumfang'));
+  p('Teil-Update: Kapazitaet wird NICHT mitgeschrieben',
+    !Object.prototype.hasOwnProperty.call(gepatcht, 'Kapazitaet'));
+  p('Teil-Update: Aktiv wird geschrieben', gepatcht.Aktiv === false);
+
+  await SPSync.lehrerAendern('tok', '1', { name: 'Neu, Nina', stellenumfang: 50, kapazitaet: 13, aktiv: true });
+  p('Voll-Update: Stellenumfang kommt weiterhin an', gepatcht.Stellenumfang === 50);
+  p('Voll-Update: Kapazitaet kommt weiterhin an', gepatcht.Kapazitaet === 13);
+
+  /* "" bleibt das gezielte Signal zum Leeren -- nicht mit "weglassen" verwechseln */
+  await SPSync.lehrerAendern('tok', '1', { stellenumfang: '' });
+  p('leerer Wert loescht weiterhin gezielt', gepatcht.Stellenumfang === null);
+
+  console.log(log.join('\n'));
+  console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
+  process.exit(fail ? 1 : 0);
+})();
