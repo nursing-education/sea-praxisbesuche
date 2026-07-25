@@ -4096,7 +4096,27 @@ const Dashboard = {
     return (o.sortierung==="name")
       ? raus.slice().sort((a,b)=> String(a.name).localeCompare(String(b.name),"de"))
       : raus;
-  }
+  },
+  /* v0.39: Welche Punkte das ⋮-Menü einer Lehrkraft-Zeile traegt. Reine Logik --
+     das Popover selbst ist Browser-Sache und nicht headless pruefbar.
+     Ohne spId (nur als Text am Azubi) gibt es nichts zu bearbeiten -> kein Menue. */
+  lehrkraftAktionen(z){
+    if(!z || !z.inListe) return [];
+    return [
+      {id:"edit",   label:"Bearbeiten"},
+      {id:"archiv", label: z.aktiv ? "Archivieren" : "Reaktivieren"},
+      {id:"del",    label:"Löschen", gefahr:true},
+    ];
+  },
+  /* v0.39: Einrichtungen bekommen bewusst KEIN Archivieren -- fuer die Liste
+     existiert kein Schreibweg nach SharePoint, ein solcher Knopf wuerde nur
+     lokal wirken und beim naechsten Sync verpuffen. */
+  einrichtungAktionen(){
+    return [
+      {id:"edit", label:"Bearbeiten"},
+      {id:"del",  label:"Löschen", gefahr:true},
+    ];
+  },
 };
 
 /* ---------- Bezugslehrer: Lehrkräfte-Stammliste (v0.35) ----------------
