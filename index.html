@@ -3007,13 +3007,46 @@ const Azubis = {
     await Daten.speichern(false, true);      /* Sende-Markierung mitspeichern */
     if(!ok) Oberflaeche.toast("Änderung lokal gespeichert, aber noch nicht in SharePoint – wird beim nächsten Aktualisieren nachgereicht.", true);
   },
-  /* v0.34: Bezugslehrer eines Azubis setzen (Admin-Zuordnungs-Board). Offline-first
-     wie besuchSetzen: erst lokal + IndexedDB, dann nach SharePoint. Scheitert das
-     Senden, bleibt blOffen=true und wird beim naechsten Sync nachgereicht. Der Wert
-     ist der Bezugslehrer-ROHwert inkl. "(Zahl)"-Kapazitaet -- sonst verliert
-     Dashboard.soll() die Kapazitaet. Leerer Wert = Zuordnung entfernen. */
-  async bezugslehrerSetzen(id, wert){
-    const a=this.alle().find(x=>x.id===id); if(!a) return;
+  /* v0.34/v0.40: Bezugslehrer eines Azubis setzen. Der Wert ist der ROHwert inkl.
+     "(Zahl)"-Kapazitaet -- sonst verliert Dashboard.soll() die Kapazitaet.
+     Leerer Wert = Zuordnung entfernen. Bestehender Name, delegiert seit v0.40. */
+  async bezugslehrerSetzen(id, wert){ return this.bezugslehrerUmhaengen(id, wert); },
+
+  /* v0.40: Zuordnen, Umhaengen und Entfernen laufen ueber EINEN Weg -- und merken
+     dabei den bisherigen Bezugslehrer als Vorgaenger (einstufiges Gedaechtnis,
+     Grundlage der Vertretung in v0.41). Auch beim Entfernen, damit "versehentlich
+     abgezogen" ruecknehmbar bleibt.
+     Rueckgabe ist der Zustand VOR der Aenderung -- daraus baut die Oberflaeche das
+     Rueckgaengig. Aendert sich nichts (Kachel auf der eigenen Zeile abgelegt),
+     passiert nichts und es kommt null zurueck: kein Schreibvorgang, keine Meldung,
+     und vor allem kein Vorgaenger, der sich selbst ueberschreibt. */
+  async bezugslehrerUmhaengen(id, wert){
+    const a=this.alle().find(x=>x.id===id); if(!a) return null;
+    const neu=wert||"";
+    const gleich = SPSync._norm(bezugslehrerAnzeige(a.bezugslehrer||"")||"")
+                === SPSync._norm(bezugslehrerAnzeige(neu)||"");
+    if(gleich) return null;
+    const davor={ id, bezugslehrer:a.bezugslehrer||"",
+                  vorherigerBezugslehrer:a.vorherigerBezugslehrer||"" };
+    a.vorherigerBezugslehrer=a.bezugslehrer||"";
+    await this._bezugslehrerSchreiben(a, neu);
+    return davor;
+  },
+
+  /* v0.40: Rueckgaengig -- BEIDE Werte zurueck auf den Stand davor. Nur den
+     Bezugslehrer zurueckzusetzen wuerde den gemerkten Vorgaenger stehen lassen
+     und damit das Gedaechtnis verfaelschen. */
+  async bezugslehrerZustandHerstellen(davor){
+    if(!davor) return;
+    const a=this.alle().find(x=>x.id===davor.id); if(!a) return;
+    a.vorherigerBezugslehrer=davor.vorherigerBezugslehrer||"";
+    await this._bezugslehrerSchreiben(a, davor.bezugslehrer||"");
+  },
+
+  /* Gemeinsamer Schreibweg. Offline-first wie besuchSetzen: erst lokal +
+     IndexedDB, dann nach SharePoint. Scheitert das Senden, bleibt blOffen=true
+     und wird beim naechsten Sync nachgereicht. */
+  async _bezugslehrerSchreiben(a, wert){
     a.bezugslehrer=wert||"";
     a.blOffen=true;
     a.aktualisiertAm=new Date().toISOString();
