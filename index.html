@@ -149,6 +149,16 @@
   .lk-zeile.zb-ueber > td{background:#EEF4EF;box-shadow:inset 0 0 0 1px var(--forest)}
   .lk-voll{opacity:.5}
   .lk-aktion{white-space:nowrap}
+  .akt-menue{position:relative;display:inline-block}
+  .akt-knopf{padding:2px 8px;line-height:1.1;font-size:16px}
+  .akt-liste{position:absolute;right:0;top:100%;z-index:30;min-width:150px;
+    background:#fff;border:1px solid var(--rand);border-radius:8px;
+    box-shadow:0 6px 18px rgba(0,0,0,.13);padding:4px;text-align:left}
+  .akt-liste button{display:block;width:100%;text-align:left;border:0;background:none;
+    padding:7px 10px;border-radius:6px;font-size:13px}
+  .akt-liste button:hover{background:var(--sekundaer)}
+  .akt-liste button.gefahr{color:var(--danger);border-top:1px solid var(--rand);
+    border-radius:0 0 6px 6px;margin-top:2px}
   .kpi.klickbar{cursor:pointer}
   .kpi.klickbar:hover{border-color:var(--navy)}
   .kpi-gold .kpi-zahl{color:var(--gold)}
@@ -4552,6 +4562,10 @@ const Oberflaeche = {
         this.render(); };
     });
     const fb=document.getElementById("bugBtn"); if(fb) fb.onclick=()=>this.feedbackFormular();
+    /* v0.39: Klick daneben oder Esc schliesst jedes offene Aktionsmenue. Hier
+       einmalig gebunden -- im Render wuerden sich die Handler stapeln. */
+    document.addEventListener("click", ()=> this._aktionsMenueZu());
+    document.addEventListener("keydown", (ev)=>{ if(ev.key==="Escape") this._aktionsMenueZu(); });
     this.standAnzeigen(); this.render();
     const v=document.getElementById("appVer"); if(v) v.textContent="v"+APP_VERSION;
     Onboarding.pruefeStart();   /* v0.27: Einführung beim ersten Start automatisch anbieten */
@@ -4813,6 +4827,47 @@ const Oberflaeche = {
     return `${hinweis}<div class="meta" style="margin-bottom:8px">${zeilen.length} von ${alle.length} Lehrkräften</div>
       <table><thead><tr><th>Name</th><th>Stelle</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th>Trägerhaus (Schwerpunkt)</th><th>Status</th>${admin?"<th></th>":""}</tr></thead>
       <tbody>${rows}</tbody></table>`;
+  },
+
+  /* ---- v0.39: Aktionsmenü (⋮) ------------------------------------------
+     Buendelt Zeilen-Aktionen, statt jede als eigenen Knopf zu zeigen.
+     Genutzt von Bezugslehrenden und Einrichtungen; die Punkte kommen aus
+     Dashboard (dort testbar), hier wird nur gezeichnet und verdrahtet. */
+  _aktionsMenueHtml(punkte, schluessel){
+    if(!punkte || !punkte.length) return "";
+    const s=String(schluessel).replace(/"/g,"&quot;");
+    const eintraege=punkte.map(p=>
+      `<button data-mp="${p.id}"${p.gefahr?' class="gefahr"':''}>${p.label}</button>`).join("");
+    return `<div class="akt-menue">
+        <button class="akt-knopf" data-menue="${s}" title="Aktionen" aria-label="Aktionen">⋮</button>
+        <div class="akt-liste" data-menue-liste="${s}" hidden>${eintraege}</div>
+      </div>`;
+  },
+  /* Schliesst jedes offene Menue. Bewusst global: es soll immer hoechstens eines
+     offen sein, auch ueber verschiedene Tabellen hinweg. */
+  _aktionsMenueZu(){
+    document.querySelectorAll("[data-menue-liste]").forEach(l=> l.hidden=true);
+  },
+  _aktionsMenueVerdrahten(wurzelSelektor, aufPunkt){
+    const wurzel=document.querySelector(wurzelSelektor);
+    if(!wurzel) return;
+    wurzel.querySelectorAll("[data-menue]").forEach(k=>{
+      k.onclick=(ev)=>{
+        /* stopPropagation: die Lehrkraft-Zeile ist selbst Zuordnungs-Ziel --
+           ohne das wuerde das Oeffnen des Menues zusaetzlich zuordnen. */
+        ev.stopPropagation();
+        const liste=wurzel.querySelector(`[data-menue-liste="${CSS.escape(k.dataset.menue)}"]`);
+        const warZu=liste && liste.hidden;
+        this._aktionsMenueZu();
+        if(liste) liste.hidden=!warZu;
+      };
+    });
+    wurzel.querySelectorAll("[data-menue-liste]").forEach(l=>{
+      l.querySelectorAll("[data-mp]").forEach(b=>{
+        b.onclick=(ev)=>{ ev.stopPropagation(); this._aktionsMenueZu();
+                          aufPunkt(b.dataset.mp, l.dataset.menueListe); };
+      });
+    });
   },
 
   /* Teil-Neuzeichnung: nur die Tabelle. Ein volles render() bei jedem Tastendruck
