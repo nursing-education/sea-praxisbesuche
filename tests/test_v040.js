@@ -93,6 +93,64 @@ p('rueckgaengig: Vorgaenger wiederhergestellt', a1z.vorherigerBezugslehrer === '
 p('unbekannte id: kein Absturz, liefert null',
   await Azubis.bezugslehrerUmhaengen('999', 'Schulz (12)') === null);
 
+/* ---------- 3. Gruppierung, Ueberbuchung, Meldungstext ------------------ */
+const azubisT = [
+  { id: '10', kuerzel: 'Weber', kurs: 'PFK N 041', stammeinrichtung: 'St. Elisabeth',
+    bezugslehrer: 'Musterfrau (10)' },
+  { id: '11', kuerzel: 'Adam',  kurs: 'PFK N 041', stammeinrichtung: 'Marienhaus',
+    bezugslehrer: 'Musterfrau (12)' },          /* gleiche Person, andere "(Zahl)" */
+  { id: '12', kuerzel: 'Zorn',  kurs: 'PflAss',    stammeinrichtung: '',
+    bezugslehrer: 'Schulz' },
+  { id: '13', kuerzel: 'Ohne',  kurs: 'PFK N 041', stammeinrichtung: '', bezugslehrer: '' }
+];
+const namenT = { '10': 'Weber, T.', '11': 'Adam, B.', '12': 'Zorn, S.', '13': 'Ohne, O.' };
+
+const proLk = Dashboard.azubisJeLehrkraft(azubisT, namenT);
+const musterfrau = proLk.get(SPSync._norm('Musterfrau'));
+p('gruppierung: beide "(Zahl)"-Varianten fallen zusammen',
+  !!musterfrau && musterfrau.length === 2);
+p('gruppierung: nach Name sortiert',
+  musterfrau.map(x => x.name).join(',') === 'Adam, B.,Weber, T.');
+p('gruppierung: Kurs und Traegerhaus kommen mit',
+  musterfrau[1].kurs === 'PFK N 041' && musterfrau[1].stammeinrichtung === 'St. Elisabeth');
+p('gruppierung: Azubi ohne Bezugslehrer bildet KEINE Gruppe',
+  !proLk.has('') && ![...proLk.values()].flat().some(x => x.id === '13'));
+p('gruppierung: Lehrkraft ohne Azubis kommt nicht vor',
+  proLk.get(SPSync._norm('Niemand')) === undefined);
+p('gruppierung: ohne Argumente kein Absturz',
+  Dashboard.azubisJeLehrkraft() instanceof Map);
+
+const zeilenT = [
+  { wert: 'Musterfrau (10)', ist: 2, soll: 10 },
+  { wert: 'Voll (3)',        ist: 3, soll: 3 },
+  { wert: 'OhneKap',         ist: 5, soll: null }
+];
+p('ueberbuchtNach: unter der Kapazitaet bleibt ruhig',
+  Dashboard.ueberbuchtNach(zeilenT, 'Musterfrau (10)').ueberbucht === false);
+p('ueberbuchtNach: ist zaehlt den neuen Azubi mit',
+  Dashboard.ueberbuchtNach(zeilenT, 'Musterfrau (10)').ist === 3);
+p('ueberbuchtNach: genau voll wird durch den naechsten ueberschritten',
+  Dashboard.ueberbuchtNach(zeilenT, 'Voll (3)').ueberbucht === true);
+p('ueberbuchtNach: ohne Kapazitaet gibt es nichts zu ueberschreiten',
+  Dashboard.ueberbuchtNach(zeilenT, 'OhneKap').ueberbucht === false);
+p('ueberbuchtNach: andere "(Zahl)" trifft dieselbe Zeile',
+  Dashboard.ueberbuchtNach(zeilenT, 'Musterfrau (99)').ist === 3);
+p('ueberbuchtNach: unbekannte Lehrkraft -> null',
+  Dashboard.ueberbuchtNach(zeilenT, 'Niemand') === null);
+
+p('meldung: umhaengen',
+  Dashboard.umhaengenMeldung('Weber, T.', 'Musterfrau', 'Schulz', { ist: 3, soll: 10, ueberbucht: false })
+  === 'Weber, T.: Musterfrau → Schulz');
+p('meldung: mit Ueberbuchung',
+  Dashboard.umhaengenMeldung('Weber, T.', 'Musterfrau', 'Schulz', { ist: 13, soll: 12, ueberbucht: true })
+  === 'Weber, T.: Musterfrau → Schulz · jetzt 13 / 12');
+p('meldung: zuordnen (vorher keine)',
+  Dashboard.umhaengenMeldung('Weber, T.', '', 'Schulz', null)
+  === 'Weber, T.: ohne Zuordnung → Schulz');
+p('meldung: entfernen',
+  Dashboard.umhaengenMeldung('Weber, T.', 'Schulz', '', null)
+  === 'Weber, T.: Schulz → ohne Zuordnung');
+
 console.log(log.join('\n'));
 console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
 process.exit(fail ? 1 : 0);

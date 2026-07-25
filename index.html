@@ -4136,6 +4136,46 @@ const Dashboard = {
     });
     return raus;
   },
+  /* v0.40: Welche Azubis haengen an welcher Lehrkraft? Schluessel ist der
+     NORMALISIERTE Anzeigename -- damit fallen "Musterfrau (10)" und
+     "Musterfrau (12)" zusammen (gleicher Schluessel wie einrichtungsSchwerpunkte).
+     Die Namen kommen als Parameter statt aus Daten.state, damit die Funktion
+     ohne globalen Zustand geprueft werden kann. */
+  azubisJeLehrkraft(azubis, namen){
+    const raus=new Map();
+    (azubis||[]).forEach(a=>{
+      const w=String((a&&a.bezugslehrer)||"").trim(); if(!w) return;
+      const k=SPSync._norm(bezugslehrerAnzeige(w)||w); if(!k) return;
+      if(!raus.has(k)) raus.set(k,[]);
+      raus.get(k).push({ id:a.id,
+                         name:((namen||{})[a.id])||a.kuerzel||"",
+                         kurs:a.kurs||"",
+                         stammeinrichtung:a.stammeinrichtung||"" });
+    });
+    raus.forEach(liste=> liste.sort((x,y)=> x.name.localeCompare(y.name,"de")));
+    return raus;
+  },
+
+  /* v0.40: Wie steht die Ziel-Lehrkraft da, NACHDEM ein Azubi dazukommt?
+     Traegt die Warnung, die frueher ein Bestaetigungsdialog gegeben haette.
+     Ohne hinterlegte Kapazitaet gibt es nichts zu ueberschreiten. */
+  ueberbuchtNach(zeilen, zielWert){
+    const k=SPSync._norm(bezugslehrerAnzeige(zielWert||"")||zielWert||"");
+    const z=(zeilen||[]).find(x=> SPSync._norm(bezugslehrerAnzeige(x.wert)||x.wert)===k);
+    if(!z) return null;
+    const ist=z.ist+1;
+    const soll=(z.soll!=null)?z.soll:null;
+    return { ist, soll, ueberbucht: soll!==null && ist>soll };
+  },
+
+  /* v0.40: Text der Rueckmeldung nach einem Handgriff. Bewusst hier und nicht in
+     der Oberflaeche: die Kapazitaets-Aussage ist der Teil, der stimmen muss. */
+  umhaengenMeldung(azubiName, vonName, nachName, kap){
+    const von=String(vonName||"").trim()||"ohne Zuordnung";
+    const nach=String(nachName||"").trim()||"ohne Zuordnung";
+    const zusatz=(kap && kap.ueberbucht) ? ` · jetzt ${kap.ist} / ${kap.soll}` : "";
+    return `${azubiName}: ${von} → ${nach}${zusatz}`;
+  },
   /* v0.37: Suche/Filter/Sortierung der Lehrkraft-Tabelle. Rein funktional (kein
      DOM) -- damit headless testbar. "alle" blendet Archivierte aus; "frei" ist der
      direkte Weg zur haeufigsten Frage beim Zuordnen: wer hat ueberhaupt noch Platz?
