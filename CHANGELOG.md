@@ -4,6 +4,25 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.39.1 – 2026-07-25
+- **Fix: Archivierte Lehrkräfte ohne Azubis waren unauffindbar.** `Dashboard.auslastung()`
+  ergänzte Lehrkräfte aus der Stammliste, die noch keine Azubis haben, nur wenn sie
+  aktiv waren. Eine archivierte Lehrkraft ohne Azubis kam dadurch über keinen der
+  beiden Wege in die Liste – weder über die Azubi-Gruppierung noch über diese
+  Ergänzung – und war damit auch im Filter „Archivierte" und in der Suche unsichtbar.
+  Reaktivieren war für solche Lehrkräfte über die Oberfläche unmöglich. Der Fehler
+  steckt der Sache nach seit v0.36 im Code; v0.39 hat ihn nur leichter auslösbar
+  gemacht, weil Archivieren dort vom versteckten Häkchen im Bearbeiten-Dialog zu
+  einem eigenen Menüpunkt wurde. Behoben durch `Bezugslehrer.alle()` statt
+  `Bezugslehrer.aktive()`.
+- **CSV-Import in die Kopfzeile verschoben.** Steht jetzt rechtsbündig in derselben
+  Zeile wie „← Zurück zur Startseite" statt in einem eigenen Verwaltungs-Abschnitt,
+  der für Admins sonst nur noch eine Überschrift ohne weiteren Inhalt enthielt.
+- **Zuordnungs-Modus bleibt beim Scrollen sichtbar.** Ist ein Azubi zum Zuordnen
+  gewählt, zeigt der Mauszeiger über den Lehrkraft-Zeilen jetzt `cursor:copy` – der
+  Hinweistext oben in der Tabelle ist beim Scrollen durch eine lange Liste sonst
+  schnell aus dem Blick.
+
 ## v0.39.0 – 2026-07-25
 - **Zeilen-Aktionen im Drei-Punkte-Menü (⋮).** Bearbeiten und Löschen standen als zwei
   Knöpfe offen in jeder Zeile – bei 40 Lehrkräften 80 Knöpfe, die vom Wesentlichen

@@ -67,11 +67,13 @@ const { Dashboard } = wrapped(SharePoint, Daten, Einrichtungen, Oberflaeche, pfl
   p('lehrkraftZeilen: Nur-Text-Lehrkraft -> Soll aus "(Zahl)"-Fallback', anton.soll === 9);
   p('lehrkraftZeilen: archivierte Lehrkraft mit Azubis erscheint, aktiv=false',
     !!ann && ann.aktiv === false && ann.ist === 1);
-  /* Ohne Azubis bleiben die aktiven Lehrkräfte der Stammliste stehen (Verhalten aus
-     v0.36) -- sie sind ja Zuordnungsziele. Nur mit leerer Stammliste wird es leer. */
+  /* Ohne Azubis bleiben ALLE Lehrkräfte der Stammliste stehen -- auch archivierte
+     (v0.39.1-Fix: vorher fielen archivierte Lehrkräfte ohne Azubis komplett raus
+     und waren über die Oberfläche unauffindbar). Nur mit leerer Stammliste wird
+     es leer. */
   const ohneAzubis = Dashboard.lehrkraftZeilen([]);
-  p('lehrkraftZeilen: ohne Azubis bleiben die aktiven Lehrkräfte stehen (ist=0)',
-    ohneAzubis.length === 2 && ohneAzubis.every(z => z.ist === 0));
+  p('lehrkraftZeilen: ohne Azubis bleiben alle Lehrkräfte (auch archivierte) stehen (ist=0)',
+    ohneAzubis.length === 3 && ohneAzubis.every(z => z.ist === 0));
   p('lehrkraftZeilen: undefined -> kein Absturz, gleiches Ergebnis wie []',
     Dashboard.lehrkraftZeilen(undefined).length === ohneAzubis.length);
   const leer = (() => { const merk = Daten.state.lehrer; Daten.state.lehrer = [];

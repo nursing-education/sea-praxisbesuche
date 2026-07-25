@@ -148,6 +148,7 @@
   .zb-haus{font-style:italic}
   .lk-zeile.zb-ueber > td{background:#EEF4EF;box-shadow:inset 0 0 0 1px var(--forest)}
   .lk-voll{opacity:.5}
+  .zuordnen-aktiv .lk-zeile{cursor:copy}
   .lk-aktion{white-space:nowrap}
   .akt-menue{position:relative;display:inline-block}
   .akt-knopf{padding:2px 8px;line-height:1.1;font-size:16px}
@@ -1525,7 +1526,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.39.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.39.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3990,9 +3991,15 @@ const Dashboard = {
       zeilen.push({ wert: w, name: w?bezugslehrerAnzeige(w):"(ohne Bezugslehrer*in)",
                     ist, soll:s, quote, ampel:this.ampel(ist,s) });
     });
-    /* v0.36: aktive Lehrkräfte aus der Stammliste ergänzen, die noch KEINE Azubis
-       haben -- damit sie im Board/Dropdown als Zuordnungsziel auftauchen. */
-    (typeof Bezugslehrer!=="undefined" ? Bezugslehrer.aktive() : []).forEach(l=>{
+    /* v0.36/v0.39.1: ALLE Lehrkräfte aus der Stammliste ergänzen, die noch KEINE
+       Azubis haben -- damit sie im Board/Dropdown als Zuordnungsziel auftauchen.
+       Bewusst auch archivierte: eine archivierte Lehrkraft ohne Azubis kam sonst
+       über keinen der beiden Wege in die Liste (weder Azubi-Gruppierung noch
+       diese Ergänzung) und war damit für die Oberfläche unsichtbar -- auch im
+       Filter "Archivierte". Reaktivieren wäre über die UI nicht mehr möglich
+       gewesen. aktiv:false bleibt an der Zeile erhalten (siehe lehrkraftZeilen),
+       lehrkraftFiltern() blendet Archivierte im Standardmodus weiterhin aus. */
+    (typeof Bezugslehrer!=="undefined" ? Bezugslehrer.alle() : []).forEach(l=>{
       const nn=SPSync._norm(l.name);
       if(!nn || vergeben.has(nn)) return;
       vergeben.add(nn);
@@ -4673,22 +4680,24 @@ const Oberflaeche = {
 
   /* ---- v0.26/v0.37: Dashboard. Ignoriert bewusst den "Nur meine/Alle"-
      Umschalter -- zeigt immer ALLE Bezugslehrer (Spec Abschnitt 6, letzter
-     Punkt). Aufbau seit v0.39: Verwaltung -> Kennzahlen -> Bezugslehrende. Die Verwaltung
-     steht oben, weil sie sonst hinter der 40-zeiligen Lehrkraft-Tabelle liegt. ---- */
+     Punkt). Aufbau seit v0.39.1: Kopfzeile (Zurück + CSV-Import) -> Kennzahlen
+     -> Bezugslehrende. Der CSV-Import steht rechtsbündig ganz oben, weil er
+     sonst hinter der 40-zeiligen Lehrkraft-Tabelle läge. ---- */
   viewDashboard(){
-    const zurueck=`<button onclick="Oberflaeche.ansichtWechseln('start')" style="margin-bottom:12px">← Zurück zur Startseite</button>`;
     /* CSV-Import ist eine Admin-Funktion (Azubi-Daten sind für Bezugslehrer bereits
-       geladen). Der Button lebt daher hier im Dashboard, nur für Admins sichtbar. */
+       geladen). Der Button lebt daher hier im Dashboard, nur für Admins sichtbar.
+       v0.39.1: steht jetzt rechtsbündig in der Kopfzeile neben "Zurück" -- der
+       frühere eigene Verwaltungs-Abschnitt enthielt sonst nur noch eine
+       Überschrift ohne weiteren Inhalt. */
     const admin=Dashboard.darfVerwalten();
+    const kopfzeile=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <button onclick="Oberflaeche.ansichtWechseln('start')">← Zurück zur Startseite</button>
+        ${admin?`<button class="aktion" id="csvImport">CSV importieren</button>`:""}
+      </div>`;
     const badge=admin ? `<span class="rollen-badge admin">Verwaltung</span>`
                       : `<span class="rollen-badge">Nur-Lese-Ansicht</span>`;
-    /* Verwaltungs-Abschnitt: nur Admins. Wächst mit den Dashboard-Etappen
-       (Kurse anlegen, Tausch genehmigen, DFA-Prüfung …). Aktuell: CSV-Import. */
     const verwaltung = admin
-      ? `<section class="einst-block">
-          <h2>Verwaltung <span class="meta" style="font-weight:400">– nur Administration</span></h2>
-          <button class="aktion" id="csvImport">CSV importieren</button>
-        </section>`
+      ? ""
       : `<section class="einst-block">
           <div class="meta">🔒 Verwaltungsfunktionen (Importe, Anlegen, Genehmigungen) sind Administrator:innen vorbehalten. Diese Ansicht ist für dich nur lesend.</div>
         </section>`;
@@ -4718,7 +4727,7 @@ const Oberflaeche = {
       </div>
     </section>`;
     return `<div class="spalte" style="grid-column:1/-1">
-      ${zurueck}
+      ${kopfzeile}
       <div style="margin-bottom:10px"><b style="font-size:17px;color:var(--navy)">Dashboard</b>${badge}</div>
       ${verwaltung}
       ${kacheln}
@@ -4826,8 +4835,10 @@ const Oberflaeche = {
       </tr>`;
     }).join("");
     const hinweis = waehlt ? `<div class="hinweis">Azubi gewählt – jetzt die Zeile der gewünschten Lehrkraft anklicken.</div>` : "";
+    /* v0.39.1: Solange ein Azubi gewählt ist, bleibt der Zuordnungs-Modus auch beim
+       Scrollen sichtbar -- am Mauszeiger, nicht nur am (dann weggescrollten) Hinweis. */
     return `${hinweis}<div class="meta" style="margin-bottom:8px">${zeilen.length} von ${alle.length} Lehrkräften</div>
-      <table><thead><tr><th>Name</th><th>Stelle</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th>Trägerhaus (Schwerpunkt)</th><th>Status</th>${admin?"<th></th>":""}</tr></thead>
+      <table${waehlt?' class="zuordnen-aktiv"':""}><thead><tr><th>Name</th><th>Stelle</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th>Trägerhaus (Schwerpunkt)</th><th>Status</th>${admin?"<th></th>":""}</tr></thead>
       <tbody>${rows}</tbody></table>`;
   },
 

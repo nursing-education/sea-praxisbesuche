@@ -47,7 +47,13 @@ const { SPSync, Bezugslehrer, Dashboard } = wrapped(SharePoint, Daten, Einrichtu
   p('auslastung: Azubi-Lehrkraft nicht doppelt (Merge per Name)', meier.length === 1 && meier[0].ist === 2 && meier[0].soll === 20);
   const lars = z.find(r => r.name === 'Leer, Lars');
   p('auslastung: aktive Lehrkraft ohne Azubis wird ergänzt (ist=0)', !!lars && lars.ist === 0 && lars.soll === 25);
-  p('auslastung: archivierte Lehrkraft NICHT ergänzt', !z.find(r => r.name === 'Archiv, Ann'));
+  /* v0.39.1-Fix: auch archivierte Lehrkräfte ohne Azubis werden ergänzt -- sonst
+     waren sie über die Oberfläche (Filter "Archivierte", Suche) unauffindbar und
+     Reaktivieren unmöglich. Das "aktiv"-Flag selbst wird hier nicht mitgeführt
+     (das übernimmt erst lehrkraftZeilen()), daher nur die Anwesenheit geprüft. */
+  const archAnn = z.find(r => r.name === 'Archiv, Ann');
+  p('auslastung: archivierte Lehrkraft OHNE Azubis wird trotzdem ergänzt (ist=0)',
+    !!archAnn && archAnn.ist === 0 && archAnn.soll === 10);
 
   /* ---------- 4. azubiAnzahl() ---------- */
   Daten.state.azubis = azubis;

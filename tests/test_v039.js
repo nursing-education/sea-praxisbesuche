@@ -48,6 +48,23 @@ p('ohne Argument: kein Absturz, leeres Menue',
 p('aktiv fehlt: wird als archiviert behandelt (kein stiller Falschzustand)',
   Dashboard.lehrkraftAktionen({ inListe: true }).length === 3);
 
+/* --- v0.39.1-Fix: archivierte Lehrkraft OHNE Azubis bleibt auffindbar ---
+   Vorher ergänzte Dashboard.auslastung() nur AKTIVE Lehrkräfte der Stammliste,
+   die noch keine Azubis haben. Eine archivierte Lehrkraft ohne Azubis kam damit
+   über keinen der beiden Wege in lehrkraftZeilen() -- weder über die Azubi-
+   Gruppierung (hat ja keine) noch über diese Ergänzung (ist nicht aktiv) --
+   und war dadurch auch im Filter "Archivierte" und in der Suche unsichtbar. */
+Daten.state.lehrer = [{ spId: '9', name: 'Ruhig, Rosa', kapazitaet: 15, aktiv: false }];
+const zeilenOhneAzubis = Dashboard.lehrkraftZeilen([]);
+const rosa = zeilenOhneAzubis.find(z => z.name === 'Ruhig, Rosa');
+p('lehrkraftZeilen: archivierte Lehrkraft ohne Azubis erscheint',
+  !!rosa && rosa.aktiv === false && rosa.ist === 0);
+p('lehrkraftFiltern modus "archiviert": findet sie',
+  Dashboard.lehrkraftFiltern(zeilenOhneAzubis, { modus: 'archiviert' }).some(z => z.name === 'Ruhig, Rosa'));
+p('lehrkraftFiltern modus "alle" (Standard): blendet sie weiterhin aus',
+  !Dashboard.lehrkraftFiltern(zeilenOhneAzubis, { modus: 'alle' }).some(z => z.name === 'Ruhig, Rosa'));
+Daten.state.lehrer = [];
+
 /* --- Einrichtung: kein Archivieren, weil es keinen Schreibweg gibt --- */
 const einr = Dashboard.einrichtungAktionen();
 p('Einrichtung: nur zwei Punkte', ids(einr) === 'edit,del');
