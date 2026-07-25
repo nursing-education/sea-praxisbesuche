@@ -4,6 +4,32 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.39.0 – 2026-07-25
+- **Zeilen-Aktionen im Drei-Punkte-Menü (⋮).** Bearbeiten und Löschen standen als zwei
+  Knöpfe offen in jeder Zeile – bei 40 Lehrkräften 80 Knöpfe, die vom Wesentlichen
+  ablenkten. Beides liegt jetzt hinter einem ⋮ am Zeilenende; gefährliche Punkte sind
+  abgesetzt und rot. Es ist immer höchstens ein Menü offen, Klick daneben oder `Esc`
+  schließt.
+  - **Archivieren ist ein eigener Menüpunkt** (bisher nur als Häkchen im Bearbeiten-
+    Dialog versteckt) und heißt bei archivierten Lehrkräften „Reaktivieren".
+  - Bei **Einrichtungen** dasselbe Menü mit Bearbeiten/Löschen – **ohne** Archivieren:
+    Für diese Liste gibt es keinen Schreibweg nach SharePoint, ein solcher Knopf würde
+    nur lokal wirken und beim nächsten Sync verpuffen.
+  - Lehrkräfte, die nur als Text am Azubi hängen („nicht in Stammliste"), haben
+    weiterhin kein Menü – es gibt nichts zu bearbeiten.
+  - Neu: `Dashboard.lehrkraftAktionen()` / `einrichtungAktionen()` (welche Punkte),
+    `Oberflaeche._aktionsMenueHtml()` / `_aktionsMenueVerdrahten()` (Darstellung).
+    18 neue Tests (`tests/test_v039.js`).
+- **Fix: Teil-Änderung an einer Lehrkraft löschte Kapazität und Stellenumfang.**
+  `SPSync.lehrerAendern` schrieb beide Felder bedingungslos in den PATCH. Wer nur
+  einen Wert ändern wollte (wie jetzt der Archivieren-Menüpunkt), hätte die Kapazität
+  in SharePoint auf `null` gesetzt. Ausgelassene Felder bleiben jetzt unberührt; ein
+  leerer Wert („") leert das Feld weiterhin gezielt. Der bestehende Bearbeiten-Dialog
+  übergibt immer alle Felder und war deshalb nie betroffen.
+- **Verwaltung steht im Dashboard jetzt oben.** Seit dem Umbau in v0.37 lag der
+  Abschnitt hinter der Lehrkraft-Tabelle – bei 40 Zeilen scrollte man an allen vorbei,
+  um eine CSV zu importieren.
+
 ## v0.38.0 – 2026-07-24
 - **Feature: Trägerhaus beim Zuordnen sichtbar.** Beim Verteilen neuer Azubis fehlte die
   fachlich entscheidende Information – aus welchem Haus kommt der Azubi, und welche
