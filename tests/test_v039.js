@@ -22,7 +22,7 @@ let pflichtbesucheMarkieren = () => {};
 
 const wrapped = new Function('SharePoint', 'Daten', 'Einrichtungen', 'Oberflaeche', 'pflichtbesucheMarkieren',
   bundle + '\nreturn { SPSync, Bezugslehrer, Dashboard, bezugslehrerAnzeige };');
-const { Dashboard, SPSync } = wrapped(SharePoint, Daten, Einrichtungen, Oberflaeche, pflichtbesucheMarkieren);
+const { Dashboard, SPSync, Bezugslehrer } = wrapped(SharePoint, Daten, Einrichtungen, Oberflaeche, pflichtbesucheMarkieren);
 
 const ids = liste => liste.map(x => x.id).join(',');
 
@@ -74,6 +74,19 @@ p('Einrichtung: Loeschen ist als Gefahr markiert', einr[1].gefahr === true);
   /* "" bleibt das gezielte Signal zum Leeren -- nicht mit "weglassen" verwechseln */
   await SPSync.lehrerAendern('tok', '1', { stellenumfang: '' });
   p('leerer Wert loescht weiterhin gezielt', gepatcht.Stellenumfang === null);
+
+  /* --- Bezugslehrer.aendern: Teil-Update darf lokalen Eintrag nicht kaputt patchen --- */
+  Daten.state.lehrer = [{ spId: '1', name: 'Nina Neu', stellenumfang: 50, kapazitaet: 13, aktiv: true }];
+
+  await Bezugslehrer.aendern('1', { aktiv: false });
+  let eintrag = Daten.state.lehrer.find(l => l.spId === '1');
+  p('Teil-Update: Stellenumfang bleibt lokal erhalten', eintrag.stellenumfang === 50);
+  p('Teil-Update: Kapazitaet bleibt lokal erhalten', eintrag.kapazitaet === 13);
+  p('Teil-Update: Aktiv wird lokal uebernommen', eintrag.aktiv === false);
+
+  await Bezugslehrer.aendern('1', { stellenumfang: '' });
+  eintrag = Daten.state.lehrer.find(l => l.spId === '1');
+  p('leerer Wert leert Stellenumfang auch lokal gezielt', eintrag.stellenumfang === null);
 
   console.log(log.join('\n'));
   console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');

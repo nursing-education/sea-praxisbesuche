@@ -152,12 +152,12 @@
   .akt-menue{position:relative;display:inline-block}
   .akt-knopf{padding:2px 8px;line-height:1.1;font-size:16px}
   .akt-liste{position:absolute;right:0;top:100%;z-index:30;min-width:150px;
-    background:#fff;border:1px solid var(--rand);border-radius:8px;
+    background:#fff;border:1px solid var(--rahmen);border-radius:8px;
     box-shadow:0 6px 18px rgba(0,0,0,.13);padding:4px;text-align:left}
   .akt-liste button{display:block;width:100%;text-align:left;border:0;background:none;
     padding:7px 10px;border-radius:6px;font-size:13px}
   .akt-liste button:hover{background:var(--sekundaer)}
-  .akt-liste button.gefahr{color:var(--danger);border-top:1px solid var(--rand);
+  .akt-liste button.gefahr{color:var(--danger);border-top:1px solid var(--rahmen);
     border-radius:0 0 6px 6px;margin-top:2px}
   .kpi.klickbar{cursor:pointer}
   .kpi.klickbar:hover{border-color:var(--navy)}
@@ -181,9 +181,10 @@
   .kpi-navy .kpi-zahl{color:var(--navy)}
   .kpi-danger .kpi-zahl{color:var(--danger)}
   /* Einrichtungen: nach Bereich gruppiert, aufklappbar */
-  .einr-gruppe{border:1px solid var(--rahmen);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;background:var(--flaeche)}
-  .gruppe-kopf{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;border-radius:0;
+  .einr-gruppe{border:1px solid var(--rahmen);border-radius:var(--radius);margin-bottom:8px;overflow:visible;background:var(--flaeche)}
+  .gruppe-kopf{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;border-radius:var(--radius);
     background:var(--sekundaer);padding:10px 12px}
+  .gruppe-kopf.offen{border-radius:var(--radius) var(--radius) 0 0}
   .gruppe-kopf:hover{border-color:transparent;background:#e6e1d6}
   .gruppe-kopf .chevron{width:14px;color:var(--text-leise);transition:transform .15s}
   .gruppe-kopf.offen .chevron{transform:rotate(90deg)}
@@ -4857,7 +4858,7 @@ const Oberflaeche = {
         /* stopPropagation: die Lehrkraft-Zeile ist selbst Zuordnungs-Ziel --
            ohne das wuerde das Oeffnen des Menues zusaetzlich zuordnen. */
         ev.stopPropagation();
-        const liste=wurzel.querySelector(`[data-menue-liste="${CSS.escape(k.dataset.menue)}"]`);
+        const liste=k.parentNode.querySelector("[data-menue-liste]");
         const warZu=liste && liste.hidden;
         this._aktionsMenueZu();
         if(liste) liste.hidden=!warZu;
