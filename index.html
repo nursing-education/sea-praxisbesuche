@@ -4672,7 +4672,8 @@ const Oberflaeche = {
 
   /* ---- v0.26/v0.37: Dashboard. Ignoriert bewusst den "Nur meine/Alle"-
      Umschalter -- zeigt immer ALLE Bezugslehrer (Spec Abschnitt 6, letzter
-     Punkt). Aufbau seit v0.37: Kennzahlen -> Bezugslehrende -> Verwaltung. ---- */
+     Punkt). Aufbau seit v0.39: Verwaltung -> Kennzahlen -> Bezugslehrende. Die Verwaltung
+     steht oben, weil sie sonst hinter der 40-zeiligen Lehrkraft-Tabelle liegt. ---- */
   viewDashboard(){
     const zurueck=`<button onclick="Oberflaeche.ansichtWechseln('start')" style="margin-bottom:12px">← Zurück zur Startseite</button>`;
     /* CSV-Import ist eine Admin-Funktion (Azubi-Daten sind für Bezugslehrer bereits
@@ -4718,9 +4719,9 @@ const Oberflaeche = {
     return `<div class="spalte" style="grid-column:1/-1">
       ${zurueck}
       <div style="margin-bottom:10px"><b style="font-size:17px;color:var(--navy)">Dashboard</b>${badge}</div>
+      ${verwaltung}
       ${kacheln}
       ${this.viewBezugslehrende()}
-      ${verwaltung}
     </div>`;
   },
 
