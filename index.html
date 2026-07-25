@@ -1663,7 +1663,11 @@ const SP_FELDER_AZUBIS = {
   stammeinrichtung: "field_2",  /* "Traegerhaus" = Stammeinrichtung (bestaetigt) */
   bezugslehrer   : "field_3",
   bemerkung      : "field_4",
-  praxisanleitung: "field_5"
+  praxisanleitung: "field_5",
+  /* v0.40: von Hand ueber die Listenoberflaeche angelegt -- deshalb interner
+     Name = Anzeigename. Die field_N stammen aus dem Excel-Import, der alle
+     Spalten auf einmal anlegte. */
+  vorherigerBezugslehrer: "VorherigerBezugslehrer"
 };
 
 /* v0.25 -- Feldzuordnung Liste "Admins". Eine Spalte (intern weiterhin
@@ -2388,6 +2392,7 @@ const SPSync = {
         kurs: txt(f,F.kurs),
         stammeinrichtung: txt(f,F.stammeinrichtung),
         bezugslehrer: txt(f,F.bezugslehrer),
+        vorherigerBezugslehrer: txt(f,F.vorherigerBezugslehrer),
         bemerkung: txt(f,F.bemerkung),
         praxisanleitung: txt(f,F.praxisanleitung)
       };
@@ -2646,7 +2651,7 @@ const SPSync = {
      (Admin-Zuordnungs-Board). Offline-first wie besuchSenden: scheitert das Senden,
      bleibt der Azubi als blOffen markiert und wird beim naechsten Sync (offeneSenden,
      laeuft vor dem Re-Read) nachgereicht -- so ueberschreibt der Re-Read die lokale
-     Aenderung nicht. Geschrieben wird nur das Bezugslehrer-Feld (field_3). */
+     Aenderung nicht. Geschrieben werden Bezugslehrer und der gemerkte Vorgaenger (v0.40). */
   async bezugslehrerSenden(azubi){
     if(!azubi.spId){ azubi.blOffen=true; return false; }
     let token=null;
@@ -2654,7 +2659,9 @@ const SPSync = {
     if(!token){ azubi.blOffen=true; return false; }
     try{
       const url=await this._itemsUrl(token, SP_CONFIG.listAzubis);
-      const felder={}; felder[SP_FELDER_AZUBIS.bezugslehrer]=azubi.bezugslehrer||"";
+      const felder={};
+      felder[SP_FELDER_AZUBIS.bezugslehrer]=azubi.bezugslehrer||"";
+      felder[SP_FELDER_AZUBIS.vorherigerBezugslehrer]=azubi.vorherigerBezugslehrer||"";
       await this._schreiben(url + "/" + azubi.spId + "/fields", token, "PATCH", felder);
       azubi.blOffen=false;
       return true;
@@ -2672,7 +2679,9 @@ const SPSync = {
     for(const a of (Daten.state.azubis||[])){
       if(a.blOffen && a.spId){                       /* v0.34: offene Bezugslehrer-Zuordnung */
         try{
-          const felder={}; felder[SP_FELDER_AZUBIS.bezugslehrer]=a.bezugslehrer||"";
+          const felder={};
+          felder[SP_FELDER_AZUBIS.bezugslehrer]=a.bezugslehrer||"";
+          felder[SP_FELDER_AZUBIS.vorherigerBezugslehrer]=a.vorherigerBezugslehrer||"";
           await this._schreiben(urlAz + "/" + a.spId + "/fields", token, "PATCH", felder);
           a.blOffen=false; ok++;
         }catch(err){ fehler++; }
@@ -2723,6 +2732,7 @@ const SPSync = {
         kurs: a.kurs||"",
         stammeinrichtung: a.stammeinrichtung||"",
         bezugslehrer: a.bezugslehrer||"",
+        vorherigerBezugslehrer: a.vorherigerBezugslehrer||"",
         bemerkung: a.bemerkung||"",
         praxisanleitung: a.praxisanleitung||"",
         einsaetze: eig,
