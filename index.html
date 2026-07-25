@@ -115,6 +115,12 @@
     padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:2100}
   .toast.zeig{opacity:1}
   .toast.fehler{background:var(--danger)}
+  /* v0.40: Toast mit Aktion. Die Grundform hat pointer-events:none (sie soll
+     nie im Weg sein) -- die Bauform mit Knopf muss anklickbar sein. */
+  .toast.mit-knopf{pointer-events:auto;display:flex;align-items:center;gap:14px}
+  .toast-akt{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
+    border-radius:6px;padding:3px 10px;font-size:13px;cursor:pointer;white-space:nowrap}
+  .toast-akt:hover{background:rgba(255,255,255,.16)}
 
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;z-index:2000}
   .modal-bg.offen{display:flex}
@@ -4670,6 +4676,22 @@ const Oberflaeche = {
     t.className="toast zeig"+(fehler?" fehler":""); clearTimeout(this._tt);
     this._tt=setTimeout(()=>t.className="toast",fehler?4500:2200);
   },
+  /* v0.40: Zweite Toast-Bauform -- mit Knopf und laenger sichtbar. Ersetzt beim
+     Umhaengen den frueher geplanten Bestaetigungsdialog: bei 40 Lehrkraeften
+     waere das ein Dialog je Zug. toast() bleibt unveraendert; sie setzt
+     textContent und raeumt das Markup hier damit von selbst wieder ab. */
+  toastAktion(msg, knopfText, aufKlick){
+    const t=document.getElementById("toast");
+    t.innerHTML=`<span class="toast-txt"></span><button type="button" class="toast-akt"></button>`;
+    t.querySelector(".toast-txt").textContent=msg;
+    const knopf=t.querySelector(".toast-akt");
+    knopf.textContent=knopfText;
+    t.className="toast zeig mit-knopf";
+    clearTimeout(this._tt);
+    const zu=()=>{ t.className="toast"; t.textContent=""; };
+    knopf.onclick=()=>{ zu(); aufKlick(); };
+    this._tt=setTimeout(zu, 8000);
+  },
   modal(html){
     document.getElementById("modal").innerHTML=html;
     document.getElementById("modalBg").classList.add("offen");
@@ -4979,20 +5001,40 @@ const Oberflaeche = {
     this._lehrerZeilenVerdrahten();
   },
 
+  /* v0.40: EIN Weg fuer alle drei Handgriffe -- zuordnen, umhaengen, entfernen,
+     egal ob per Klick oder per Ziehen. Statt einer Rueckfrage VOR dem Schreiben
+     gibt es die Meldung mit "Rueckgaengig" DANACH (Spec v0.40, Abschnitt 4).
+     Die Kapazitaets-Aussage wird VOR dem Schreiben berechnet -- danach ist der
+     Azubi schon mitgezaehlt. */
+  async _zuordnungAendern(id, wert){
+    if(id==null || wert==null) return;
+    const azubi=Azubis.alle().find(a=>String(a.id)===String(id));
+    if(!azubi) return;
+    const vorher=azubi.bezugslehrer||"";
+    const kap = wert ? Dashboard.ueberbuchtNach(Dashboard.lehrkraftZeilen(Azubis.alle()), wert) : null;
+    const azubiName=Azubis.name(azubi.id)||azubi.kuerzel||"Azubi";
+    this.boardAuswahl=null;
+    const davor=await Azubis.bezugslehrerUmhaengen(azubi.id, wert);
+    if(!davor) return;                       /* unveraendert -- keine Meldung */
+    this.toastAktion(
+      Dashboard.umhaengenMeldung(azubiName, bezugslehrerAnzeige(vorher), bezugslehrerAnzeige(wert), kap),
+      "Rückgängig",
+      ()=> Azubis.bezugslehrerZustandHerstellen(davor));
+  },
   /* Handler der Lehrkraft-Zeilen: Zuordnen (Klick/Drop) + Bearbeiten/Loeschen.
      Eigene Funktion, weil die Tabelle auch ohne vollen Render neu entsteht. */
   _lehrerZeilenVerdrahten(){
-    const zbZuordnen=(id, wert)=>{ if(id!=null && wert!=null){ this.boardAuswahl=null; Azubis.bezugslehrerSetzen(id, wert); } };
     this._aktionsMenueVerdrahten("#lehrerTabelle", (punkt, spId)=>{
       if(punkt==="edit")   this.lehrerFormular(Bezugslehrer.alle().find(l=>String(l.spId)===String(spId)));
       if(punkt==="archiv") this.lehrerArchivKlick(spId);
       if(punkt==="del")    this.lehrerLoeschenKlick(spId);
     });
     document.querySelectorAll("[data-zb-lehrer]").forEach(z=>{
-      z.onclick=()=>{ if(this.boardAuswahl) zbZuordnen(this.boardAuswahl, z.dataset.zbLehrer); };
+      z.onclick=()=>{ if(this.boardAuswahl) this._zuordnungAendern(this.boardAuswahl, z.dataset.zbLehrer); };
       z.ondragover=(ev)=>{ ev.preventDefault(); z.classList.add("zb-ueber"); };
       z.ondragleave=()=>z.classList.remove("zb-ueber");
-      z.ondrop=(ev)=>{ ev.preventDefault(); z.classList.remove("zb-ueber"); zbZuordnen(ev.dataTransfer.getData("text/plain"), z.dataset.zbLehrer); };
+      z.ondrop=(ev)=>{ ev.preventDefault(); z.classList.remove("zb-ueber");
+                       this._zuordnungAendern(ev.dataTransfer.getData("text/plain"), z.dataset.zbLehrer); };
     });
   },
   /* Dialog Bezugslehrer anlegen ODER bearbeiten. Mit Objekt l = bearbeiten (inkl.
