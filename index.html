@@ -5361,7 +5361,7 @@ const Oberflaeche = {
         <td>${e.stamm?'<span class="pill stamm">★ Stamm</span> ':''}${this._hebHervor(e.name,q)}${(!e.strasse||!e.plz)?' <span class="pill warn">Adresse fehlt</span>':''}</td>
         <td>${(e.bereiche&&e.bereiche.length)?e.bereiche.map(b=>`<span class="pill ${b}">${b}</span>`).join(" "):'<span class="meta">—</span>'}</td>
         <td class="meta">${this._hebHervor([e.plz,e.ort].filter(Boolean).join(" "),q)}</td>
-        <td><button data-edit="${e.id}">Bearbeiten</button> <button class="gefahr" data-del="${e.id}">Löschen</button></td>
+        <td>${this._aktionsMenueHtml(Dashboard.einrichtungAktionen(), e.id)}</td>
       </tr>`).join("");
       html+=`<div class="einr-gruppe">
         <button class="gruppe-kopf${offen?' offen':''}" data-gruppe="${key}">
@@ -5384,8 +5384,11 @@ const Oberflaeche = {
         if(this.einrOffen.has(k)) this.einrOffen.delete(k); else this.einrOffen.add(k);
         this._einrGruppenRender(); };
     });
-    document.querySelectorAll("#einrGruppen [data-edit]").forEach(b=> b.onclick=()=>this.einrFormular(Einrichtungen.alle().find(e=>e.id===b.dataset.edit)));
-    document.querySelectorAll("#einrGruppen [data-del]").forEach(b=> b.onclick=()=>{ if(confirm("Einrichtung löschen?")) Einrichtungen.loeschen(b.dataset.del); });
+    this._aktionsMenueVerdrahten("#einrGruppen", (punkt, id)=>{
+      const e=Einrichtungen.alle().find(x=>x.id===id);
+      if(punkt==="edit") this.einrFormular(e);
+      if(punkt==="del" && confirm("Einrichtung löschen?")) Einrichtungen.loeschen(id);
+    });
   },
   /* Auffaellige Box UEBER der Liste: alle Einrichtungen, denen Strasse oder PLZ
      fehlt (z.B. frisch aus dem CSV-Import gelernt). Direkt ueber "Adresse
