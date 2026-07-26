@@ -180,7 +180,8 @@
   .lk-azubis > td{background:var(--sekundaer);padding:8px 10px}
   .lk-kacheln{display:flex;flex-wrap:wrap;gap:6px}
   .lk-kacheln .zb-azubi{margin-bottom:0;min-width:150px}
-  .lk-zeile.zb-ueber > td{background:#EEF4EF;box-shadow:inset 0 0 0 1px var(--forest)}
+  .lk-zeile.zb-ueber > td,
+  .lk-azubis.zb-ueber > td{background:#EEF4EF;box-shadow:inset 0 0 0 1px var(--forest)}
   /* v0.40: Volle Lehrkraefte werden gedimmt, solange zugeordnet wird -- per
      Klick (zuordnen-aktiv, seit v0.37) ODER waehrend eines Ziehvorgangs
      (zieht). Beim Ziehen wird nicht neu gezeichnet, deshalb haengt die Klasse
@@ -5033,8 +5034,12 @@ const Oberflaeche = {
       const chevron = (admin && meine.length)
         ? `<button class="lk-chevron${offen?" offen":""}" data-lk-auf="${key.replace(/"/g,"&quot;")}" title="Zugeordnete Azubis anzeigen" aria-label="Zugeordnete Azubis anzeigen"><span class="chevron">▸</span></button>`
         : "";
+      /* v0.40 Fix 1: dieselbe Lehrkraft-Kennung wie die lk-zeile -- die Kachel-Zeile
+         ist im DOM ein GESCHWISTER der lk-zeile (kein <tr> in <tr> moeglich), sonst
+         erreicht ein Drop dort keinen Handler und der Browser laesst ihn gar nicht
+         erst zu. So greift die Verdrahtung in _lehrerZeilenVerdrahten unveraendert. */
       const kacheln = (admin && offen && meine.length)
-        ? `<tr class="lk-azubis"><td colspan="8"><div class="lk-kacheln">${meine.map(m=>
+        ? `<tr class="lk-azubis" data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"><td colspan="8"><div class="lk-kacheln">${meine.map(m=>
              this._azubiKachelHtml(m,
                `data-lk-azubi="${m.id}" data-lk-von="${String(z.wert).replace(/"/g,"&quot;")}"`)
            ).join("")}</div></td></tr>`
