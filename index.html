@@ -189,6 +189,13 @@
   .zuordnen-aktiv .lk-voll,
   #lehrerTabelle.zieht .lk-voll{opacity:.5}
   .zo-spalte.zb-ueber{outline:2px dashed var(--forest);background:#EEF4EF}
+  /* v0.40.1: Ablageflaeche. Die Spalte war zwar Drop-Ziel, hatte aber im leeren
+     Zustand gar keine Flaeche -- man musste die Infozeile treffen. */
+  .zo-ablage{display:none;margin-top:10px;padding:16px 10px;text-align:center;
+    border:2px dashed var(--rahmen);border-radius:var(--radius);
+    color:var(--text-leise);font-size:13px}
+  .zieht-zeile .zo-ablage{display:block}
+  .zo-spalte.zb-ueber .zo-ablage{border-color:var(--forest);background:#EEF4EF}
   .zuordnen-aktiv .lk-zeile{cursor:copy}
   .lk-aktion{white-space:nowrap}
   .akt-menue{position:relative;display:inline-block}
@@ -4983,6 +4990,7 @@ const Oberflaeche = {
           <div class="zo-kopf">${kopf}</div>
           ${werkzeug}${leer}
           <div class="zo-chips">${chips}</div>
+          <div class="zo-ablage">↩ Hierher ziehen: Zuordnung aufheben</div>
         </div>`;
     }
     const filter=`<div class="seg-knopf" id="lehrerFilterUms">
@@ -5145,12 +5153,17 @@ const Oberflaeche = {
     this._ziehtAzubi = (herkunft==="zeile") ? id : null;
     const t=document.getElementById("lehrerTabelle");
     if(t) t.classList.add("zieht");
+    // v0.40.1: Ablageflaeche in der Spalte nur bei Herkunft "zeile" -- ein Chip
+    // aus der Spalte kann dort nicht abgelegt werden. Klasse haengt am body,
+    // weil die Flaeche ausserhalb von #lehrerTabelle liegt.
+    if(herkunft==="zeile") document.body.classList.add("zieht-zeile");
     this._autoScrollAn();
   },
   _ziehenAus(){
     this._ziehtAzubi=null;
     const t=document.getElementById("lehrerTabelle");
     if(t) t.classList.remove("zieht");
+    document.body.classList.remove("zieht-zeile");
     this._autoScrollAus();
   },
 
