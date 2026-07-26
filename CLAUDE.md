@@ -78,6 +78,35 @@ headless testbar.
 `origin` = diese public Repo (Default-Branch `main`). Bestehende Historie nicht
 überschreiben (kein force ohne Grund).
 
+### Branch-Namen
+
+Zweck: In `git branch -r` soll ohne Blick in den Diff erkennbar sein, was auf einem
+Branch liegt – für Menschen wie für KI-Sessions, die einen fremden Stand vorfinden.
+
+| Muster | wofür | Beispiel |
+|--------|-------|----------|
+| `vX.Y-kurzname` | geplante Scheibe – die Version steht vorab in der Spec | `v0.41-vertretung` |
+| `fix/kurzname` | ungeplanter Bugfix, Patch-Stelle noch offen | `fix/archivierte-ohne-azubis` |
+| `chore/kurzname` | Infrastruktur ohne Versionssprung | `chore/ci-logiktests` |
+
+Kleinbuchstaben und Bindestriche, nur ASCII (`traegerhaus`, nicht `trägerhaus`), ein
+Thema pro Branch, kein Autor/Werkzeug/Zufallssuffix im Namen. Versionsschreibweise wie
+`APP_VERSION`: `v0.41`, nicht `v0-41`. Beim `vX.Y-`-Muster tragen Branch, Spec-Datei,
+`APP_VERSION`, `CHANGELOG`-Überschrift und PR-Titel denselben Begriff.
+
+**Beide Repos, gleicher Name.** Spec (privates Kontext-Repo) und Code (hier) entstehen
+im Gleichschritt – derselbe Branch-Name macht das Paar auffindbar.
+
+**Automatische Session-Branches** (`claude/…-a1b2c3`, aus dem Eingabesatz erzeugt) sind
+Wegwerfware und sagen nichts über ihren Inhalt. Wird daraus echte Arbeit: vorher auf
+einen sprechenden Namen pushen und den PR von dort aufmachen.
+
+**Lebt der Branch noch?** `git rev-list --count origin/main..<branch>` – ist das Ergebnis
+`0`, ist er erledigt und nur noch nicht gelöscht; alles darüber ist lebende Arbeit, die
+nur dort existiert. Gemergte Branches löschen (GitHub: *Settings → General → Pull
+Requests → „Automatically delete head branches"*). Der Git-Proxy der Cloud-Sessions
+lehnt Löschungen mit `403` ab – das geht nur lokal.
+
 **Gotcha:** Hat das GitHub-Konto „private E-Mail schützen" aktiv, werden Pushes mit
 privater Commit-E-Mail per `GH007` abgelehnt. Dann repo-lokal die GitHub-noreply-
 Adresse des Kontos setzen: `git config user.email <id>+<user>@users.noreply.github.com`.
