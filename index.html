@@ -3109,7 +3109,9 @@ const Azubis = {
     a.bezugslehrer=wert||"";
     a.blOffen=true;
     a.aktualisiertAm=new Date().toISOString();
-    await Daten.speichern("Bezugslehrer zugeordnet");
+    /* Ohne eigene Meldung (false): der Weg traegt auch Entfernen und Rueckgaengig --
+       "Bezugslehrer zugeordnet" waere dort schlicht falsch. */
+    await Daten.speichern(false);
     /* Sofort neu zeichnen: lokal ist der Vorgang hier fertig. Ohne das springt die
        gezogene Kachel bis zur Antwort von SharePoint an ihren alten Platz zurueck --
        genau das provoziert ein zweites Ziehen. */
