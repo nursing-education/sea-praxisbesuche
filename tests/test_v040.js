@@ -282,6 +282,32 @@ const n3 = await nachreichen(() => true);
 p('nachreichen: scheitern beide Versuche, bleibt die Zuordnung offen',
   n3.azubi.blOffen === true && n3.bilanz.ok === 0 && n3.bilanz.fehler === 1);
 
+/* ---------- 7. Kachel-Sortierung und Kursfarbe (v0.40.1) ---------------- */
+const sortT = [
+  { id: '40', kuerzel: 'Zeta',  kurs: 'PFK N 041', stammeinrichtung: 'Marienhaus',    bezugslehrer: 'Musterfrau (10)' },
+  { id: '41', kuerzel: 'Alpha', kurs: 'PflAss 12', stammeinrichtung: 'St. Elisabeth', bezugslehrer: 'Musterfrau (10)' },
+  { id: '42', kuerzel: 'Beta',  kurs: 'PFK N 041', stammeinrichtung: 'St. Elisabeth', bezugslehrer: 'Musterfrau (10)' }
+];
+const sortN = { '40': 'Zeta, Z.', '41': 'Alpha, A.', '42': 'Beta, B.' };
+const holen = o => Dashboard.azubisJeLehrkraft(sortT, sortN, o).get('Musterfrau (10)');
+
+p('kachel-sort: Standard ist Kurs, innerhalb dessen Name',
+  holen().map(x => x.name).join(',') === 'Beta, B.,Zeta, Z.,Alpha, A.');
+p('kachel-sort: nach Name',
+  holen({ sortierung: 'name' }).map(x => x.name).join(',') === 'Alpha, A.,Beta, B.,Zeta, Z.');
+p('kachel-sort: nach Haus, innerhalb dessen Name',
+  holen({ sortierung: 'haus' }).map(x => x.name).join(',') === 'Zeta, Z.,Alpha, A.,Beta, B.');
+
+p('kursfarbe: gleicher Kurs, gleiche Farbe',
+  Dashboard.kursFarbe('PFK N 041') === Dashboard.kursFarbe('PFK N 041'));
+p('kursfarbe: Schreibweise egal',
+  Dashboard.kursFarbe('pfk n 041') === Dashboard.kursFarbe('  PFK N 041  '));
+p('kursfarbe: immer im gueltigen Bereich',
+  ['PFK N 041','PflAss 12','x','Sehr langer Kursname 2026'].every(k => {
+    const f = Dashboard.kursFarbe(k); return Number.isInteger(f) && f >= 0 && f <= 7; }));
+p('kursfarbe: ohne Kurs keine Farbe',
+  Dashboard.kursFarbe('') === null && Dashboard.kursFarbe() === null);
+
 console.log(log.join('\n'));
 console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
 process.exit(fail ? 1 : 0);

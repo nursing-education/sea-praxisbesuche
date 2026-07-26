@@ -143,6 +143,16 @@
   .zb-azubi,.zb-lehrer{background:var(--flaeche);border:1px solid var(--rahmen);border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;flex-direction:column;gap:2px}
   .zb-azubi{cursor:grab}
   .zb-azubi.gewaehlt{outline:2px solid var(--navy);border-color:var(--navy)}
+  /* v0.40.1: Farbkante je Kurs. Ausschliesslich Farbwerte, die in dieser Datei
+     ohnehin vorkommen (SEA-Token und die Bereichs-Pillen). */
+  .zb-azubi.kf0{border-left:4px solid var(--navy)}
+  .zb-azubi.kf1{border-left:4px solid var(--forest)}
+  .zb-azubi.kf2{border-left:4px solid var(--orange)}
+  .zb-azubi.kf3{border-left:4px solid var(--gold)}
+  .zb-azubi.kf4{border-left:4px solid var(--danger)}
+  .zb-azubi.kf5{border-left:4px solid #6A3A66}
+  .zb-azubi.kf6{border-left:4px solid #9A5B00}
+  .zb-azubi.kf7{border-left:4px solid var(--text-leise)}
   .zb-lehrer{cursor:pointer}
   .zb-lehrer.zb-ueber{outline:2px dashed var(--forest);background:#EEF4EF}
   /* v0.37: Zuordnungs-Leiste (Chips oben) + Lehrkraft-Zeile als Zuordnungs-Ziel */
@@ -4218,8 +4228,10 @@ const Dashboard = {
      beide Zeilen zeigen dieselbe zusammengefuehrte Liste -- Zeile und Kacheln
      liefen auseinander.
      Die Namen kommen als Parameter statt aus Daten.state, damit die Funktion
-     ohne globalen Zustand geprueft werden kann. */
-  azubisJeLehrkraft(azubis, namen){
+     ohne globalen Zustand geprueft werden kann. Sortierung ueber opt.sortierung
+     ("kurs" | "haus" | "name"), Standard "kurs", damit Azubis desselben Kurses
+     als Kacheln zusammenstehen. */
+  azubisJeLehrkraft(azubis, namen, opt){
     const raus=new Map();
     (azubis||[]).forEach(a=>{
       const w=String((a&&a.bezugslehrer)||"").trim(); if(!w) return;
@@ -4229,8 +4241,27 @@ const Dashboard = {
                          kurs:a.kurs||"",
                          stammeinrichtung:a.stammeinrichtung||"" });
     });
-    raus.forEach(liste=> liste.sort((x,y)=> x.name.localeCompare(y.name,"de")));
+    const nachName=(x,y)=> x.name.localeCompare(y.name,"de");
+    const s=(opt&&opt.sortierung)||"kurs";
+    /* Leerer Kurs bzw. leeres Haus ans Ende -- sonst stuenden sie als leerer
+       Wert ganz oben. Gleiches Mittel wie in offeneAzubis(). */
+    const hinten=v=> v || "￿";
+    raus.forEach(liste=> liste.sort((x,y)=>
+      s==="name" ? nachName(x,y)
+    : s==="haus" ? (hinten(x.stammeinrichtung).localeCompare(hinten(y.stammeinrichtung),"de") || nachName(x,y))
+    :              (hinten(x.kurs).localeCompare(hinten(y.kurs),"de") || nachName(x,y))));
     return raus;
+  },
+  /* v0.40.1: Farbindex 0-7 aus dem Kursnamen -- berechnet, nicht gespeichert.
+     Dadurch bedeutet dieselbe Farbe bei jeder Lehrkraft denselben Kurs, ohne
+     dass irgendwo eine Zuordnung gepflegt werden muesste. Die Farbe ist Zugabe:
+     der Kurs steht als Text auf der Kachel, niemand ist auf sie angewiesen. */
+  kursFarbe(kurs){
+    const k=SPSync._norm(kurs||"");
+    if(!k) return null;
+    let summe=0;
+    for(let i=0;i<k.length;i++) summe=(summe*31 + k.charCodeAt(i)) % 4096;
+    return summe % 8;
   },
 
   /* v0.40: Wie steht die Ziel-Lehrkraft da, NACHDEM ein Azubi dazukommt?
@@ -4742,6 +4773,7 @@ const Oberflaeche = {
   boardAuswahl:null,        // v0.34: fuer die Zuordnung gewaehlter Azubi (id), Klick-Weg
   zoSuche:"",               // v0.40: Suche in der Zuordnungs-Spalte
   zoSort:"haus",            // v0.40: "haus" | "name"
+  lkSort:"kurs",            // v0.40.1: Sortierung der aufgeklappten Azubi-Kacheln: "kurs" | "haus" | "name"
   lkOffen:new Set(),        // v0.40: aufgeklappte Lehrkraefte (ROHwert inkl. "(Zahl)")
   lehrerSuche:"",           // v0.37: Suchtext im Arbeitsbereich Bezugslehrende
   lehrerModus:"alle",       // v0.37: "alle" | "frei" | "ueberlastet" | "archiviert"
@@ -4798,7 +4830,9 @@ const Oberflaeche = {
      HTML-Attribute (data-*), zusatzKlasse = optionale Klasse. */
   _azubiKachelHtml(a, attribute, zusatzKlasse){
     const e=s=> String(s==null?"":s).replace(/</g,"&lt;");
-    return `<div class="zb-azubi${zusatzKlasse?" "+zusatzKlasse:""}" draggable="true" ${attribute||""}>
+    const f=Dashboard.kursFarbe(a.kurs);
+    const klassen=(zusatzKlasse?" "+zusatzKlasse:"")+(f!==null?" kf"+f:"");
+    return `<div class="zb-azubi${klassen}" draggable="true" ${attribute||""}>
       <b>${e(a.name)}</b>
       <span class="meta">${e(a.kurs||"—")}</span>
       <span class="meta zb-haus" title="Trägerhaus (Stammeinrichtung)">${e(a.stammeinrichtung||"Trägerhaus fehlt")}</span>
@@ -5003,10 +5037,15 @@ const Oberflaeche = {
         <button data-lsort="auslastung" class="${this.lehrerSort==="auslastung"?"an":""}">nach Auslastung</button>
         <button data-lsort="name" class="${this.lehrerSort==="name"?"an":""}">nach Name</button>
       </div>`;
+    const kachelUms=admin?`<div class="seg-knopf" id="lkSortUms" title="Reihenfolge der aufgeklappten Azubi-Kacheln">
+        <button data-lksort="kurs" class="${this.lkSort==="kurs"?"an":""}">Kacheln: Kurs</button>
+        <button data-lksort="haus" class="${this.lkSort==="haus"?"an":""}">Haus</button>
+        <button data-lksort="name" class="${this.lkSort==="name"?"an":""}">Name</button>
+      </div>`:"";
     const rechts=`<div class="zo-rechts">
       <div class="werkzeug">
         <input type="search" id="lehrerSuche" placeholder="Lehrkraft oder Trägerhaus suchen…" value="${String(this.lehrerSuche||"").replace(/"/g,"&quot;")}">
-        ${filter}${sortUms}
+        ${filter}${sortUms}${kachelUms}
         ${admin?`<button class="primaer" id="lehrerNeu">＋ Neue Lehrkraft</button>`:""}
       </div>
       <div id="lehrerTabelle">${this._lehrerTabelleHtml()}</div>
@@ -5027,7 +5066,7 @@ const Oberflaeche = {
     if(!zeilen.length) return `<div class="leer">Keine Lehrkraft passt zu Suche und Filter.</div>`;
     const waehlt=admin && !!this.boardAuswahl;
     /* einmal fuer die ganze Tabelle: welche Azubis haengen an wem? */
-    const proLehrkraft = admin ? Dashboard.azubisJeLehrkraft(Azubis.alle(), Daten.state.azubiNamen) : new Map();
+    const proLehrkraft = admin ? Dashboard.azubisJeLehrkraft(Azubis.alle(), Daten.state.azubiNamen, {sortierung:this.lkSort}) : new Map();
     const rows=zeilen.map(z=>{
       const pz=z.quote!==null?Math.round(z.quote*100):null;
       const farbe=z.ampel==="rot"?"var(--danger)":z.ampel==="gelb"?"var(--gold)":"var(--forest)";
@@ -6694,6 +6733,9 @@ const Oberflaeche = {
     });
     document.querySelectorAll("#lehrerSortUms button").forEach(b=>{
       b.onclick=()=>{ this.lehrerSort=b.dataset.lsort; this.render(); };
+    });
+    document.querySelectorAll("#lkSortUms button").forEach(b=>{
+      b.onclick=()=>{ this.lkSort=b.dataset.lksort; this._lehrerTabelleRender(); };
     });
     const kpiOZ=document.getElementById("kpiOhneZuordnung");   // Kachel -> zum Zuordnen springen
     if(kpiOZ) kpiOZ.onclick=()=>{ const t=document.getElementById("bereichBezugslehrende");
