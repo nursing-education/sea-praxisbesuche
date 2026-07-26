@@ -322,6 +322,72 @@ const neu  = offenV.find(x => x.id === '51');
 p('chip: Vorgaenger wird ohne "(Zahl)" mitgegeben', frei.vorher === 'Schulz');
 p('chip: ohne Vorgaenger bleibt das Feld leer', neu.vorher === '');
 
+/* ---------- 9. Sichtbarer Marker fuer halb gelungene Schreibvorgaenge (v0.40.2)
+   Der Retry ohne das unverifizierte Feld war stumm: Zuordnung gespeichert,
+   Vorgaenger verschluckt, keine Spur. Genau der Fall, der bei BesuchStatus
+   wochenlang unbemerkt blieb. --------------------------------------------- */
+SPSync._itemsUrl = async () => 'https://graph.example/azubis';
+
+/* 9a) Voller PATCH gelingt -> kein Marker, alter Defekt wird geloescht. */
+Daten.state.schreibDefekt = { feld: 'VorherigerBezugslehrer' };
+SPSync._schreiben = async () => {};
+const azGut = { spId: '60', bezugslehrer: 'Schulz (12)', vorherigerBezugslehrer: 'Musterfrau (10)' };
+p('marker: voller PATCH meldet Vollstaendigkeit',
+  (await SPSync.bezugslehrerSenden(azGut)) === true);
+p('marker: voller PATCH setzt kein vorgaengerOffen', azGut.vorgaengerOffen === false);
+p('marker: voller PATCH loescht einen alten Defekt', Daten.state.schreibDefekt === null);
+
+/* 9b) Erster PATCH scheitert, der zweite (ohne das Feld) gelingt -> Teil-Erfolg. */
+let versucheMarker = 0;
+SPSync._schreiben = async (url, token, methode, felder) => {
+  versucheMarker++;
+  if (felder[SP_FELDER_AZUBIS.vorherigerBezugslehrer] !== undefined) {
+    throw new Error('Field VorherigerBezugslehrer does not exist');
+  }
+};
+const azHalb = { spId: '61', bezugslehrer: 'Schulz (12)', vorherigerBezugslehrer: 'Musterfrau (10)' };
+const halbOk = await SPSync.bezugslehrerSenden(azHalb);
+p('marker: Teil-Erfolg gilt weiter als gesendet (Zuordnung ist drin)', halbOk === true);
+p('marker: Teil-Erfolg fasst genau einmal nach', versucheMarker === 2);
+p('marker: Teil-Erfolg markiert den Azubi', azHalb.vorgaengerOffen === true);
+p('marker: Teil-Erfolg haelt blOffen falsch (die Zuordnung kam an)', azHalb.blOffen === false);
+p('marker: Teil-Erfolg vermerkt das abgelehnte Feld im State',
+  Daten.state.schreibDefekt && Daten.state.schreibDefekt.feld === SP_FELDER_AZUBIS.vorherigerBezugslehrer);
+p('marker: der Grund wird mitgeschrieben',
+  /VorherigerBezugslehrer does not exist/.test((Daten.state.schreibDefekt || {}).grund || ''));
+
+/* 9c) Beide PATCHes scheitern -> gar nichts kam an, blOffen gewinnt. */
+SPSync._schreiben = async () => { throw new Error('403'); };
+const azNichts = { spId: '62', bezugslehrer: 'Schulz (12)', vorherigerBezugslehrer: 'Musterfrau (10)' };
+p('marker: Totalausfall meldet Misserfolg',
+  (await SPSync.bezugslehrerSenden(azNichts)) === false);
+p('marker: Totalausfall setzt blOffen', azNichts.blOffen === true);
+
+/* 9d) Suffix der Meldung -- die Oberflaeche hatte das als Ternaer inline. */
+p('hinweis: nichts gesendet',
+  Dashboard.schreibHinweis({ blOffen: true }) === ' · noch nicht in SharePoint');
+p('hinweis: nur der Vorgaenger fehlt',
+  Dashboard.schreibHinweis({ vorgaengerOffen: true }) === ' · Vorgänger nicht gemerkt');
+p('hinweis: beides -> der schwerere Fall gewinnt',
+  Dashboard.schreibHinweis({ blOffen: true, vorgaengerOffen: true }) === ' · noch nicht in SharePoint');
+p('hinweis: alles gut -> kein Suffix', Dashboard.schreibHinweis({}) === '');
+p('hinweis: ohne Azubi kein Suffix', Dashboard.schreibHinweis(null) === '');
+
+/* 9e) Stehender Hinweis. Muss auch ohne markierte Azubis stehen bleiben: der
+   Sync ersetzt die Azubi-Liste komplett, die Flags sind danach weg -- der
+   Defekt selbst ist damit aber nicht behoben. */
+p('stehend: ohne Defekt keine Meldung',
+  Dashboard.schreibDefektMeldung({ azubis: [] }) === null);
+p('stehend: ohne State keine Meldung', Dashboard.schreibDefektMeldung(null) === null);
+const mHalb = Dashboard.schreibDefektMeldung({ schreibDefekt: { feld: 'VorherigerBezugslehrer' },
+                                               azubis: [{ vorgaengerOffen: true }, { vorgaengerOffen: false }] });
+p('stehend: nennt die abgelehnte Spalte', /VorherigerBezugslehrer/.test(mHalb));
+p('stehend: zaehlt die betroffenen Azubis', /1 Azubi\b/.test(mHalb));
+p('stehend: sagt, was zu tun ist', /Listeneinstellungen/.test(mHalb));
+const mLeer = Dashboard.schreibDefektMeldung({ schreibDefekt: { feld: 'X' }, azubis: [] });
+p('stehend: bleibt auch ohne markierte Azubis stehen', typeof mLeer === 'string' && /X/.test(mLeer));
+p('stehend: nennt dann keine Azubi-Zahl', !/\d+ Azubis?/.test(mLeer));
+
 console.log(log.join('\n'));
 console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
 process.exit(fail ? 1 : 0);

@@ -4,6 +4,29 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.40.2 – 2026-07-26
+
+- **Fix: halb gelungene Schreibvorgänge waren unsichtbar.** Der interne SharePoint-Name
+  von `VorherigerBezugslehrer` ist unverifiziert; lehnt SharePoint den PATCH deswegen ab,
+  wiederholt die App ihn seit v0.40 ohne dieses Feld – die Zuordnung wird gespeichert,
+  der Vorgänger nicht. Dieses Nachfassen war **stumm**: kein Log, kein Hinweis. Die App
+  behauptete vollen Erfolg, obwohl die Hälfte verschluckt wurde. Genau dieser Fehlertyp
+  blieb beim `BesuchStatus` wochenlang unbemerkt – und die Vertretung in v0.41 greift
+  ausgerechnet auf diesen Merker zurück.
+  - **Meldung nach dem Handgriff:** Der Toast trägt jetzt „· Vorgänger nicht gemerkt".
+    „· noch nicht in SharePoint" hat weiter Vorrang – kam gar nichts an, ist das der
+    schwerere Fall.
+  - **Stehender Hinweis** über dem Bereich „Bezugslehrende" (nur für Admins), solange
+    eine Spalte abgelehnt wird: nennt die Spalte, die Zahl betroffener Azubis und den
+    nächsten Schritt (internen Feldnamen in den Listeneinstellungen prüfen). Er bleibt
+    auch nach einem Sync stehen, der die Azubi-Markierungen entfernt – die abgelehnte
+    Spalte ist dadurch nicht in Ordnung. Ein später gelungener voller Schreibvorgang
+    löscht ihn.
+  - Neu: `Dashboard.schreibHinweis()` (Zusatz zur Meldung, ersetzt ein Ternär in der
+    Oberfläche) und `Dashboard.schreibDefektMeldung()` (Text des stehenden Hinweises),
+    neues State-Feld `schreibDefekt`, neues Azubi-Feld `vorgaengerOffen`.
+  - `tests/test_v040.js`: 23 neue Tests (Abschnitt 9), insgesamt 94.
+
 ## v0.40.1 – 2026-07-26
 
 - Zuordnungs-Spalte zeigt beim Ziehen eine eigene Ablagefläche („Hierher ziehen:
