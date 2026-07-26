@@ -152,6 +152,25 @@
   .zo-chips{display:flex;flex-wrap:wrap;gap:6px}
   .zo-chips .zb-azubi{margin-bottom:0;min-width:150px}
   .zb-haus{font-style:italic}
+  /* v0.40: zweispaltiger Arbeitsbereich. Vertikaler Platz ist bei 40 Zeilen das
+     Nadeloehr, horizontaler ist frei -- deshalb steht die Zuordnungs-Spalte
+     links und nicht als Leiste oben. Sie bleibt beim Scrollen stehen und
+     scrollt innen, weil 30 Kacheln hoeher sind als jeder Bildschirm. */
+  .zo-zweispaltig{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
+  .zo-spalte{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow-y:auto}
+  .zo-spalte .zo-chips{flex-direction:column}
+  .zo-spalte .zo-chips .zb-azubi{min-width:0}
+  .zo-werkzeug{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .zo-werkzeug input[type=search]{flex:1 1 100%}
+  .zo-rechts{min-width:0}
+  /* Schmales Fenster: zurueck auf die Form vor v0.40 -- Leiste quer oben,
+     Tabelle darunter. Gleiches Markup, nur andere Regeln. */
+  @media (max-width:1199px){
+    .zo-zweispaltig{display:block}
+    .zo-spalte{position:static;max-height:none;overflow:visible;margin-bottom:12px}
+    .zo-spalte .zo-chips{flex-direction:row}
+    .zo-spalte .zo-chips .zb-azubi{min-width:150px}
+  }
   .lk-zeile.zb-ueber > td{background:#EEF4EF;box-shadow:inset 0 0 0 1px var(--forest)}
   .lk-voll{opacity:.5}
   .zuordnen-aktiv .lk-zeile{cursor:copy}
@@ -4188,6 +4207,30 @@ const Dashboard = {
     const zusatz=(kap && kap.ueberbucht) ? ` · jetzt ${kap.ist} / ${kap.soll}` : "";
     return `${azubiName}: ${von} → ${nach}${zusatz}`;
   },
+  /* v0.40: Inhalt der Zuordnungs-Spalte. Standard ist die Sortierung nach
+     Traegerhaus: Ein frisch importierter Kurs wird meist hausweise verteilt --
+     so stehen die Azubis zusammen, die zur selben Lehrkraft gehen, und die
+     Schwerpunkt-Spalte der Tabelle zeigt, zu welcher. Azubis ohne Haus kommen
+     ans Ende (sonst stuenden sie als leerer Wert ganz oben). */
+  offeneAzubis(azubis, namen, opt){
+    const o=opt||{};
+    const q=SPSync._norm(o.suche||"");
+    const liste=(azubis||[])
+      .filter(a=> a && !String(a.bezugslehrer||"").trim())
+      .map(a=>({ id:a.id,
+                 name:((namen||{})[a.id])||a.kuerzel||"",
+                 kurs:a.kurs||"",
+                 stammeinrichtung:a.stammeinrichtung||"" }))
+      .filter(a=> !q || SPSync._norm(a.name).indexOf(q)>=0 || SPSync._norm(a.kurs).indexOf(q)>=0);
+    const nachName=(x,y)=> x.name.localeCompare(y.name,"de");
+    if((o.sortierung||"haus")==="haus"){
+      const h=x=> x.stammeinrichtung || "￿";     /* leer sortiert hinter alles */
+      liste.sort((x,y)=> h(x).localeCompare(h(y),"de") || nachName(x,y));
+    } else {
+      liste.sort(nachName);
+    }
+    return liste;
+  },
   /* v0.37: Suche/Filter/Sortierung der Lehrkraft-Tabelle. Rein funktional (kein
      DOM) -- damit headless testbar. "alle" blendet Archivierte aus; "frei" ist der
      direkte Weg zur haeufigsten Frage beim Zuordnen: wer hat ueberhaupt noch Platz?
@@ -4651,6 +4694,9 @@ const Oberflaeche = {
   einrFilter:"",            // aktueller Suchtext (Einrichtungen)
   einrOffen:new Set(),      // welche Bereich-Gruppen sind aufgeklappt
   boardAuswahl:null,        // v0.34: fuer die Zuordnung gewaehlter Azubi (id), Klick-Weg
+  zoSuche:"",               // v0.40: Suche in der Zuordnungs-Spalte
+  zoSort:"haus",            // v0.40: "haus" | "name"
+  lkOffen:new Set(),        // v0.40: aufgeklappte Lehrkraefte (normalisierter Name)
   lehrerSuche:"",           // v0.37: Suchtext im Arbeitsbereich Bezugslehrende
   lehrerModus:"alle",       // v0.37: "alle" | "frei" | "ueberlastet" | "archiviert"
   lehrerSort:"auslastung",  // v0.37: "auslastung" (wie bisher) | "name"
@@ -4697,6 +4743,20 @@ const Oberflaeche = {
     const zu=()=>{ t.className="toast"; t.textContent=""; };
     knopf.onclick=()=>{ zu(); aufKlick(); };
     this._tt=setTimeout(zu, 8000);
+  },
+  /* v0.40: EINE Azubi-Kachel -- genutzt von der Zuordnungs-Spalte und von den
+     aufgeklappten Azubis einer Lehrkraft. Beide muessen gleich aussehen (Spec
+     v0.40, Abschnitt 2): derselbe Azubi soll vor und nach dem Umhaengen
+     unveraendert wirken.
+     a = {id, name, kurs, stammeinrichtung}; attribute = zusaetzliche
+     HTML-Attribute (data-*), zusatzKlasse = optionale Klasse. */
+  _azubiKachelHtml(a, attribute, zusatzKlasse){
+    const e=s=> String(s==null?"":s).replace(/</g,"&lt;");
+    return `<div class="zb-azubi${zusatzKlasse?" "+zusatzKlasse:""}" draggable="true" ${attribute||""}>
+      <b>${e(a.name)}</b>
+      <span class="meta">${e(a.kurs||"—")}</span>
+      <span class="meta zb-haus" title="Trägerhaus (Stammeinrichtung)">${e(a.stammeinrichtung||"Trägerhaus fehlt")}</span>
+    </div>`;
   },
   modal(html){
     document.getElementById("modal").innerHTML=html;
@@ -4857,28 +4917,34 @@ const Oberflaeche = {
   viewBezugslehrende(){
     const admin=Dashboard.darfVerwalten();
     const sel=this.boardAuswahl;
-    /* Zuordnungs-Leiste: die unzugeordneten Azubis als Chips OBEN. Die frueher
-       danebenstehende Lehrkraft-Spalte entfaellt -- die Tabelle darunter IST sie. */
-    let leiste="";
+    /* Zuordnungs-Spalte: die unzugeordneten Azubis als Kacheln LINKS. Ab 1200px
+       zweispaltig neben der Tabelle, darunter wieder als Leiste quer oben. */
+    let spalte="";
     if(admin){
-      const offen=Azubis.ohneBezugslehrer();
-      const chips=offen.map(a=>{
-        const nm=Azubis.name(a.id)||a.kuerzel||"—";
-        /* v0.38: Traegerhaus mit auf den Chip -- es entscheidet mit, zu wem der
-           Azubi passt (siehe Schwerpunkt-Spalte der Tabelle). */
-        const haus=String(a.stammeinrichtung||"").trim();
-        return `<div class="zb-azubi${sel===a.id?" gewaehlt":""}" draggable="true" data-zb-azubi="${a.id}">
-          <b>${nm.replace(/</g,"&lt;")}</b>
-          <span class="meta">${(a.kurs||"—").replace(/</g,"&lt;")}</span>
-          <span class="meta zb-haus" title="Trägerhaus (Stammeinrichtung)">${(haus||"Trägerhaus fehlt").replace(/</g,"&lt;")}</span>
+      const offen=Dashboard.offeneAzubis(Azubis.alle(), Daten.state.azubiNamen,
+                                         {suche:this.zoSuche, sortierung:this.zoSort});
+      const gesamt=Azubis.ohneBezugslehrer().length;
+      /* v0.38: Traegerhaus mit auf den Chip -- es entscheidet mit, zu wem der
+         Azubi passt (siehe Schwerpunkt-Spalte der Tabelle). */
+      const chips=offen.map(a=>
+        this._azubiKachelHtml(a, `data-zb-azubi="${a.id}"`, sel===a.id?"gewaehlt":"")).join("");
+      const werkzeug=gesamt?`<div class="zo-werkzeug">
+          <input type="search" id="zoSuche" placeholder="Name oder Kurs…" value="${String(this.zoSuche||"").replace(/"/g,"&quot;")}">
+          <div class="seg-knopf" id="zoSortUms">
+            <button data-zosort="haus" class="${this.zoSort==="haus"?"an":""}" title="Azubis eines Trägerhauses stehen zusammen">nach Haus</button>
+            <button data-zosort="name" class="${this.zoSort==="name"?"an":""}">nach Name</button>
+          </div>
+        </div>`:"";
+      const kopf = gesamt
+        ? `Ohne Zuordnung (${gesamt}) <span class="meta">– ${sel?"jetzt eine Lehrkraft anklicken":"Azubi anklicken oder auf eine Zeile ziehen"}</span>`
+        : `Alle Azubis sind zugeordnet ✓ <span class="meta">– neu importierte Azubis erscheinen hier</span>`;
+      const leer = (gesamt && !offen.length)
+        ? `<div class="meta">Kein Treffer für die Suche.</div>` : "";
+      spalte=`<div class="zo-leiste zo-spalte" id="zoSpalte">
+          <div class="zo-kopf">${kopf}</div>
+          ${werkzeug}${leer}
+          <div class="zo-chips">${chips}</div>
         </div>`;
-      }).join("");
-      leiste = offen.length
-        ? `<div class="zo-leiste">
-             <div class="zo-kopf">Ohne Zuordnung (${offen.length}) <span class="meta">– ${sel?"jetzt unten eine Lehrkraft anklicken":"Azubi anklicken oder auf eine Zeile ziehen"}</span></div>
-             <div class="zo-chips">${chips}</div>
-           </div>`
-        : `<div class="zo-leiste"><div class="zo-kopf">Alle Azubis sind zugeordnet ✓ <span class="meta">– neu importierte Azubis erscheinen hier</span></div></div>`;
     }
     const filter=`<div class="seg-knopf" id="lehrerFilterUms">
         <button data-lmodus="alle" class="${this.lehrerModus==="alle"?"an":""}">Alle</button>
@@ -4890,15 +4956,17 @@ const Oberflaeche = {
         <button data-lsort="auslastung" class="${this.lehrerSort==="auslastung"?"an":""}">nach Auslastung</button>
         <button data-lsort="name" class="${this.lehrerSort==="name"?"an":""}">nach Name</button>
       </div>`;
-    return `<section class="einst-block" id="bereichBezugslehrende">
-      <h2>Bezugslehrende <span class="einst-info" title="Eine Zeile je Lehrkraft. Ist = aktuell zugeordnete Azubis, Soll = Kapazität aus der SharePoint-Liste „Bezugslehrende“ (ersatzweise die „(Zahl)“ am Namen, solange die Liste jemanden nicht kennt). Trägerhaus (Schwerpunkt) = das Haus, aus dem die meisten ihrer Azubis kommen.">i</span></h2>
-      ${leiste}
+    const rechts=`<div class="zo-rechts">
       <div class="werkzeug">
         <input type="search" id="lehrerSuche" placeholder="Lehrkraft oder Trägerhaus suchen…" value="${String(this.lehrerSuche||"").replace(/"/g,"&quot;")}">
         ${filter}${sortUms}
         ${admin?`<button class="primaer" id="lehrerNeu">＋ Neue Lehrkraft</button>`:""}
       </div>
       <div id="lehrerTabelle">${this._lehrerTabelleHtml()}</div>
+    </div>`;
+    return `<section class="einst-block" id="bereichBezugslehrende">
+      <h2>Bezugslehrende <span class="einst-info" title="Eine Zeile je Lehrkraft. Ist = aktuell zugeordnete Azubis, Soll = Kapazität aus der SharePoint-Liste „Bezugslehrende“ (ersatzweise die „(Zahl)“ am Namen, solange die Liste jemanden nicht kennt). Trägerhaus (Schwerpunkt) = das Haus, aus dem die meisten ihrer Azubis kommen.">i</span></h2>
+      <div class="${admin?"zo-zweispaltig":""}">${spalte}${rechts}</div>
     </section>`;
   },
 
@@ -6479,6 +6547,16 @@ const Oberflaeche = {
     const kpiOZ=document.getElementById("kpiOhneZuordnung");   // Kachel -> zum Zuordnen springen
     if(kpiOZ) kpiOZ.onclick=()=>{ const t=document.getElementById("bereichBezugslehrende");
       if(t) t.scrollIntoView({behavior:"smooth", block:"start"}); };
+    const zoS=document.getElementById("zoSuche");
+    if(zoS) zoS.oninput=()=>{ this.zoSuche=zoS.value; this.render();
+      /* Fokus zurueck ins Feld: render() zeichnet die Spalte neu. Gleiches
+         Problem wie bei lehrerSuche, hier aber ohne Teil-Neuzeichnung geloest,
+         weil die Spalte klein ist. */
+      const neu=document.getElementById("zoSuche");
+      if(neu){ neu.focus(); neu.setSelectionRange(neu.value.length, neu.value.length); } };
+    document.querySelectorAll("#zoSortUms button").forEach(b=>{
+      b.onclick=()=>{ this.zoSort=b.dataset.zosort; this.render(); };
+    });
     // v0.34: Zuordnung per Klick (Azubi waehlen -> Lehrkraft-Zeile) ODER Drag-and-Drop.
     // Elemente existieren nur im Dashboard -> sonst leere NodeLists.
     document.querySelectorAll("[data-zb-azubi]").forEach(k=>{

@@ -168,6 +168,34 @@ p('Sync-Fehler MIT stumm: Oberflaeche.toast wird NICHT gerufen', toastAufrufe ==
 p('Sync-Fehler MIT stumm: blOffen bleibt dennoch true (Oberflaeche baut eigene Meldung)',
   a1stumm.blOffen === true);
 
+/* ---------- 4. Inhalt der Zuordnungs-Spalte ----------------------------- */
+const offeneT = [
+  { id: '20', kuerzel: 'Zorn',  kurs: 'PFK N 041', stammeinrichtung: 'Marienhaus',    bezugslehrer: '' },
+  { id: '21', kuerzel: 'Adam',  kurs: 'PflAss 12', stammeinrichtung: 'St. Elisabeth', bezugslehrer: '' },
+  { id: '22', kuerzel: 'Bach',  kurs: 'PFK N 041', stammeinrichtung: '',              bezugslehrer: '' },
+  { id: '23', kuerzel: 'Fest',  kurs: 'PFK N 041', stammeinrichtung: 'Marienhaus',    bezugslehrer: 'Schulz' }
+];
+const offeneNamen = { '20': 'Zorn, S.', '21': 'Adam, B.', '22': 'Bach, C.', '23': 'Fest, F.' };
+
+const spalte = Dashboard.offeneAzubis(offeneT, offeneNamen, {});
+p('spalte: nur Azubis ohne Bezugslehrer', spalte.length === 3);
+p('spalte: Standard sortiert nach Traegerhaus, dann Name',
+  spalte.map(x => x.name).join(',') === 'Zorn, S.,Adam, B.,Bach, C.');
+p('spalte: fehlendes Traegerhaus steht hinten', spalte[2].name === 'Bach, C.');
+
+const nachName = Dashboard.offeneAzubis(offeneT, offeneNamen, { sortierung: 'name' });
+p('spalte: Sortierung nach Name',
+  nachName.map(x => x.name).join(',') === 'Adam, B.,Bach, C.,Zorn, S.');
+
+p('spalte: Suche greift auf den Namen',
+  Dashboard.offeneAzubis(offeneT, offeneNamen, { suche: 'adam' }).length === 1);
+p('spalte: Suche greift auf den Kurs',
+  Dashboard.offeneAzubis(offeneT, offeneNamen, { suche: 'PflAss' }).length === 1);
+p('spalte: Suche ohne Treffer liefert leere Liste',
+  Dashboard.offeneAzubis(offeneT, offeneNamen, { suche: 'xyz' }).length === 0);
+p('spalte: ohne Argumente kein Absturz',
+  Array.isArray(Dashboard.offeneAzubis()) && Dashboard.offeneAzubis().length === 0);
+
 console.log(log.join('\n'));
 console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
 process.exit(fail ? 1 : 0);
