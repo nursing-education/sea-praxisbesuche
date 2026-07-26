@@ -4177,17 +4177,21 @@ const Dashboard = {
     return raus;
   },
   /* v0.40: Welche Azubis haengen an welcher Lehrkraft? Schluessel ist der
-     NORMALISIERTE Anzeigename -- damit fallen "Musterfrau (10)" und
-     "Musterfrau (12)" zusammen (gleicher Schluessel wie einrichtungsSchwerpunkte).
+     ROHwert des Bezugslehrer-Felds -- derselbe Ausdruck wie in auslastung()
+     (String(a.bezugslehrer||"").trim()). NICHT normalisiert: auslastung()
+     bildet je Rohwert eine eigene Tabellenzeile, und deren Ist-Wert muss zur
+     Laenge der hier gelieferten Liste passen. Wuerde hier normalisiert, faellt
+     die Gruppierung bei "Musterfrau (10)" vs. "Musterfrau (12)" zusammen und
+     beide Zeilen zeigen dieselbe zusammengefuehrte Liste -- Zeile und Kacheln
+     liefen auseinander.
      Die Namen kommen als Parameter statt aus Daten.state, damit die Funktion
      ohne globalen Zustand geprueft werden kann. */
   azubisJeLehrkraft(azubis, namen){
     const raus=new Map();
     (azubis||[]).forEach(a=>{
       const w=String((a&&a.bezugslehrer)||"").trim(); if(!w) return;
-      const k=SPSync._norm(bezugslehrerAnzeige(w)||w); if(!k) return;
-      if(!raus.has(k)) raus.set(k,[]);
-      raus.get(k).push({ id:a.id,
+      if(!raus.has(w)) raus.set(w,[]);
+      raus.get(w).push({ id:a.id,
                          name:((namen||{})[a.id])||a.kuerzel||"",
                          kurs:a.kurs||"",
                          stammeinrichtung:a.stammeinrichtung||"" });
@@ -5014,10 +5018,10 @@ const Oberflaeche = {
       const haus = !e
         ? `<span class="meta">—</span>`
         : `${e.name.replace(/</g,"&lt;")} <span class="meta" title="${e.anzahl} von ${e.gesamt} Azubis dieser Lehrkraft kommen aus diesem Haus${e.verschiedene>1?" · insgesamt "+e.verschiedene+" verschiedene Häuser":""}${e.ohne?" · "+e.ohne+" ohne Angabe":""}">${e.anzahl} / ${e.gesamt}</span>`;
-      /* Schluessel wie bei einrichtungsSchwerpunkte: normalisierter Anzeigename.
-         Der Rohwert traegt die "(Zahl)" mit -- aendert sie sich, waere die Zeile
-         sonst ploetzlich wieder zugeklappt. */
-      const key=SPSync._norm(bezugslehrerAnzeige(z.wert)||z.wert);
+      /* Schluessel ist der ROHwert (wie in proLehrkraft/azubisJeLehrkraft) --
+         nicht normalisiert, sonst zeigen zwei "(Zahl)"-Varianten derselben
+         Person dieselbe zusammengefuehrte Kachel-Liste statt ihrer eigenen. */
+      const key=String(z.wert);
       const meine=proLehrkraft.get(key)||[];
       const offen=this.lkOffen.has(key);
       const chevron = (admin && meine.length)

@@ -94,31 +94,53 @@ p('unbekannte id: kein Absturz, liefert null',
   await Azubis.bezugslehrerUmhaengen('999', 'Schulz (12)') === null);
 
 /* ---------- 3. Gruppierung, Ueberbuchung, Meldungstext ------------------ */
+/* Fix-Runde 1 (Review-Befund): azubisJeLehrkraft() gruppiert seit hier nach dem
+   ROHwert -- demselben Schluessel wie auslastung()/lehrkraftZeilen(). Vorher lief
+   der Schluessel ueber den normalisierten Anzeigenamen und fasste "Musterfrau (10)"
+   und "Musterfrau (12)" zu EINER Liste zusammen, obwohl auslastung() daraus ZWEI
+   Tabellenzeilen macht -- die Kachel-Anzahl passte dann nicht mehr zum Ist-Wert
+   der jeweiligen Zeile. */
 const azubisT = [
   { id: '10', kuerzel: 'Weber', kurs: 'PFK N 041', stammeinrichtung: 'St. Elisabeth',
     bezugslehrer: 'Musterfrau (10)' },
   { id: '11', kuerzel: 'Adam',  kurs: 'PFK N 041', stammeinrichtung: 'Marienhaus',
-    bezugslehrer: 'Musterfrau (12)' },          /* gleiche Person, andere "(Zahl)" */
-  { id: '12', kuerzel: 'Zorn',  kurs: 'PflAss',    stammeinrichtung: '',
-    bezugslehrer: 'Schulz' },
+    bezugslehrer: 'Musterfrau (12)' },          /* gleiche Person, andere "(Zahl)" -- ROHwert unterscheidet sich trotzdem */
+  { id: '14', kuerzel: 'Zorn',  kurs: 'PflAss',    stammeinrichtung: '',
+    bezugslehrer: 'Schulz (5)' },
+  { id: '15', kuerzel: 'Anton', kurs: 'PflAss',    stammeinrichtung: '',
+    bezugslehrer: 'Schulz (5)' },               /* zweiter Azubi DERSELBEN Zeile, absichtlich nach Zorn eingefuegt */
   { id: '13', kuerzel: 'Ohne',  kurs: 'PFK N 041', stammeinrichtung: '', bezugslehrer: '' }
 ];
-const namenT = { '10': 'Weber, T.', '11': 'Adam, B.', '12': 'Zorn, S.', '13': 'Ohne, O.' };
+const namenT = { '10': 'Weber, T.', '11': 'Adam, B.', '13': 'Ohne, O.', '14': 'Zorn, S.', '15': 'Anton, A.' };
 
 const proLk = Dashboard.azubisJeLehrkraft(azubisT, namenT);
-const musterfrau = proLk.get(SPSync._norm('Musterfrau'));
-p('gruppierung: beide "(Zahl)"-Varianten fallen zusammen',
-  !!musterfrau && musterfrau.length === 2);
-p('gruppierung: nach Name sortiert',
-  musterfrau.map(x => x.name).join(',') === 'Adam, B.,Weber, T.');
+p('gruppierung: unterschiedliche "(Zahl)"-Varianten bilden GETRENNTE Gruppen (Rohwert-Schluessel)',
+  proLk.get('Musterfrau (10)').length === 1 && proLk.get('Musterfrau (12)').length === 1
+  && proLk.get('Musterfrau (10)')[0].name === 'Weber, T.'
+  && proLk.get('Musterfrau (12)')[0].name === 'Adam, B.');
+p('gruppierung: Zugriff erfolgt ueber den Rohwert, nicht mehr normalisiert',
+  proLk.get(SPSync._norm('Musterfrau')) === undefined);
+const schulz = proLk.get('Schulz (5)');
+p('gruppierung: zwei Azubis am selben Rohwert bilden weiterhin EINE Gruppe',
+  !!schulz && schulz.length === 2);
+p('gruppierung: innerhalb der Gruppe weiterhin nach Name sortiert',
+  schulz.map(x => x.name).join(',') === 'Anton, A.,Zorn, S.');
 p('gruppierung: Kurs und Traegerhaus kommen mit',
-  musterfrau[1].kurs === 'PFK N 041' && musterfrau[1].stammeinrichtung === 'St. Elisabeth');
+  proLk.get('Musterfrau (10)')[0].kurs === 'PFK N 041'
+  && proLk.get('Musterfrau (10)')[0].stammeinrichtung === 'St. Elisabeth');
 p('gruppierung: Azubi ohne Bezugslehrer bildet KEINE Gruppe',
   !proLk.has('') && ![...proLk.values()].flat().some(x => x.id === '13'));
 p('gruppierung: Lehrkraft ohne Azubis kommt nicht vor',
-  proLk.get(SPSync._norm('Niemand')) === undefined);
+  proLk.get('Niemand') === undefined);
 p('gruppierung: ohne Argumente kein Absturz',
   Dashboard.azubisJeLehrkraft() instanceof Map);
+
+/* Genau der Test, der den Review-Befund gefunden haette: die Kachel-Liste einer
+   Zeile muss exakt so viele Azubis enthalten, wie deren eigener Ist-Wert angibt. */
+const zeilenT2 = Dashboard.lehrkraftZeilen(azubisT);
+p('kachel-liste stimmt mit dem Ist-Wert der EIGENEN Zeile ueberein',
+  zeilenT2.length === 3
+  && zeilenT2.every(z => (proLk.get(z.wert) || []).length === z.ist));
 
 const zeilenT = [
   { wert: 'Musterfrau (10)', ist: 2, soll: 10 },
