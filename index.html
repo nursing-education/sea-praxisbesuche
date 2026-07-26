@@ -5173,28 +5173,36 @@ const Oberflaeche = {
      gibt es die Meldung mit "Rueckgaengig" DANACH (Spec v0.40, Abschnitt 4).
      Die Kapazitaets-Aussage wird VOR dem Schreiben berechnet -- danach ist der
      Azubi schon mitgezaehlt. */
+  _zuordnungLaeuft:false,    // v0.40: Riegel gegen ueberlappende Handgriffe
   async _zuordnungAendern(id, wert){
     if(id==null || wert==null) return;
-    /* v0.40: sicher beenden -- nach dem folgenden render() ist das gezogene
-       Element weg und ondragend feuert nicht mehr. */
-    this._ziehenAus();
-    const azubi=Azubis.alle().find(a=>String(a.id)===String(id));
-    if(!azubi) return;
-    const vorher=azubi.bezugslehrer||"";
-    const kap = wert ? Dashboard.ueberbuchtNach(Dashboard.lehrkraftZeilen(Azubis.alle()), wert) : null;
-    const azubiName=Azubis.name(azubi.id)||azubi.kuerzel||"Azubi";
-    this.boardAuswahl=null;
-    /* stumm=true: die eigene Sync-Warnung von _bezugslehrerSchreiben unterdruecken
-       -- sie wuerde sonst den Rueckgaengig-Toast sofort wieder ueberschreiben.
-       a.blOffen danach lesen (nicht vorher -- steht erst nach dem Senden fest)
-       und, falls das Senden scheiterte, in dieselbe Meldung haengen. */
-    const davor=await Azubis.bezugslehrerUmhaengen(azubi.id, wert, true);
-    if(!davor) return;                       /* unveraendert -- keine Meldung */
-    const sync=azubi.blOffen ? " · noch nicht in SharePoint" : "";
-    this.toastAktion(
-      Dashboard.umhaengenMeldung(azubiName, bezugslehrerAnzeige(vorher), bezugslehrerAnzeige(wert), kap)+sync,
-      "Rückgängig",
-      ()=> Azubis.bezugslehrerZustandHerstellen(davor));
+    /* Zwei Handgriffe kurz hintereinander wuerden parallel schreiben. Kaemen die
+       PATCHes vertauscht an, stuende in SharePoint ein anderer Wert als lokal --
+       und weil blOffen=false gesetzt wurde, wird das nie nachgereicht. */
+    if(this._zuordnungLaeuft) return;
+    this._zuordnungLaeuft=true;
+    try{
+      /* v0.40: sicher beenden -- nach dem folgenden render() ist das gezogene
+         Element weg und ondragend feuert nicht mehr. */
+      this._ziehenAus();
+      const azubi=Azubis.alle().find(a=>String(a.id)===String(id));
+      if(!azubi) return;
+      const vorher=azubi.bezugslehrer||"";
+      const kap = wert ? Dashboard.ueberbuchtNach(Dashboard.lehrkraftZeilen(Azubis.alle()), wert) : null;
+      const azubiName=Azubis.name(azubi.id)||azubi.kuerzel||"Azubi";
+      this.boardAuswahl=null;
+      /* stumm=true: die eigene Sync-Warnung von _bezugslehrerSchreiben unterdruecken
+         -- sie wuerde sonst den Rueckgaengig-Toast sofort wieder ueberschreiben.
+         a.blOffen danach lesen (nicht vorher -- steht erst nach dem Senden fest)
+         und, falls das Senden scheiterte, in dieselbe Meldung haengen. */
+      const davor=await Azubis.bezugslehrerUmhaengen(azubi.id, wert, true);
+      if(!davor) return;                       /* unveraendert -- keine Meldung */
+      const sync=azubi.blOffen ? " · noch nicht in SharePoint" : "";
+      this.toastAktion(
+        Dashboard.umhaengenMeldung(azubiName, bezugslehrerAnzeige(vorher), bezugslehrerAnzeige(wert), kap)+sync,
+        "Rückgängig",
+        ()=> Azubis.bezugslehrerZustandHerstellen(davor));
+    } finally { this._zuordnungLaeuft=false; }
   },
   /* Handler der Lehrkraft-Zeilen: Zuordnen (Klick/Drop) + Bearbeiten/Loeschen.
      Eigene Funktion, weil die Tabelle auch ohne vollen Render neu entsteht. */
