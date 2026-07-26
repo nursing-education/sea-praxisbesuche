@@ -190,7 +190,7 @@ p('Sync-Fehler MIT stumm: Oberflaeche.toast wird NICHT gerufen', toastAufrufe ==
 p('Sync-Fehler MIT stumm: blOffen bleibt dennoch true (Oberflaeche baut eigene Meldung)',
   a1stumm.blOffen === true);
 
-/* ---------- 4. Inhalt der Zuordnungs-Spalte ----------------------------- */
+/* ---------- 5. Inhalt der Zuordnungs-Spalte ----------------------------- */
 const offeneT = [
   { id: '20', kuerzel: 'Zorn',  kurs: 'PFK N 041', stammeinrichtung: 'Marienhaus',    bezugslehrer: '' },
   { id: '21', kuerzel: 'Adam',  kurs: 'PflAss 12', stammeinrichtung: 'St. Elisabeth', bezugslehrer: '' },

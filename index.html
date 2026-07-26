@@ -3062,7 +3062,8 @@ const Azubis = {
   },
   /* v0.34/v0.40: Bezugslehrer eines Azubis setzen. Der Wert ist der ROHwert inkl.
      "(Zahl)"-Kapazitaet -- sonst verliert Dashboard.soll() die Kapazitaet.
-     Leerer Wert = Zuordnung entfernen. Bestehender Name, delegiert seit v0.40. */
+     Leerer Wert = Zuordnung entfernen. Delegiert seit v0.40 und wird in der App
+     nicht mehr gerufen -- der Name bleibt fuer tests/test_v034.js stehen. */
   async bezugslehrerSetzen(id, wert){ return this.bezugslehrerUmhaengen(id, wert); },
 
   /* v0.40: Zuordnen, Umhaengen und Entfernen laufen ueber EINEN Weg -- und merken
@@ -3103,8 +3104,8 @@ const Azubis = {
      Rueckgaengig-Toast auf -- ohne stumm wuerde der die Sync-Warnung hier sofort
      wieder ueberschreiben, bevor sie zu sehen war. _zuordnungAendern liest
      stattdessen a.blOffen und haengt die Warnung an die eigene Meldung an.
-     Andere Aufrufer (bezugslehrerZustandHerstellen, bezugslehrerSetzen) melden
-     einen Fehlschlag weiterhin selbst -- sie geben kein stumm mit. */
+     Ohne stumm bleibt es bei der Warnung von hier -- so beim Rueckgaengig
+     (bezugslehrerZustandHerstellen), das keine eigene Meldung erzeugt. */
   async _bezugslehrerSchreiben(a, wert, stumm){
     a.bezugslehrer=wert||"";
     a.blOffen=true;
@@ -4734,7 +4735,7 @@ const Oberflaeche = {
   boardAuswahl:null,        // v0.34: fuer die Zuordnung gewaehlter Azubi (id), Klick-Weg
   zoSuche:"",               // v0.40: Suche in der Zuordnungs-Spalte
   zoSort:"haus",            // v0.40: "haus" | "name"
-  lkOffen:new Set(),        // v0.40: aufgeklappte Lehrkraefte (normalisierter Name)
+  lkOffen:new Set(),        // v0.40: aufgeklappte Lehrkraefte (ROHwert inkl. "(Zahl)")
   lehrerSuche:"",           // v0.37: Suchtext im Arbeitsbereich Bezugslehrende
   lehrerModus:"alle",       // v0.37: "alle" | "frei" | "ueberlastet" | "archiviert"
   lehrerSort:"auslastung",  // v0.37: "auslastung" (wie bisher) | "name"
@@ -5058,8 +5059,7 @@ const Oberflaeche = {
          erst zu. So greift die Verdrahtung in _lehrerZeilenVerdrahten unveraendert. */
       const kacheln = (admin && offen && meine.length)
         ? `<tr class="lk-azubis" data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"><td colspan="8"><div class="lk-kacheln">${meine.map(m=>
-             this._azubiKachelHtml(m,
-               `data-lk-azubi="${m.id}" data-lk-von="${String(z.wert).replace(/"/g,"&quot;")}"`)
+             this._azubiKachelHtml(m, `data-lk-azubi="${m.id}"`)
            ).join("")}</div></td></tr>`
         : "";
       return `<tr class="lk-zeile${voll?" lk-voll":""}"${admin?` data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"`:""}>
