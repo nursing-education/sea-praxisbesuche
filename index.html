@@ -5209,6 +5209,10 @@ const Oberflaeche = {
         this._lehrerTabelleRender(); };
     });
     document.querySelectorAll("[data-lk-azubi]").forEach(k=>{
+      /* stopPropagation: seit Fix 1 ist die Kachel-Zeile selbst Zuordnungs-Ziel --
+         ein Klick auf die Kachel soll aber nichts tun (Vorgabe: Klick != Ziehen laesst
+         sich bei Kacheln kaum unterscheiden). Dieselbe Falle wie beim Chevron/Aktionsmenue. */
+      k.onclick=(ev)=> ev.stopPropagation();
       k.ondragstart=(ev)=>{ ev.dataTransfer.setData("text/plain", k.dataset.lkAzubi);
                             ev.dataTransfer.effectAllowed="move";
                             this._ziehenAn(k.dataset.lkAzubi, "zeile"); };
