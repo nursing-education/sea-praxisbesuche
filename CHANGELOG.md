@@ -4,6 +4,14 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.40.1 – 2026-07-26
+
+- Zuordnungs-Spalte zeigt beim Ziehen eine eigene Ablagefläche („Hierher ziehen:
+  Zuordnung aufheben") – vorher musste man die Infozeile treffen.
+- Aufgeklappte Azubi-Kacheln sind nach Kurs sortiert (umschaltbar auf Trägerhaus oder
+  Name) und tragen eine Farbkante je Kurs.
+- Azubis ohne Zuordnung zeigen, von welcher Lehrkraft sie zuletzt kamen.
+
 ## v0.40.0 – 2026-07-26
 - **Zuordnungs-Bereich zweispaltig.** Unzugeordnete Azubis stehen links in einer
   eigenen Spalte mit Suche und Sortierung (Trägerhaus oder Name), die beim Scrollen

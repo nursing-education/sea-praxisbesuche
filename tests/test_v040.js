@@ -308,6 +308,20 @@ p('kursfarbe: immer im gueltigen Bereich',
 p('kursfarbe: ohne Kurs keine Farbe',
   Dashboard.kursFarbe('') === null && Dashboard.kursFarbe() === null);
 
+/* ---------- 8. Vorheriger Bezugslehrer auf den Chips (v0.40.1) ---------- */
+const vorherT = [
+  { id: '50', kuerzel: 'Frei', kurs: 'PFK N 041', stammeinrichtung: '',
+    bezugslehrer: '', vorherigerBezugslehrer: 'Schulz (12)' },
+  { id: '51', kuerzel: 'Neu',  kurs: 'PFK N 041', stammeinrichtung: '',
+    bezugslehrer: '', vorherigerBezugslehrer: '' }
+];
+const vorherN = { '50': 'Frei, F.', '51': 'Neu, N.' };
+const offenV = Dashboard.offeneAzubis(vorherT, vorherN, {});
+const frei = offenV.find(x => x.id === '50');
+const neu  = offenV.find(x => x.id === '51');
+p('chip: Vorgaenger wird ohne "(Zahl)" mitgegeben', frei.vorher === 'Schulz');
+p('chip: ohne Vorgaenger bleibt das Feld leer', neu.vorher === '');
+
 console.log(log.join('\n'));
 console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
 process.exit(fail ? 1 : 0);

@@ -162,6 +162,7 @@
   .zo-chips{display:flex;flex-wrap:wrap;gap:6px}
   .zo-chips .zb-azubi{margin-bottom:0;min-width:150px}
   .zb-haus{font-style:italic}
+  .zb-vorher{color:var(--text-leise);font-style:italic}
   /* v0.40: zweispaltiger Arbeitsbereich. Vertikaler Platz ist bei 40 Zeilen das
      Nadeloehr, horizontaler ist frei -- deshalb steht die Zuordnungs-Spalte
      links und nicht als Leiste oben. Sie bleibt beim Scrollen stehen und
@@ -1584,7 +1585,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.40.0";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.40.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -4297,7 +4298,10 @@ const Dashboard = {
       .map(a=>({ id:a.id,
                  name:((namen||{})[a.id])||a.kuerzel||"",
                  kurs:a.kurs||"",
-                 stammeinrichtung:a.stammeinrichtung||"" }))
+                 stammeinrichtung:a.stammeinrichtung||"",
+                 /* v0.40.1: ohne "(Zahl)" -- auf dem Chip zaehlt der Name, nicht
+                    die Kapazitaet der fruheren Lehrkraft. */
+                 vorher: bezugslehrerAnzeige(a.vorherigerBezugslehrer||"")||"" }))
       .filter(a=> !q || SPSync._norm(a.name).indexOf(q)>=0 || SPSync._norm(a.kurs).indexOf(q)>=0);
     const nachName=(x,y)=> x.name.localeCompare(y.name,"de");
     if((o.sortierung||"haus")==="haus"){
@@ -4836,6 +4840,7 @@ const Oberflaeche = {
       <b>${e(a.name)}</b>
       <span class="meta">${e(a.kurs||"—")}</span>
       <span class="meta zb-haus" title="Trägerhaus (Stammeinrichtung)">${e(a.stammeinrichtung||"Trägerhaus fehlt")}</span>
+      ${a.vorher?`<span class="meta zb-vorher" title="Zuletzt zugeordnet bei dieser Lehrkraft – zum Zurückgeben dorthin ziehen">↩ vorher: ${e(a.vorher)}</span>`:""}
     </div>`;
   },
   modal(html){
