@@ -6,13 +6,15 @@ mittlere Stelle (0.28→0.29).
 
 ## v0.40.2 – 2026-07-26
 
-- **Fix: halb gelungene Schreibvorgänge waren unsichtbar.** Der interne SharePoint-Name
-  von `VorherigerBezugslehrer` ist unverifiziert; lehnt SharePoint den PATCH deswegen ab,
-  wiederholt die App ihn seit v0.40 ohne dieses Feld – die Zuordnung wird gespeichert,
-  der Vorgänger nicht. Dieses Nachfassen war **stumm**: kein Log, kein Hinweis. Die App
-  behauptete vollen Erfolg, obwohl die Hälfte verschluckt wurde. Genau dieser Fehlertyp
-  blieb beim `BesuchStatus` wochenlang unbemerkt – und die Vertretung in v0.41 greift
-  ausgerechnet auf diesen Merker zurück.
+- **Fix: halb gelungene Schreibvorgänge waren unsichtbar.** Lehnt SharePoint eine Spalte
+  des PATCH ab, wiederholt die App ihn seit v0.40 ohne dieses Feld – die Zuordnung wird
+  gespeichert, der vorherige Bezugslehrer nicht. Dieses Nachfassen war **stumm**: kein
+  Log, kein Hinweis. Die App behauptete vollen Erfolg, obwohl die Hälfte verschluckt
+  wurde. Genau dieser Fehlertyp blieb beim `BesuchStatus` wochenlang unbemerkt – und die
+  Vertretung in v0.41 greift ausgerechnet auf diesen Merker zurück.
+  Der interne Name von `VorherigerBezugslehrer` ist inzwischen bestätigt
+  (Listeneinstellungen, 26.07.2026); der Weg bleibt als Vorsorge bestehen, weil eine
+  Spalte umbenannt werden kann.
   - **Meldung nach dem Handgriff:** Der Toast trägt jetzt „· Vorgänger nicht gemerkt".
     „· noch nicht in SharePoint" hat weiter Vorrang – kam gar nichts an, ist das der
     schwerere Fall.

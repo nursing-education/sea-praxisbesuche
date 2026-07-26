@@ -1725,7 +1725,7 @@ const SP_FELDER_AZUBIS = {
   praxisanleitung: "field_5",
   /* v0.40: von Hand ueber die Listenoberflaeche angelegt -- deshalb interner
      Name = Anzeigename. Die field_N stammen aus dem Excel-Import, der alle
-     Spalten auf einmal anlegte. */
+     Spalten auf einmal anlegte. In den Listeneinstellungen bestaetigt (26.07.2026). */
   vorherigerBezugslehrer: "VorherigerBezugslehrer"
 };
 
@@ -2707,11 +2707,16 @@ const SPSync = {
     }
   },
 
-  /* v0.40: Der interne Name von SP_FELDER_AZUBIS.vorherigerBezugslehrer ist nicht
-     verifiziert. Waere er falsch, lehnte SharePoint den GANZEN PATCH ab -- also auch
-     den Bezugslehrer, der seit v0.34 laeuft. Eine verlorene Zuordnung wiegt ungleich
-     schwerer als ein verlorener Merker, deshalb wird einmal ohne das neue Feld
-     nachgefasst. Genutzt von bezugslehrerSenden UND offeneSenden.
+  /* v0.40: Waere der interne Name von SP_FELDER_AZUBIS.vorherigerBezugslehrer falsch,
+     lehnte SharePoint den GANZEN PATCH ab -- also auch den Bezugslehrer, der seit
+     v0.34 laeuft. Eine verlorene Zuordnung wiegt ungleich schwerer als ein verlorener
+     Merker, deshalb wird einmal ohne das neue Feld nachgefasst.
+     Genutzt von bezugslehrerSenden UND offeneSenden.
+
+     v0.40.2: Der Name ist inzwischen bestaetigt (Listeneinstellungen, 26.07.2026) --
+     das Nachfassen ist damit Vorsorge, kein erwarteter Fall. Es bleibt trotzdem
+     stehen: eine Spalte kann umbenannt werden, und der Preis dafuer, dass eine
+     Zuordnung wegen eines Merkers verloren geht, waere hoeher.
 
      v0.40.2: Dieses Nachfassen war stumm -- kein Log, kein Hinweis. Die App
      behauptete damit vollen Erfolg, obwohl die Haelfte verschluckt wurde; genau
