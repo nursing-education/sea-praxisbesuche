@@ -2688,6 +2688,24 @@ const SPSync = {
     }
   },
 
+  /* v0.40: Der interne Name von SP_FELDER_AZUBIS.vorherigerBezugslehrer ist nicht
+     verifiziert. Waere er falsch, lehnte SharePoint den GANZEN PATCH ab -- also auch
+     den Bezugslehrer, der seit v0.34 laeuft. Eine verlorene Zuordnung wiegt ungleich
+     schwerer als ein verlorener Merker, deshalb wird einmal ohne das neue Feld
+     nachgefasst. Genutzt von bezugslehrerSenden UND offeneSenden. */
+  async _bezugslehrerPatch(url, token, azubi){
+    const felder={};
+    felder[SP_FELDER_AZUBIS.bezugslehrer]=azubi.bezugslehrer||"";
+    felder[SP_FELDER_AZUBIS.vorherigerBezugslehrer]=azubi.vorherigerBezugslehrer||"";
+    try{
+      await this._schreiben(url, token, "PATCH", felder);
+    }catch(e){
+      const nurBezugslehrer={};
+      nurBezugslehrer[SP_FELDER_AZUBIS.bezugslehrer]=azubi.bezugslehrer||"";
+      await this._schreiben(url, token, "PATCH", nurBezugslehrer);
+    }
+  },
+
   /* v0.34: Bezugslehrer-Zuordnung eines Azubis nach SharePoint schreiben
      (Admin-Zuordnungs-Board). Offline-first wie besuchSenden: scheitert das Senden,
      bleibt der Azubi als blOffen markiert und wird beim naechsten Sync (offeneSenden,
@@ -2700,10 +2718,7 @@ const SPSync = {
     if(!token){ azubi.blOffen=true; return false; }
     try{
       const url=await this._itemsUrl(token, SP_CONFIG.listAzubis);
-      const felder={};
-      felder[SP_FELDER_AZUBIS.bezugslehrer]=azubi.bezugslehrer||"";
-      felder[SP_FELDER_AZUBIS.vorherigerBezugslehrer]=azubi.vorherigerBezugslehrer||"";
-      await this._schreiben(url + "/" + azubi.spId + "/fields", token, "PATCH", felder);
+      await this._bezugslehrerPatch(url + "/" + azubi.spId + "/fields", token, azubi);
       azubi.blOffen=false;
       return true;
     }catch(e){
@@ -2720,10 +2735,7 @@ const SPSync = {
     for(const a of (Daten.state.azubis||[])){
       if(a.blOffen && a.spId){                       /* v0.34: offene Bezugslehrer-Zuordnung */
         try{
-          const felder={};
-          felder[SP_FELDER_AZUBIS.bezugslehrer]=a.bezugslehrer||"";
-          felder[SP_FELDER_AZUBIS.vorherigerBezugslehrer]=a.vorherigerBezugslehrer||"";
-          await this._schreiben(urlAz + "/" + a.spId + "/fields", token, "PATCH", felder);
+          await this._bezugslehrerPatch(urlAz + "/" + a.spId + "/fields", token, a);
           a.blOffen=false; ok++;
         }catch(err){ fehler++; }
       }

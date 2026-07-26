@@ -22,7 +22,11 @@ mittlere Stelle (0.28→0.29).
 - **Vorheriger Bezugslehrer wird gemerkt.** Das neue Feld `VorherigerBezugslehrer`
   wird gelesen und bei jeder Zuordnungsänderung mitgeschrieben – auch beim Entfernen
   einer Zuordnung (Grundlage der Vertretung in v0.41).
-- `tests/test_v040.js`: 49 neue Tests.
+- **Zuordnung geht nicht mehr verloren, wenn das neue Feld nicht angenommen wird.**
+  Der interne SharePoint-Name von `VorherigerBezugslehrer` ist nicht verifiziert.
+  Lehnt SharePoint den Schreibvorgang ab, wird er einmal ohne dieses Feld wiederholt –
+  die Zuordnung selbst wird dann gespeichert, nur der Vorgänger nicht gemerkt.
+- `tests/test_v040.js`: 62 neue Tests.
 
 ## v0.39.1 – 2026-07-25
 - **Fix: Archivierte Lehrkräfte ohne Azubis waren unauffindbar.** `Dashboard.auslastung()`

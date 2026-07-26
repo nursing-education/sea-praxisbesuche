@@ -218,6 +218,70 @@ p('spalte: Suche ohne Treffer liefert leere Liste',
 p('spalte: ohne Argumente kein Absturz',
   Array.isArray(Dashboard.offeneAzubis()) && Dashboard.offeneAzubis().length === 0);
 
+/* ---------- 6. Rueckfall ohne das ungepruefte Feld ---------------------- */
+/* Der interne Name von VorherigerBezugslehrer ist unbestaetigt. Waere er falsch,
+   lehnte SharePoint den GANZEN PATCH ab -- auch den Bezugslehrer. Beide
+   Schreibwege bauen ihre Nutzlast getrennt auf, beide muessen nachfassen. */
+let versuche = [];
+SPSync._itemsUrl = async () => 'https://graph.example/azubis';
+const patchStub = (schlaegtFehl) => {
+  versuche = [];
+  SPSync._schreiben = async (url, token, methode, felder) => {
+    versuche.push(felder);
+    if (schlaegtFehl(versuche.length)) throw new Error("Field 'VorherigerBezugslehrer' does not exist");
+  };
+};
+
+patchStub(() => false);
+const azubiA = { spId: '7', bezugslehrer: 'Schulz (12)', vorherigerBezugslehrer: 'Musterfrau (10)', blOffen: true };
+p('senden: Erstversuch erfolgreich -> genau EIN PATCH',
+  await SPSync.bezugslehrerSenden(azubiA) === true && versuche.length === 1);
+p('senden: Erstversuch enthaelt beide Felder',
+  versuche[0][SP_FELDER_AZUBIS.bezugslehrer] === 'Schulz (12)'
+  && versuche[0][SP_FELDER_AZUBIS.vorherigerBezugslehrer] === 'Musterfrau (10)');
+p('senden: Erstversuch setzt blOffen zurueck', azubiA.blOffen === false);
+
+patchStub(n => n === 1);
+const azubiB = { spId: '8', bezugslehrer: 'Schulz (12)', vorherigerBezugslehrer: 'Musterfrau (10)', blOffen: true };
+p('senden: abgelehnter Erstversuch wird ein zweites Mal versucht',
+  await SPSync.bezugslehrerSenden(azubiB) === true && versuche.length === 2);
+p('senden: der Zweitversuch laesst das ungepruefte Feld weg',
+  versuche[1][SP_FELDER_AZUBIS.bezugslehrer] === 'Schulz (12)'
+  && !(SP_FELDER_AZUBIS.vorherigerBezugslehrer in versuche[1]));
+p('senden: die Zuordnung gilt danach als geschrieben', azubiB.blOffen === false);
+
+patchStub(() => true);
+const azubiC = { spId: '9', bezugslehrer: 'Schulz (12)', vorherigerBezugslehrer: '', blOffen: false };
+p('senden: scheitern beide Versuche, bleibt die Zuordnung offen',
+  await SPSync.bezugslehrerSenden(azubiC) === false && azubiC.blOffen === true);
+p('senden: es wird nur EINMAL nachgefasst', versuche.length === 2);
+
+/* offeneSenden ist der zweite Schreibweg (Nachreichen vor dem Re-Read). */
+const nachreichen = async (schlaegtFehl) => {
+  patchStub(schlaegtFehl);
+  Daten.state.azubis = [{ id: 'n1', spId: '30', bezugslehrer: 'Neumann (25)',
+                          vorherigerBezugslehrer: 'Schulz (5)', blOffen: true, einsaetze: [] }];
+  const bilanz = await SPSync.offeneSenden('tok');
+  return { bilanz, azubi: Daten.state.azubis[0] };
+};
+
+const n1 = await nachreichen(() => false);
+p('nachreichen: Erstversuch erfolgreich -> genau EIN PATCH',
+  versuche.length === 1 && n1.azubi.blOffen === false && n1.bilanz.ok === 1 && n1.bilanz.fehler === 0);
+p('nachreichen: Erstversuch enthaelt beide Felder',
+  versuche[0][SP_FELDER_AZUBIS.vorherigerBezugslehrer] === 'Schulz (5)');
+
+const n2 = await nachreichen(n => n === 1);
+p('nachreichen: nach Ablehnung wird ohne das ungepruefte Feld nachgefasst',
+  versuche.length === 2 && versuche[1][SP_FELDER_AZUBIS.bezugslehrer] === 'Neumann (25)'
+  && !(SP_FELDER_AZUBIS.vorherigerBezugslehrer in versuche[1]));
+p('nachreichen: der geglueckte Zweitversuch zaehlt als Erfolg',
+  n2.azubi.blOffen === false && n2.bilanz.ok === 1 && n2.bilanz.fehler === 0);
+
+const n3 = await nachreichen(() => true);
+p('nachreichen: scheitern beide Versuche, bleibt die Zuordnung offen',
+  n3.azubi.blOffen === true && n3.bilanz.ok === 0 && n3.bilanz.fehler === 1);
+
 console.log(log.join('\n'));
 console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
 process.exit(fail ? 1 : 0);
