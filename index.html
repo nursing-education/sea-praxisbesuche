@@ -171,6 +171,15 @@
     .zo-spalte .zo-chips{flex-direction:row}
     .zo-spalte .zo-chips .zb-azubi{min-width:150px}
   }
+  /* v0.40: aufklappbare Azubis je Lehrkraft. Eigenes Chevron statt Zeilenklick --
+     der Zeilenklick ist seit v0.37 das Zuordnungs-Ziel. */
+  .lk-chevron{border:none;background:none;padding:2px 6px;cursor:pointer;color:var(--text-leise)}
+  .lk-chevron .chevron{display:inline-block;transition:transform .15s}
+  .lk-chevron.offen .chevron{transform:rotate(90deg)}
+  .lk-auf{width:1%;white-space:nowrap}
+  .lk-azubis > td{background:var(--sekundaer);padding:8px 10px}
+  .lk-kacheln{display:flex;flex-wrap:wrap;gap:6px}
+  .lk-kacheln .zb-azubi{margin-bottom:0;min-width:150px}
   .lk-zeile.zb-ueber > td{background:#EEF4EF;box-shadow:inset 0 0 0 1px var(--forest)}
   .lk-voll{opacity:.5}
   .zuordnen-aktiv .lk-zeile{cursor:copy}
@@ -4979,6 +4988,8 @@ const Oberflaeche = {
     const zeilen=Dashboard.lehrkraftFiltern(alle,{suche:this.lehrerSuche, modus:this.lehrerModus, sortierung:this.lehrerSort});
     if(!zeilen.length) return `<div class="leer">Keine Lehrkraft passt zu Suche und Filter.</div>`;
     const waehlt=admin && !!this.boardAuswahl;
+    /* einmal fuer die ganze Tabelle: welche Azubis haengen an wem? */
+    const proLehrkraft = admin ? Dashboard.azubisJeLehrkraft(Azubis.alle(), Daten.state.azubiNamen) : new Map();
     const rows=zeilen.map(z=>{
       const pz=z.quote!==null?Math.round(z.quote*100):null;
       const farbe=z.ampel==="rot"?"var(--danger)":z.ampel==="gelb"?"var(--gold)":"var(--forest)";
@@ -5003,7 +5014,23 @@ const Oberflaeche = {
       const haus = !e
         ? `<span class="meta">—</span>`
         : `${e.name.replace(/</g,"&lt;")} <span class="meta" title="${e.anzahl} von ${e.gesamt} Azubis dieser Lehrkraft kommen aus diesem Haus${e.verschiedene>1?" · insgesamt "+e.verschiedene+" verschiedene Häuser":""}${e.ohne?" · "+e.ohne+" ohne Angabe":""}">${e.anzahl} / ${e.gesamt}</span>`;
+      /* Schluessel wie bei einrichtungsSchwerpunkte: normalisierter Anzeigename.
+         Der Rohwert traegt die "(Zahl)" mit -- aendert sie sich, waere die Zeile
+         sonst ploetzlich wieder zugeklappt. */
+      const key=SPSync._norm(bezugslehrerAnzeige(z.wert)||z.wert);
+      const meine=proLehrkraft.get(key)||[];
+      const offen=this.lkOffen.has(key);
+      const chevron = (admin && meine.length)
+        ? `<button class="lk-chevron${offen?" offen":""}" data-lk-auf="${key.replace(/"/g,"&quot;")}" title="Zugeordnete Azubis anzeigen" aria-label="Zugeordnete Azubis anzeigen"><span class="chevron">▸</span></button>`
+        : "";
+      const kacheln = (admin && offen && meine.length)
+        ? `<tr class="lk-azubis"><td colspan="8"><div class="lk-kacheln">${meine.map(m=>
+             this._azubiKachelHtml(m,
+               `data-lk-azubi="${m.id}" data-lk-von="${String(z.wert).replace(/"/g,"&quot;")}"`)
+           ).join("")}</div></td></tr>`
+        : "";
       return `<tr class="lk-zeile${voll?" lk-voll":""}"${admin?` data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"`:""}>
+        ${admin?`<td class="lk-auf">${chevron}</td>`:""}
         <td>${z.name.replace(/</g,"&lt;")}</td>
         <td>${z.stellenumfang!=null?z.stellenumfang+"\u00a0%":`<span class="meta">—</span>`}</td>
         <td>${z.ist}${z.soll!==null?" / "+z.soll:""}</td>
@@ -5011,13 +5038,13 @@ const Oberflaeche = {
         <td>${haus}</td>
         <td>${status}</td>
         ${admin?`<td class="lk-aktion">${aktionen}</td>`:""}
-      </tr>`;
+      </tr>${kacheln}`;
     }).join("");
     const hinweis = waehlt ? `<div class="hinweis">Azubi gewählt – jetzt die Zeile der gewünschten Lehrkraft anklicken.</div>` : "";
     /* v0.39.1: Solange ein Azubi gewählt ist, bleibt der Zuordnungs-Modus auch beim
        Scrollen sichtbar -- am Mauszeiger, nicht nur am (dann weggescrollten) Hinweis. */
     return `${hinweis}<div class="meta" style="margin-bottom:8px">${zeilen.length} von ${alle.length} Lehrkräften</div>
-      <table${waehlt?' class="zuordnen-aktiv"':""}><thead><tr><th>Name</th><th>Stelle</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th>Trägerhaus (Schwerpunkt)</th><th>Status</th>${admin?"<th></th>":""}</tr></thead>
+      <table${waehlt?' class="zuordnen-aktiv"':""}><thead><tr>${admin?"<th></th>":""}<th>Name</th><th>Stelle</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th>Trägerhaus (Schwerpunkt)</th><th>Status</th>${admin?"<th></th>":""}</tr></thead>
       <tbody>${rows}</tbody></table>`;
   },
 
@@ -5114,6 +5141,15 @@ const Oberflaeche = {
       z.ondragleave=()=>z.classList.remove("zb-ueber");
       z.ondrop=(ev)=>{ ev.preventDefault(); z.classList.remove("zb-ueber");
                        this._zuordnungAendern(ev.dataTransfer.getData("text/plain"), z.dataset.zbLehrer); };
+    });
+    document.querySelectorAll("[data-lk-auf]").forEach(b=>{
+      /* stopPropagation: die Zeile ist Zuordnungs-Ziel -- ohne das wuerde das
+         Aufklappen bei gewaehltem Azubi zusaetzlich zuordnen. Dieselbe Falle
+         wie beim Aktionsmenue in v0.39. */
+      b.onclick=(ev)=>{ ev.stopPropagation();
+        const k=b.dataset.lkAuf;
+        if(this.lkOffen.has(k)) this.lkOffen.delete(k); else this.lkOffen.add(k);
+        this._lehrerTabelleRender(); };
     });
   },
   /* Dialog Bezugslehrer anlegen ODER bearbeiten. Mit Objekt l = bearbeiten (inkl.
