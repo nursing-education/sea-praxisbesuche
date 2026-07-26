@@ -22,6 +22,10 @@ mittlere Stelle (0.28→0.29).
 - **Vorheriger Bezugslehrer wird gemerkt.** Das neue Feld `VorherigerBezugslehrer`
   wird gelesen und bei jeder Zuordnungsänderung mitgeschrieben – auch beim Entfernen
   einer Zuordnung (Grundlage der Vertretung in v0.41).
+- **Kachel steht sofort am neuen Platz.** Die Ansicht wird schon nach dem lokalen
+  Speichern aktualisiert, nicht erst nach der Antwort von SharePoint. Bei langsamer
+  Verbindung sprang die gezogene Kachel vorher sekundenlang an ihren alten Platz
+  zurück. Die Meldung mit „Rückgängig" erscheint unverändert erst danach.
 - **Zuordnung geht nicht mehr verloren, wenn das neue Feld nicht angenommen wird.**
   Der interne SharePoint-Name von `VorherigerBezugslehrer` ist nicht verifiziert.
   Lehnt SharePoint den Schreibvorgang ab, wird er einmal ohne dieses Feld wiederholt –
