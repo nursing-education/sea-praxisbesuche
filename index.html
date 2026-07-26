@@ -3026,7 +3026,7 @@ const Azubis = {
      Rueckgaengig. Aendert sich nichts (Kachel auf der eigenen Zeile abgelegt),
      passiert nichts und es kommt null zurueck: kein Schreibvorgang, keine Meldung,
      und vor allem kein Vorgaenger, der sich selbst ueberschreibt. */
-  async bezugslehrerUmhaengen(id, wert){
+  async bezugslehrerUmhaengen(id, wert, stumm){
     const a=this.alle().find(x=>x.id===id); if(!a) return null;
     const neu=wert||"";
     const gleich = SPSync._norm(bezugslehrerAnzeige(a.bezugslehrer||"")||"")
@@ -3035,7 +3035,7 @@ const Azubis = {
     const davor={ id, bezugslehrer:a.bezugslehrer||"",
                   vorherigerBezugslehrer:a.vorherigerBezugslehrer||"" };
     a.vorherigerBezugslehrer=a.bezugslehrer||"";
-    await this._bezugslehrerSchreiben(a, neu);
+    await this._bezugslehrerSchreiben(a, neu, stumm);
     return davor;
   },
 
@@ -3051,8 +3051,14 @@ const Azubis = {
 
   /* Gemeinsamer Schreibweg. Offline-first wie besuchSetzen: erst lokal +
      IndexedDB, dann nach SharePoint. Scheitert das Senden, bleibt blOffen=true
-     und wird beim naechsten Sync nachgereicht. */
-  async _bezugslehrerSchreiben(a, wert){
+     und wird beim naechsten Sync nachgereicht.
+     stumm (v0.40 Fix 1): _zuordnungAendern ruft direkt danach ihren eigenen
+     Rueckgaengig-Toast auf -- ohne stumm wuerde der die Sync-Warnung hier sofort
+     wieder ueberschreiben, bevor sie zu sehen war. _zuordnungAendern liest
+     stattdessen a.blOffen und haengt die Warnung an die eigene Meldung an.
+     Andere Aufrufer (bezugslehrerZustandHerstellen, bezugslehrerSetzen) melden
+     einen Fehlschlag weiterhin selbst -- sie geben kein stumm mit. */
+  async _bezugslehrerSchreiben(a, wert, stumm){
     a.bezugslehrer=wert||"";
     a.blOffen=true;
     a.aktualisiertAm=new Date().toISOString();
@@ -3060,7 +3066,7 @@ const Azubis = {
     if(typeof SPSync!=="undefined"){
       const ok=await SPSync.bezugslehrerSenden(a);
       await Daten.speichern(false, true);
-      if(!ok) Oberflaeche.toast("Zuordnung lokal gespeichert, aber noch nicht in SharePoint – wird beim nächsten Aktualisieren nachgereicht.", true);
+      if(!ok && !stumm) Oberflaeche.toast("Zuordnung lokal gespeichert, aber noch nicht in SharePoint – wird beim nächsten Aktualisieren nachgereicht.", true);
     }
     Oberflaeche.render();
   },
@@ -5014,10 +5020,15 @@ const Oberflaeche = {
     const kap = wert ? Dashboard.ueberbuchtNach(Dashboard.lehrkraftZeilen(Azubis.alle()), wert) : null;
     const azubiName=Azubis.name(azubi.id)||azubi.kuerzel||"Azubi";
     this.boardAuswahl=null;
-    const davor=await Azubis.bezugslehrerUmhaengen(azubi.id, wert);
+    /* stumm=true: die eigene Sync-Warnung von _bezugslehrerSchreiben unterdruecken
+       -- sie wuerde sonst den Rueckgaengig-Toast sofort wieder ueberschreiben.
+       a.blOffen danach lesen (nicht vorher -- steht erst nach dem Senden fest)
+       und, falls das Senden scheiterte, in dieselbe Meldung haengen. */
+    const davor=await Azubis.bezugslehrerUmhaengen(azubi.id, wert, true);
     if(!davor) return;                       /* unveraendert -- keine Meldung */
+    const sync=azubi.blOffen ? " · noch nicht in SharePoint" : "";
     this.toastAktion(
-      Dashboard.umhaengenMeldung(azubiName, bezugslehrerAnzeige(vorher), bezugslehrerAnzeige(wert), kap),
+      Dashboard.umhaengenMeldung(azubiName, bezugslehrerAnzeige(vorher), bezugslehrerAnzeige(wert), kap)+sync,
       "Rückgängig",
       ()=> Azubis.bezugslehrerZustandHerstellen(davor));
   },

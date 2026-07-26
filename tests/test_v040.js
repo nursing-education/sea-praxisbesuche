@@ -151,6 +151,23 @@ p('meldung: entfernen',
   Dashboard.umhaengenMeldung('Weber, T.', 'Schulz', '', null)
   === 'Weber, T.: Schulz → ohne Zuordnung');
 
+/* ---------- 4. stumm unterdrueckt nur die eigene Sync-Warnung (Fix 1) ---- */
+SPSync._schreiben = async () => { throw new Error('boom'); };
+let toastAufrufe = 0;
+Oberflaeche.toast = () => { toastAufrufe++; };
+
+await Azubis.bezugslehrerUmhaengen('1', 'Voll (9)');
+const a1fehler = Azubis.alle().find(a => a.id === '1');
+p('Sync-Fehler ohne stumm: Oberflaeche.toast wird gerufen', toastAufrufe === 1);
+p('Sync-Fehler ohne stumm: blOffen bleibt true', a1fehler.blOffen === true);
+
+toastAufrufe = 0;
+await Azubis.bezugslehrerUmhaengen('1', 'Neumann (25)', true);
+const a1stumm = Azubis.alle().find(a => a.id === '1');
+p('Sync-Fehler MIT stumm: Oberflaeche.toast wird NICHT gerufen', toastAufrufe === 0);
+p('Sync-Fehler MIT stumm: blOffen bleibt dennoch true (Oberflaeche baut eigene Meldung)',
+  a1stumm.blOffen === true);
+
 console.log(log.join('\n'));
 console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
 process.exit(fail ? 1 : 0);
