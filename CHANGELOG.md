@@ -4,6 +4,42 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.40.1 – 2026-07-26
+
+- Zuordnungs-Spalte zeigt beim Ziehen eine eigene Ablagefläche („Hierher ziehen:
+  Zuordnung aufheben") – vorher musste man die Infozeile treffen.
+- Aufgeklappte Azubi-Kacheln sind nach Kurs sortiert (umschaltbar auf Trägerhaus oder
+  Name) und tragen eine Farbkante je Kurs.
+- Azubis ohne Zuordnung zeigen, von welcher Lehrkraft sie zuletzt kamen.
+
+## v0.40.0 – 2026-07-26
+- **Zuordnungs-Bereich zweispaltig.** Unzugeordnete Azubis stehen links in einer
+  eigenen Spalte mit Suche und Sortierung (Trägerhaus oder Name), die beim Scrollen
+  stehen bleibt. Unter etwa 1200 px Fensterbreite Rückfall auf die bisherige Leiste
+  über der Tabelle.
+- **Kacheln je Lehrkraft.** Ein Chevron klappt die zugeordneten Azubis einer
+  Lehrkraft als Kacheln auf. Kacheln lassen sich per Drag-and-Drop auf eine andere
+  Lehrkraft ziehen oder in die Spalte zurückgeben; der aufgeklappte Kachel-Block ist
+  selbst Drop-Ziel seiner Lehrkraft. Ein Klick auf eine Kachel tut bewusst nichts.
+- **Auto-Scroll und Dimmen beim Ziehen.** Die Seite scrollt am Fensterrand
+  automatisch weiter; volle Lehrkräfte werden beim Zuordnen und beim Ziehen gedimmt.
+- **„Rückgängig" statt Rückfrage.** Zuordnen, Umhängen und Entfernen laufen jetzt
+  über eine Meldung mit „Rückgängig" statt einer Rückfrage vorab. Scheitert die
+  SharePoint-Übertragung, trägt dieselbe Meldung den Hinweis „noch nicht in
+  SharePoint".
+- **Vorheriger Bezugslehrer wird gemerkt.** Das neue Feld `VorherigerBezugslehrer`
+  wird gelesen und bei jeder Zuordnungsänderung mitgeschrieben – auch beim Entfernen
+  einer Zuordnung (Grundlage der Vertretung in v0.41).
+- **Kachel steht sofort am neuen Platz.** Die Ansicht wird schon nach dem lokalen
+  Speichern aktualisiert, nicht erst nach der Antwort von SharePoint. Bei langsamer
+  Verbindung sprang die gezogene Kachel vorher sekundenlang an ihren alten Platz
+  zurück. Die Meldung mit „Rückgängig" erscheint unverändert erst danach.
+- **Zuordnung geht nicht mehr verloren, wenn das neue Feld nicht angenommen wird.**
+  Der interne SharePoint-Name von `VorherigerBezugslehrer` ist nicht verifiziert.
+  Lehnt SharePoint den Schreibvorgang ab, wird er einmal ohne dieses Feld wiederholt –
+  die Zuordnung selbst wird dann gespeichert, nur der Vorgänger nicht gemerkt.
+- `tests/test_v040.js`: 62 neue Tests.
+
 ## v0.39.1 – 2026-07-25
 - **Fix: Archivierte Lehrkräfte ohne Azubis waren unauffindbar.** `Dashboard.auslastung()`
   ergänzte Lehrkräfte aus der Stammliste, die noch keine Azubis haben, nur wenn sie

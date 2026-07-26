@@ -115,6 +115,12 @@
     padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:2100}
   .toast.zeig{opacity:1}
   .toast.fehler{background:var(--danger)}
+  /* v0.40: Toast mit Aktion. Die Grundform hat pointer-events:none (sie soll
+     nie im Weg sein) -- die Bauform mit Knopf muss anklickbar sein. */
+  .toast.mit-knopf{pointer-events:auto;display:flex;align-items:center;gap:14px}
+  .toast-akt{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
+    border-radius:6px;padding:3px 10px;font-size:13px;cursor:pointer;white-space:nowrap}
+  .toast-akt:hover{background:rgba(255,255,255,.16)}
 
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;z-index:2000}
   .modal-bg.offen{display:flex}
@@ -137,6 +143,16 @@
   .zb-azubi,.zb-lehrer{background:var(--flaeche);border:1px solid var(--rahmen);border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;flex-direction:column;gap:2px}
   .zb-azubi{cursor:grab}
   .zb-azubi.gewaehlt{outline:2px solid var(--navy);border-color:var(--navy)}
+  /* v0.40.1: Farbkante je Kurs. Ausschliesslich Farbwerte, die in dieser Datei
+     ohnehin vorkommen (SEA-Token und die Bereichs-Pillen). */
+  .zb-azubi.kf0{border-left:4px solid var(--navy)}
+  .zb-azubi.kf1{border-left:4px solid var(--forest)}
+  .zb-azubi.kf2{border-left:4px solid var(--orange)}
+  .zb-azubi.kf3{border-left:4px solid var(--gold)}
+  .zb-azubi.kf4{border-left:4px solid var(--danger)}
+  .zb-azubi.kf5{border-left:4px solid #6A3A66}
+  .zb-azubi.kf6{border-left:4px solid #9A5B00}
+  .zb-azubi.kf7{border-left:4px solid var(--text-leise)}
   .zb-lehrer{cursor:pointer}
   .zb-lehrer.zb-ueber{outline:2px dashed var(--forest);background:#EEF4EF}
   /* v0.37: Zuordnungs-Leiste (Chips oben) + Lehrkraft-Zeile als Zuordnungs-Ziel */
@@ -146,8 +162,51 @@
   .zo-chips{display:flex;flex-wrap:wrap;gap:6px}
   .zo-chips .zb-azubi{margin-bottom:0;min-width:150px}
   .zb-haus{font-style:italic}
-  .lk-zeile.zb-ueber > td{background:#EEF4EF;box-shadow:inset 0 0 0 1px var(--forest)}
-  .lk-voll{opacity:.5}
+  .zb-vorher{color:var(--text-leise);font-style:italic}
+  /* v0.40: zweispaltiger Arbeitsbereich. Vertikaler Platz ist bei 40 Zeilen das
+     Nadeloehr, horizontaler ist frei -- deshalb steht die Zuordnungs-Spalte
+     links und nicht als Leiste oben. Sie bleibt beim Scrollen stehen und
+     scrollt innen, weil 30 Kacheln hoeher sind als jeder Bildschirm. */
+  .zo-zweispaltig{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
+  .zo-spalte{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow-y:auto}
+  .zo-spalte .zo-chips{flex-direction:column}
+  .zo-spalte .zo-chips .zb-azubi{min-width:0}
+  .zo-werkzeug{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .zo-werkzeug input[type=search]{flex:1 1 100%}
+  .zo-rechts{min-width:0}
+  /* Schmales Fenster: zurueck auf die Form vor v0.40 -- Leiste quer oben,
+     Tabelle darunter. Gleiches Markup, nur andere Regeln. */
+  @media (max-width:1199px){
+    .zo-zweispaltig{display:block}
+    .zo-spalte{position:static;max-height:none;overflow:visible;margin-bottom:12px}
+    .zo-spalte .zo-chips{flex-direction:row}
+    .zo-spalte .zo-chips .zb-azubi{min-width:150px}
+  }
+  /* v0.40: aufklappbare Azubis je Lehrkraft. Eigenes Chevron statt Zeilenklick --
+     der Zeilenklick ist seit v0.37 das Zuordnungs-Ziel. */
+  .lk-chevron{border:none;background:none;padding:2px 6px;cursor:pointer;color:var(--text-leise)}
+  .lk-chevron .chevron{display:inline-block;transition:transform .15s}
+  .lk-chevron.offen .chevron{transform:rotate(90deg)}
+  .lk-auf{width:1%;white-space:nowrap}
+  .lk-azubis > td{background:var(--sekundaer);padding:8px 10px}
+  .lk-kacheln{display:flex;flex-wrap:wrap;gap:6px}
+  .lk-kacheln .zb-azubi{margin-bottom:0;min-width:150px}
+  .lk-zeile.zb-ueber > td,
+  .lk-azubis.zb-ueber > td{background:#EEF4EF;box-shadow:inset 0 0 0 1px var(--forest)}
+  /* v0.40: Volle Lehrkraefte werden gedimmt, solange zugeordnet wird -- per
+     Klick (zuordnen-aktiv, seit v0.37) ODER waehrend eines Ziehvorgangs
+     (zieht). Beim Ziehen wird nicht neu gezeichnet, deshalb haengt die Klasse
+     immer an der Zeile und das CSS entscheidet, wann sie wirkt. */
+  .zuordnen-aktiv .lk-voll,
+  #lehrerTabelle.zieht .lk-voll{opacity:.5}
+  .zo-spalte.zb-ueber{outline:2px dashed var(--forest);background:#EEF4EF}
+  /* v0.40.1: Ablageflaeche. Die Spalte war zwar Drop-Ziel, hatte aber im leeren
+     Zustand gar keine Flaeche -- man musste die Infozeile treffen. */
+  .zo-ablage{display:none;margin-top:10px;padding:16px 10px;text-align:center;
+    border:2px dashed var(--rahmen);border-radius:var(--radius);
+    color:var(--text-leise);font-size:13px}
+  .zieht-zeile .zo-ablage{display:block}
+  .zo-spalte.zb-ueber .zo-ablage{border-color:var(--forest);background:#EEF4EF}
   .zuordnen-aktiv .lk-zeile{cursor:copy}
   .lk-aktion{white-space:nowrap}
   .akt-menue{position:relative;display:inline-block}
@@ -1526,7 +1585,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.39.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.40.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -1663,7 +1722,11 @@ const SP_FELDER_AZUBIS = {
   stammeinrichtung: "field_2",  /* "Traegerhaus" = Stammeinrichtung (bestaetigt) */
   bezugslehrer   : "field_3",
   bemerkung      : "field_4",
-  praxisanleitung: "field_5"
+  praxisanleitung: "field_5",
+  /* v0.40: von Hand ueber die Listenoberflaeche angelegt -- deshalb interner
+     Name = Anzeigename. Die field_N stammen aus dem Excel-Import, der alle
+     Spalten auf einmal anlegte. */
+  vorherigerBezugslehrer: "VorherigerBezugslehrer"
 };
 
 /* v0.25 -- Feldzuordnung Liste "Admins". Eine Spalte (intern weiterhin
@@ -2388,6 +2451,7 @@ const SPSync = {
         kurs: txt(f,F.kurs),
         stammeinrichtung: txt(f,F.stammeinrichtung),
         bezugslehrer: txt(f,F.bezugslehrer),
+        vorherigerBezugslehrer: txt(f,F.vorherigerBezugslehrer),
         bemerkung: txt(f,F.bemerkung),
         praxisanleitung: txt(f,F.praxisanleitung)
       };
@@ -2642,11 +2706,29 @@ const SPSync = {
     }
   },
 
+  /* v0.40: Der interne Name von SP_FELDER_AZUBIS.vorherigerBezugslehrer ist nicht
+     verifiziert. Waere er falsch, lehnte SharePoint den GANZEN PATCH ab -- also auch
+     den Bezugslehrer, der seit v0.34 laeuft. Eine verlorene Zuordnung wiegt ungleich
+     schwerer als ein verlorener Merker, deshalb wird einmal ohne das neue Feld
+     nachgefasst. Genutzt von bezugslehrerSenden UND offeneSenden. */
+  async _bezugslehrerPatch(url, token, azubi){
+    const felder={};
+    felder[SP_FELDER_AZUBIS.bezugslehrer]=azubi.bezugslehrer||"";
+    felder[SP_FELDER_AZUBIS.vorherigerBezugslehrer]=azubi.vorherigerBezugslehrer||"";
+    try{
+      await this._schreiben(url, token, "PATCH", felder);
+    }catch(e){
+      const nurBezugslehrer={};
+      nurBezugslehrer[SP_FELDER_AZUBIS.bezugslehrer]=azubi.bezugslehrer||"";
+      await this._schreiben(url, token, "PATCH", nurBezugslehrer);
+    }
+  },
+
   /* v0.34: Bezugslehrer-Zuordnung eines Azubis nach SharePoint schreiben
      (Admin-Zuordnungs-Board). Offline-first wie besuchSenden: scheitert das Senden,
      bleibt der Azubi als blOffen markiert und wird beim naechsten Sync (offeneSenden,
      laeuft vor dem Re-Read) nachgereicht -- so ueberschreibt der Re-Read die lokale
-     Aenderung nicht. Geschrieben wird nur das Bezugslehrer-Feld (field_3). */
+     Aenderung nicht. Geschrieben werden Bezugslehrer und der gemerkte Vorgaenger (v0.40). */
   async bezugslehrerSenden(azubi){
     if(!azubi.spId){ azubi.blOffen=true; return false; }
     let token=null;
@@ -2654,8 +2736,7 @@ const SPSync = {
     if(!token){ azubi.blOffen=true; return false; }
     try{
       const url=await this._itemsUrl(token, SP_CONFIG.listAzubis);
-      const felder={}; felder[SP_FELDER_AZUBIS.bezugslehrer]=azubi.bezugslehrer||"";
-      await this._schreiben(url + "/" + azubi.spId + "/fields", token, "PATCH", felder);
+      await this._bezugslehrerPatch(url + "/" + azubi.spId + "/fields", token, azubi);
       azubi.blOffen=false;
       return true;
     }catch(e){
@@ -2672,8 +2753,7 @@ const SPSync = {
     for(const a of (Daten.state.azubis||[])){
       if(a.blOffen && a.spId){                       /* v0.34: offene Bezugslehrer-Zuordnung */
         try{
-          const felder={}; felder[SP_FELDER_AZUBIS.bezugslehrer]=a.bezugslehrer||"";
-          await this._schreiben(urlAz + "/" + a.spId + "/fields", token, "PATCH", felder);
+          await this._bezugslehrerPatch(urlAz + "/" + a.spId + "/fields", token, a);
           a.blOffen=false; ok++;
         }catch(err){ fehler++; }
       }
@@ -2723,6 +2803,7 @@ const SPSync = {
         kurs: a.kurs||"",
         stammeinrichtung: a.stammeinrichtung||"",
         bezugslehrer: a.bezugslehrer||"",
+        vorherigerBezugslehrer: a.vorherigerBezugslehrer||"",
         bemerkung: a.bemerkung||"",
         praxisanleitung: a.praxisanleitung||"",
         einsaetze: eig,
@@ -2997,21 +3078,67 @@ const Azubis = {
     await Daten.speichern(false, true);      /* Sende-Markierung mitspeichern */
     if(!ok) Oberflaeche.toast("Änderung lokal gespeichert, aber noch nicht in SharePoint – wird beim nächsten Aktualisieren nachgereicht.", true);
   },
-  /* v0.34: Bezugslehrer eines Azubis setzen (Admin-Zuordnungs-Board). Offline-first
-     wie besuchSetzen: erst lokal + IndexedDB, dann nach SharePoint. Scheitert das
-     Senden, bleibt blOffen=true und wird beim naechsten Sync nachgereicht. Der Wert
-     ist der Bezugslehrer-ROHwert inkl. "(Zahl)"-Kapazitaet -- sonst verliert
-     Dashboard.soll() die Kapazitaet. Leerer Wert = Zuordnung entfernen. */
-  async bezugslehrerSetzen(id, wert){
-    const a=this.alle().find(x=>x.id===id); if(!a) return;
+  /* v0.34/v0.40: Bezugslehrer eines Azubis setzen. Der Wert ist der ROHwert inkl.
+     "(Zahl)"-Kapazitaet -- sonst verliert Dashboard.soll() die Kapazitaet.
+     Leerer Wert = Zuordnung entfernen. Delegiert seit v0.40 und wird in der App
+     nicht mehr gerufen -- der Name bleibt fuer tests/test_v034.js stehen. */
+  async bezugslehrerSetzen(id, wert){ return this.bezugslehrerUmhaengen(id, wert); },
+
+  /* v0.40: Zuordnen, Umhaengen und Entfernen laufen ueber EINEN Weg -- und merken
+     dabei den bisherigen Bezugslehrer als Vorgaenger (einstufiges Gedaechtnis,
+     Grundlage der Vertretung in v0.41). Auch beim Entfernen, damit "versehentlich
+     abgezogen" ruecknehmbar bleibt.
+     Rueckgabe ist der Zustand VOR der Aenderung -- daraus baut die Oberflaeche das
+     Rueckgaengig. Aendert sich nichts (Kachel auf der eigenen Zeile abgelegt),
+     passiert nichts und es kommt null zurueck: kein Schreibvorgang, keine Meldung,
+     und vor allem kein Vorgaenger, der sich selbst ueberschreibt. */
+  async bezugslehrerUmhaengen(id, wert, stumm){
+    const a=this.alle().find(x=>x.id===id); if(!a) return null;
+    const neu=wert||"";
+    const gleich = SPSync._norm(bezugslehrerAnzeige(a.bezugslehrer||"")||"")
+                === SPSync._norm(bezugslehrerAnzeige(neu)||"");
+    if(gleich) return null;
+    const davor={ id, bezugslehrer:a.bezugslehrer||"",
+                  vorherigerBezugslehrer:a.vorherigerBezugslehrer||"" };
+    a.vorherigerBezugslehrer=a.bezugslehrer||"";
+    await this._bezugslehrerSchreiben(a, neu, stumm);
+    return davor;
+  },
+
+  /* v0.40: Rueckgaengig -- BEIDE Werte zurueck auf den Stand davor. Nur den
+     Bezugslehrer zurueckzusetzen wuerde den gemerkten Vorgaenger stehen lassen
+     und damit das Gedaechtnis verfaelschen. */
+  async bezugslehrerZustandHerstellen(davor){
+    if(!davor) return;
+    const a=this.alle().find(x=>x.id===davor.id); if(!a) return;
+    a.vorherigerBezugslehrer=davor.vorherigerBezugslehrer||"";
+    await this._bezugslehrerSchreiben(a, davor.bezugslehrer||"");
+  },
+
+  /* Gemeinsamer Schreibweg. Offline-first wie besuchSetzen: erst lokal +
+     IndexedDB, dann nach SharePoint. Scheitert das Senden, bleibt blOffen=true
+     und wird beim naechsten Sync nachgereicht.
+     stumm (v0.40 Fix 1): _zuordnungAendern ruft direkt danach ihren eigenen
+     Rueckgaengig-Toast auf -- ohne stumm wuerde der die Sync-Warnung hier sofort
+     wieder ueberschreiben, bevor sie zu sehen war. _zuordnungAendern liest
+     stattdessen a.blOffen und haengt die Warnung an die eigene Meldung an.
+     Ohne stumm bleibt es bei der Warnung von hier -- so beim Rueckgaengig
+     (bezugslehrerZustandHerstellen), das keine eigene Meldung erzeugt. */
+  async _bezugslehrerSchreiben(a, wert, stumm){
     a.bezugslehrer=wert||"";
     a.blOffen=true;
     a.aktualisiertAm=new Date().toISOString();
-    await Daten.speichern("Bezugslehrer zugeordnet");
+    /* Ohne eigene Meldung (false): der Weg traegt auch Entfernen und Rueckgaengig --
+       "Bezugslehrer zugeordnet" waere dort schlicht falsch. */
+    await Daten.speichern(false);
+    /* Sofort neu zeichnen: lokal ist der Vorgang hier fertig. Ohne das springt die
+       gezogene Kachel bis zur Antwort von SharePoint an ihren alten Platz zurueck --
+       genau das provoziert ein zweites Ziehen. */
+    Oberflaeche.render();
     if(typeof SPSync!=="undefined"){
       const ok=await SPSync.bezugslehrerSenden(a);
       await Daten.speichern(false, true);
-      if(!ok) Oberflaeche.toast("Zuordnung lokal gespeichert, aber noch nicht in SharePoint – wird beim nächsten Aktualisieren nachgereicht.", true);
+      if(!ok && !stumm) Oberflaeche.toast("Zuordnung lokal gespeichert, aber noch nicht in SharePoint – wird beim nächsten Aktualisieren nachgereicht.", true);
     }
     Oberflaeche.render();
   },
@@ -4093,6 +4220,98 @@ const Dashboard = {
     });
     return raus;
   },
+  /* v0.40: Welche Azubis haengen an welcher Lehrkraft? Schluessel ist der
+     ROHwert des Bezugslehrer-Felds -- derselbe Ausdruck wie in auslastung()
+     (String(a.bezugslehrer||"").trim()). NICHT normalisiert: auslastung()
+     bildet je Rohwert eine eigene Tabellenzeile, und deren Ist-Wert muss zur
+     Laenge der hier gelieferten Liste passen. Wuerde hier normalisiert, faellt
+     die Gruppierung bei "Musterfrau (10)" vs. "Musterfrau (12)" zusammen und
+     beide Zeilen zeigen dieselbe zusammengefuehrte Liste -- Zeile und Kacheln
+     liefen auseinander.
+     Die Namen kommen als Parameter statt aus Daten.state, damit die Funktion
+     ohne globalen Zustand geprueft werden kann. Sortierung ueber opt.sortierung
+     ("kurs" | "haus" | "name"), Standard "kurs", damit Azubis desselben Kurses
+     als Kacheln zusammenstehen. */
+  azubisJeLehrkraft(azubis, namen, opt){
+    const raus=new Map();
+    (azubis||[]).forEach(a=>{
+      const w=String((a&&a.bezugslehrer)||"").trim(); if(!w) return;
+      if(!raus.has(w)) raus.set(w,[]);
+      raus.get(w).push({ id:a.id,
+                         name:((namen||{})[a.id])||a.kuerzel||"",
+                         kurs:a.kurs||"",
+                         stammeinrichtung:a.stammeinrichtung||"" });
+    });
+    const nachName=(x,y)=> x.name.localeCompare(y.name,"de");
+    const s=(opt&&opt.sortierung)||"kurs";
+    /* Leerer Kurs bzw. leeres Haus ans Ende -- sonst stuenden sie als leerer
+       Wert ganz oben. Gleiches Mittel wie in offeneAzubis(). */
+    const hinten=v=> v || "￿";
+    raus.forEach(liste=> liste.sort((x,y)=>
+      s==="name" ? nachName(x,y)
+    : s==="haus" ? (hinten(x.stammeinrichtung).localeCompare(hinten(y.stammeinrichtung),"de") || nachName(x,y))
+    :              (hinten(x.kurs).localeCompare(hinten(y.kurs),"de") || nachName(x,y))));
+    return raus;
+  },
+  /* v0.40.1: Farbindex 0-7 aus dem Kursnamen -- berechnet, nicht gespeichert.
+     Dadurch bedeutet dieselbe Farbe bei jeder Lehrkraft denselben Kurs, ohne
+     dass irgendwo eine Zuordnung gepflegt werden muesste. Die Farbe ist Zugabe:
+     der Kurs steht als Text auf der Kachel, niemand ist auf sie angewiesen. */
+  kursFarbe(kurs){
+    const k=SPSync._norm(kurs||"");
+    if(!k) return null;
+    let summe=0;
+    for(let i=0;i<k.length;i++) summe=(summe*31 + k.charCodeAt(i)) % 4096;
+    return summe % 8;
+  },
+
+  /* v0.40: Wie steht die Ziel-Lehrkraft da, NACHDEM ein Azubi dazukommt?
+     Traegt die Warnung, die frueher ein Bestaetigungsdialog gegeben haette.
+     Ohne hinterlegte Kapazitaet gibt es nichts zu ueberschreiten. */
+  ueberbuchtNach(zeilen, zielWert){
+    const k=SPSync._norm(bezugslehrerAnzeige(zielWert||"")||zielWert||"");
+    const z=(zeilen||[]).find(x=> SPSync._norm(bezugslehrerAnzeige(x.wert)||x.wert)===k);
+    if(!z) return null;
+    const ist=z.ist+1;
+    const soll=(z.soll!=null)?z.soll:null;
+    return { ist, soll, ueberbucht: soll!==null && ist>soll };
+  },
+
+  /* v0.40: Text der Rueckmeldung nach einem Handgriff. Bewusst hier und nicht in
+     der Oberflaeche: die Kapazitaets-Aussage ist der Teil, der stimmen muss. */
+  umhaengenMeldung(azubiName, vonName, nachName, kap){
+    const von=String(vonName||"").trim()||"ohne Zuordnung";
+    const nach=String(nachName||"").trim()||"ohne Zuordnung";
+    const zusatz=(kap && kap.ueberbucht) ? ` · jetzt ${kap.ist} / ${kap.soll}` : "";
+    return `${azubiName}: ${von} → ${nach}${zusatz}`;
+  },
+  /* v0.40: Inhalt der Zuordnungs-Spalte. Standard ist die Sortierung nach
+     Traegerhaus: Ein frisch importierter Kurs wird meist hausweise verteilt --
+     so stehen die Azubis zusammen, die zur selben Lehrkraft gehen, und die
+     Schwerpunkt-Spalte der Tabelle zeigt, zu welcher. Azubis ohne Haus kommen
+     ans Ende (sonst stuenden sie als leerer Wert ganz oben). */
+  offeneAzubis(azubis, namen, opt){
+    const o=opt||{};
+    const q=SPSync._norm(o.suche||"");
+    const liste=(azubis||[])
+      .filter(a=> a && !String(a.bezugslehrer||"").trim())
+      .map(a=>({ id:a.id,
+                 name:((namen||{})[a.id])||a.kuerzel||"",
+                 kurs:a.kurs||"",
+                 stammeinrichtung:a.stammeinrichtung||"",
+                 /* v0.40.1: ohne "(Zahl)" -- auf dem Chip zaehlt der Name, nicht
+                    die Kapazitaet der fruheren Lehrkraft. */
+                 vorher: bezugslehrerAnzeige(a.vorherigerBezugslehrer||"")||"" }))
+      .filter(a=> !q || SPSync._norm(a.name).indexOf(q)>=0 || SPSync._norm(a.kurs).indexOf(q)>=0);
+    const nachName=(x,y)=> x.name.localeCompare(y.name,"de");
+    if((o.sortierung||"haus")==="haus"){
+      const h=x=> x.stammeinrichtung || "￿";     /* leer sortiert hinter alles */
+      liste.sort((x,y)=> h(x).localeCompare(h(y),"de") || nachName(x,y));
+    } else {
+      liste.sort(nachName);
+    }
+    return liste;
+  },
   /* v0.37: Suche/Filter/Sortierung der Lehrkraft-Tabelle. Rein funktional (kein
      DOM) -- damit headless testbar. "alle" blendet Archivierte aus; "frei" ist der
      direkte Weg zur haeufigsten Frage beim Zuordnen: wer hat ueberhaupt noch Platz?
@@ -4556,6 +4775,10 @@ const Oberflaeche = {
   einrFilter:"",            // aktueller Suchtext (Einrichtungen)
   einrOffen:new Set(),      // welche Bereich-Gruppen sind aufgeklappt
   boardAuswahl:null,        // v0.34: fuer die Zuordnung gewaehlter Azubi (id), Klick-Weg
+  zoSuche:"",               // v0.40: Suche in der Zuordnungs-Spalte
+  zoSort:"haus",            // v0.40: "haus" | "name"
+  lkSort:"kurs",            // v0.40.1: Sortierung der aufgeklappten Azubi-Kacheln: "kurs" | "haus" | "name"
+  lkOffen:new Set(),        // v0.40: aufgeklappte Lehrkraefte (ROHwert inkl. "(Zahl)")
   lehrerSuche:"",           // v0.37: Suchtext im Arbeitsbereich Bezugslehrende
   lehrerModus:"alle",       // v0.37: "alle" | "frei" | "ueberlastet" | "archiviert"
   lehrerSort:"auslastung",  // v0.37: "auslastung" (wie bisher) | "name"
@@ -4586,6 +4809,39 @@ const Oberflaeche = {
     const t=document.getElementById("toast"); t.textContent=msg;
     t.className="toast zeig"+(fehler?" fehler":""); clearTimeout(this._tt);
     this._tt=setTimeout(()=>t.className="toast",fehler?4500:2200);
+  },
+  /* v0.40: Zweite Toast-Bauform -- mit Knopf und laenger sichtbar. Ersetzt beim
+     Umhaengen den frueher geplanten Bestaetigungsdialog: bei 40 Lehrkraeften
+     waere das ein Dialog je Zug. toast() bleibt unveraendert; sie setzt
+     textContent und raeumt das Markup hier damit von selbst wieder ab. */
+  toastAktion(msg, knopfText, aufKlick){
+    const t=document.getElementById("toast");
+    t.innerHTML=`<span class="toast-txt"></span><button type="button" class="toast-akt"></button>`;
+    t.querySelector(".toast-txt").textContent=msg;
+    const knopf=t.querySelector(".toast-akt");
+    knopf.textContent=knopfText;
+    t.className="toast zeig mit-knopf";
+    clearTimeout(this._tt);
+    const zu=()=>{ t.className="toast"; t.textContent=""; };
+    knopf.onclick=()=>{ zu(); aufKlick(); };
+    this._tt=setTimeout(zu, 8000);
+  },
+  /* v0.40: EINE Azubi-Kachel -- genutzt von der Zuordnungs-Spalte und von den
+     aufgeklappten Azubis einer Lehrkraft. Beide muessen gleich aussehen (Spec
+     v0.40, Abschnitt 2): derselbe Azubi soll vor und nach dem Umhaengen
+     unveraendert wirken.
+     a = {id, name, kurs, stammeinrichtung}; attribute = zusaetzliche
+     HTML-Attribute (data-*), zusatzKlasse = optionale Klasse. */
+  _azubiKachelHtml(a, attribute, zusatzKlasse){
+    const e=s=> String(s==null?"":s).replace(/</g,"&lt;");
+    const f=Dashboard.kursFarbe(a.kurs);
+    const klassen=(zusatzKlasse?" "+zusatzKlasse:"")+(f!==null?" kf"+f:"");
+    return `<div class="zb-azubi${klassen}" draggable="true" ${attribute||""}>
+      <b>${e(a.name)}</b>
+      <span class="meta">${e(a.kurs||"—")}</span>
+      <span class="meta zb-haus" title="Trägerhaus (Stammeinrichtung)">${e(a.stammeinrichtung||"Trägerhaus fehlt")}</span>
+      ${a.vorher?`<span class="meta zb-vorher" title="Zuletzt zugeordnet bei dieser Lehrkraft – zum Zurückgeben dorthin ziehen">↩ vorher: ${e(a.vorher)}</span>`:""}
+    </div>`;
   },
   modal(html){
     document.getElementById("modal").innerHTML=html;
@@ -4746,28 +5002,35 @@ const Oberflaeche = {
   viewBezugslehrende(){
     const admin=Dashboard.darfVerwalten();
     const sel=this.boardAuswahl;
-    /* Zuordnungs-Leiste: die unzugeordneten Azubis als Chips OBEN. Die frueher
-       danebenstehende Lehrkraft-Spalte entfaellt -- die Tabelle darunter IST sie. */
-    let leiste="";
+    /* Zuordnungs-Spalte: die unzugeordneten Azubis als Kacheln LINKS. Ab 1200px
+       zweispaltig neben der Tabelle, darunter wieder als Leiste quer oben. */
+    let spalte="";
     if(admin){
-      const offen=Azubis.ohneBezugslehrer();
-      const chips=offen.map(a=>{
-        const nm=Azubis.name(a.id)||a.kuerzel||"—";
-        /* v0.38: Traegerhaus mit auf den Chip -- es entscheidet mit, zu wem der
-           Azubi passt (siehe Schwerpunkt-Spalte der Tabelle). */
-        const haus=String(a.stammeinrichtung||"").trim();
-        return `<div class="zb-azubi${sel===a.id?" gewaehlt":""}" draggable="true" data-zb-azubi="${a.id}">
-          <b>${nm.replace(/</g,"&lt;")}</b>
-          <span class="meta">${(a.kurs||"—").replace(/</g,"&lt;")}</span>
-          <span class="meta zb-haus" title="Trägerhaus (Stammeinrichtung)">${(haus||"Trägerhaus fehlt").replace(/</g,"&lt;")}</span>
+      const offen=Dashboard.offeneAzubis(Azubis.alle(), Daten.state.azubiNamen,
+                                         {suche:this.zoSuche, sortierung:this.zoSort});
+      const gesamt=Azubis.ohneBezugslehrer().length;
+      /* v0.38: Traegerhaus mit auf den Chip -- es entscheidet mit, zu wem der
+         Azubi passt (siehe Schwerpunkt-Spalte der Tabelle). */
+      const chips=offen.map(a=>
+        this._azubiKachelHtml(a, `data-zb-azubi="${a.id}"`, sel===a.id?"gewaehlt":"")).join("");
+      const werkzeug=gesamt?`<div class="zo-werkzeug">
+          <input type="search" id="zoSuche" placeholder="Name oder Kurs…" value="${String(this.zoSuche||"").replace(/"/g,"&quot;")}">
+          <div class="seg-knopf" id="zoSortUms">
+            <button data-zosort="haus" class="${this.zoSort==="haus"?"an":""}" title="Azubis eines Trägerhauses stehen zusammen">nach Haus</button>
+            <button data-zosort="name" class="${this.zoSort==="name"?"an":""}">nach Name</button>
+          </div>
+        </div>`:"";
+      const kopf = gesamt
+        ? `Ohne Zuordnung (${gesamt}) <span class="meta">– ${sel?"jetzt eine Lehrkraft anklicken":"Azubi anklicken oder auf eine Zeile ziehen"}</span>`
+        : `Alle Azubis sind zugeordnet ✓ <span class="meta">– neu importierte Azubis erscheinen hier</span>`;
+      const leer = (gesamt && !offen.length)
+        ? `<div class="meta">Kein Treffer für die Suche.</div>` : "";
+      spalte=`<div class="zo-leiste zo-spalte" id="zoSpalte">
+          <div class="zo-kopf">${kopf}</div>
+          ${werkzeug}${leer}
+          <div class="zo-chips">${chips}</div>
+          <div class="zo-ablage">↩ Hierher ziehen: Zuordnung aufheben</div>
         </div>`;
-      }).join("");
-      leiste = offen.length
-        ? `<div class="zo-leiste">
-             <div class="zo-kopf">Ohne Zuordnung (${offen.length}) <span class="meta">– ${sel?"jetzt unten eine Lehrkraft anklicken":"Azubi anklicken oder auf eine Zeile ziehen"}</span></div>
-             <div class="zo-chips">${chips}</div>
-           </div>`
-        : `<div class="zo-leiste"><div class="zo-kopf">Alle Azubis sind zugeordnet ✓ <span class="meta">– neu importierte Azubis erscheinen hier</span></div></div>`;
     }
     const filter=`<div class="seg-knopf" id="lehrerFilterUms">
         <button data-lmodus="alle" class="${this.lehrerModus==="alle"?"an":""}">Alle</button>
@@ -4779,15 +5042,22 @@ const Oberflaeche = {
         <button data-lsort="auslastung" class="${this.lehrerSort==="auslastung"?"an":""}">nach Auslastung</button>
         <button data-lsort="name" class="${this.lehrerSort==="name"?"an":""}">nach Name</button>
       </div>`;
-    return `<section class="einst-block" id="bereichBezugslehrende">
-      <h2>Bezugslehrende <span class="einst-info" title="Eine Zeile je Lehrkraft. Ist = aktuell zugeordnete Azubis, Soll = Kapazität aus der SharePoint-Liste „Bezugslehrende“ (ersatzweise die „(Zahl)“ am Namen, solange die Liste jemanden nicht kennt). Trägerhaus (Schwerpunkt) = das Haus, aus dem die meisten ihrer Azubis kommen.">i</span></h2>
-      ${leiste}
+    const kachelUms=admin?`<div class="seg-knopf" id="lkSortUms" title="Reihenfolge der aufgeklappten Azubi-Kacheln">
+        <button data-lksort="kurs" class="${this.lkSort==="kurs"?"an":""}">Kacheln: Kurs</button>
+        <button data-lksort="haus" class="${this.lkSort==="haus"?"an":""}">Haus</button>
+        <button data-lksort="name" class="${this.lkSort==="name"?"an":""}">Name</button>
+      </div>`:"";
+    const rechts=`<div class="zo-rechts">
       <div class="werkzeug">
         <input type="search" id="lehrerSuche" placeholder="Lehrkraft oder Trägerhaus suchen…" value="${String(this.lehrerSuche||"").replace(/"/g,"&quot;")}">
-        ${filter}${sortUms}
+        ${filter}${sortUms}${kachelUms}
         ${admin?`<button class="primaer" id="lehrerNeu">＋ Neue Lehrkraft</button>`:""}
       </div>
       <div id="lehrerTabelle">${this._lehrerTabelleHtml()}</div>
+    </div>`;
+    return `<section class="einst-block" id="bereichBezugslehrende">
+      <h2>Bezugslehrende <span class="einst-info" title="Eine Zeile je Lehrkraft. Ist = aktuell zugeordnete Azubis, Soll = Kapazität aus der SharePoint-Liste „Bezugslehrende“ (ersatzweise die „(Zahl)“ am Namen, solange die Liste jemanden nicht kennt). Trägerhaus (Schwerpunkt) = das Haus, aus dem die meisten ihrer Azubis kommen.">i</span></h2>
+      <div class="${admin?"zo-zweispaltig":""}">${spalte}${rechts}</div>
     </section>`;
   },
 
@@ -4800,15 +5070,17 @@ const Oberflaeche = {
     const zeilen=Dashboard.lehrkraftFiltern(alle,{suche:this.lehrerSuche, modus:this.lehrerModus, sortierung:this.lehrerSort});
     if(!zeilen.length) return `<div class="leer">Keine Lehrkraft passt zu Suche und Filter.</div>`;
     const waehlt=admin && !!this.boardAuswahl;
+    /* einmal fuer die ganze Tabelle: welche Azubis haengen an wem? */
+    const proLehrkraft = admin ? Dashboard.azubisJeLehrkraft(Azubis.alle(), Daten.state.azubiNamen, {sortierung:this.lkSort}) : new Map();
     const rows=zeilen.map(z=>{
       const pz=z.quote!==null?Math.round(z.quote*100):null;
       const farbe=z.ampel==="rot"?"var(--danger)":z.ampel==="gelb"?"var(--gold)":"var(--forest)";
       const ausl=z.quote!==null
         ? `<span class="ampel ${z.ampel}"></span>${pz}\u00a0%<div class="ausl-balken"><i style="width:${Math.min(100,pz)}%;background:${farbe}"></i></div>`
         : `<span class="meta">Kapazität nicht hinterlegt</span>`;
-      /* Beim Zuordnen: volle Lehrkraefte gedimmt. Ueberbuchen bleibt moeglich --
-         es soll nur nicht unbemerkt passieren. */
-      const voll = waehlt && z.frei!=null && z.frei<=0;
+      /* Ueberbuchen bleibt moeglich -- es soll nur nicht unbemerkt passieren.
+         Wann gedimmt wird, entscheidet das CSS (Klick-Modus oder Ziehen). */
+      const voll = z.frei!=null && z.frei<=0;
       /* inListe=false: Lehrkraft existiert nur als Text an den Azubis (Drift-Punkt 2
          der Datenarchitektur). Sichtbar machen statt verstecken -- ohne spId gibt es
          nichts zu bearbeiten. */
@@ -4824,7 +5096,26 @@ const Oberflaeche = {
       const haus = !e
         ? `<span class="meta">—</span>`
         : `${e.name.replace(/</g,"&lt;")} <span class="meta" title="${e.anzahl} von ${e.gesamt} Azubis dieser Lehrkraft kommen aus diesem Haus${e.verschiedene>1?" · insgesamt "+e.verschiedene+" verschiedene Häuser":""}${e.ohne?" · "+e.ohne+" ohne Angabe":""}">${e.anzahl} / ${e.gesamt}</span>`;
+      /* Schluessel ist der ROHwert (wie in proLehrkraft/azubisJeLehrkraft) --
+         nicht normalisiert, sonst zeigen zwei "(Zahl)"-Varianten derselben
+         Person dieselbe zusammengefuehrte Kachel-Liste statt ihrer eigenen. */
+      const key=String(z.wert);
+      const meine=proLehrkraft.get(key)||[];
+      const offen=this.lkOffen.has(key);
+      const chevron = (admin && meine.length)
+        ? `<button class="lk-chevron${offen?" offen":""}" data-lk-auf="${key.replace(/"/g,"&quot;")}" title="Zugeordnete Azubis anzeigen" aria-label="Zugeordnete Azubis anzeigen"><span class="chevron">▸</span></button>`
+        : "";
+      /* v0.40 Fix 1: dieselbe Lehrkraft-Kennung wie die lk-zeile -- die Kachel-Zeile
+         ist im DOM ein GESCHWISTER der lk-zeile (kein <tr> in <tr> moeglich), sonst
+         erreicht ein Drop dort keinen Handler und der Browser laesst ihn gar nicht
+         erst zu. So greift die Verdrahtung in _lehrerZeilenVerdrahten unveraendert. */
+      const kacheln = (admin && offen && meine.length)
+        ? `<tr class="lk-azubis" data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"><td colspan="8"><div class="lk-kacheln">${meine.map(m=>
+             this._azubiKachelHtml(m, `data-lk-azubi="${m.id}"`)
+           ).join("")}</div></td></tr>`
+        : "";
       return `<tr class="lk-zeile${voll?" lk-voll":""}"${admin?` data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"`:""}>
+        ${admin?`<td class="lk-auf">${chevron}</td>`:""}
         <td>${z.name.replace(/</g,"&lt;")}</td>
         <td>${z.stellenumfang!=null?z.stellenumfang+"\u00a0%":`<span class="meta">—</span>`}</td>
         <td>${z.ist}${z.soll!==null?" / "+z.soll:""}</td>
@@ -4832,13 +5123,13 @@ const Oberflaeche = {
         <td>${haus}</td>
         <td>${status}</td>
         ${admin?`<td class="lk-aktion">${aktionen}</td>`:""}
-      </tr>`;
+      </tr>${kacheln}`;
     }).join("");
     const hinweis = waehlt ? `<div class="hinweis">Azubi gewählt – jetzt die Zeile der gewünschten Lehrkraft anklicken.</div>` : "";
     /* v0.39.1: Solange ein Azubi gewählt ist, bleibt der Zuordnungs-Modus auch beim
        Scrollen sichtbar -- am Mauszeiger, nicht nur am (dann weggescrollten) Hinweis. */
     return `${hinweis}<div class="meta" style="margin-bottom:8px">${zeilen.length} von ${alle.length} Lehrkräften</div>
-      <table${waehlt?' class="zuordnen-aktiv"':""}><thead><tr><th>Name</th><th>Stelle</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th>Trägerhaus (Schwerpunkt)</th><th>Status</th>${admin?"<th></th>":""}</tr></thead>
+      <table${waehlt?' class="zuordnen-aktiv"':""}><thead><tr>${admin?"<th></th>":""}<th>Name</th><th>Stelle</th><th>Azubis (Ist / Soll)</th><th>Auslastung</th><th>Trägerhaus (Schwerpunkt)</th><th>Status</th>${admin?"<th></th>":""}</tr></thead>
       <tbody>${rows}</tbody></table>`;
   },
 
@@ -4896,21 +5187,129 @@ const Oberflaeche = {
     this._lehrerZeilenVerdrahten();
   },
 
+  _ziehtAzubi:null,          // v0.40: id des gerade gezogenen Azubis (aus einer Zeile)
+  _asHandler:null,           // v0.40: Auto-Scroll-Handler waehrend des Ziehens
+
+  /* v0.40: Ein Ziehvorgang beginnt/endet. herkunft = "spalte" | "zeile" --
+     nur eine Kachel AUS einer Zeile darf in der Spalte abgelegt werden
+     (ein Chip aus der Spalte auf die Spalte waere ein Nichts-Zug). */
+  _ziehenAn(id, herkunft){
+    this._ziehtAzubi = (herkunft==="zeile") ? id : null;
+    const t=document.getElementById("lehrerTabelle");
+    if(t) t.classList.add("zieht");
+    // v0.40.1: Ablageflaeche in der Spalte nur bei Herkunft "zeile" -- ein Chip
+    // aus der Spalte kann dort nicht abgelegt werden. Klasse haengt am body,
+    // weil die Flaeche ausserhalb von #lehrerTabelle liegt.
+    if(herkunft==="zeile") document.body.classList.add("zieht-zeile");
+    this._autoScrollAn();
+  },
+  _ziehenAus(){
+    this._ziehtAzubi=null;
+    const t=document.getElementById("lehrerTabelle");
+    if(t) t.classList.remove("zieht");
+    document.body.classList.remove("zieht-zeile");
+    this._autoScrollAus();
+  },
+
+  /* v0.40: Am oberen/unteren Fensterrand scrollt die Seite von selbst weiter.
+     Ohne das ist ein Ziel 30 Zeilen tiefer nicht erreichbar -- bei gedrueckter
+     Maustaste laesst sich weder scrollen noch suchen, und "vorher filtern" hilft
+     nicht: dann verschwindet die Quell-Zeile samt Kacheln. */
+  _autoScrollAn(){
+    if(this._asHandler) return;
+    const rand=60, schritt=14;
+    this._asHandler=(ev)=>{
+      const y=ev.clientY;
+      if(y<rand) window.scrollBy(0,-schritt);
+      else if(y>window.innerHeight-rand) window.scrollBy(0,schritt);
+    };
+    document.addEventListener("dragover", this._asHandler);
+  },
+  _autoScrollAus(){
+    if(!this._asHandler) return;
+    document.removeEventListener("dragover", this._asHandler);
+    this._asHandler=null;
+  },
+
+  /* v0.40: EIN Weg fuer alle drei Handgriffe -- zuordnen, umhaengen, entfernen,
+     egal ob per Klick oder per Ziehen. Statt einer Rueckfrage VOR dem Schreiben
+     gibt es die Meldung mit "Rueckgaengig" DANACH (Spec v0.40, Abschnitt 4).
+     Die Kapazitaets-Aussage wird VOR dem Schreiben berechnet -- danach ist der
+     Azubi schon mitgezaehlt. */
+  _zuordnungLaeuft:false,    // v0.40: Riegel gegen ueberlappende Handgriffe
+  async _zuordnungAendern(id, wert){
+    if(id==null || wert==null) return;
+    /* Zwei Handgriffe kurz hintereinander wuerden parallel schreiben. Kaemen die
+       PATCHes vertauscht an, stuende in SharePoint ein anderer Wert als lokal --
+       und weil blOffen=false gesetzt wurde, wird das nie nachgereicht. */
+    if(this._zuordnungLaeuft) return;
+    this._zuordnungLaeuft=true;
+    try{
+      /* v0.40: sicher beenden -- nach dem folgenden render() ist das gezogene
+         Element weg und ondragend feuert nicht mehr. */
+      this._ziehenAus();
+      const azubi=Azubis.alle().find(a=>String(a.id)===String(id));
+      if(!azubi) return;
+      const vorher=azubi.bezugslehrer||"";
+      const kap = wert ? Dashboard.ueberbuchtNach(Dashboard.lehrkraftZeilen(Azubis.alle()), wert) : null;
+      const azubiName=Azubis.name(azubi.id)||azubi.kuerzel||"Azubi";
+      this.boardAuswahl=null;
+      /* stumm=true: die eigene Sync-Warnung von _bezugslehrerSchreiben unterdruecken
+         -- sie wuerde sonst den Rueckgaengig-Toast sofort wieder ueberschreiben.
+         a.blOffen danach lesen (nicht vorher -- steht erst nach dem Senden fest)
+         und, falls das Senden scheiterte, in dieselbe Meldung haengen. */
+      const davor=await Azubis.bezugslehrerUmhaengen(azubi.id, wert, true);
+      if(!davor) return;                       /* unveraendert -- keine Meldung */
+      const sync=azubi.blOffen ? " · noch nicht in SharePoint" : "";
+      this.toastAktion(
+        Dashboard.umhaengenMeldung(azubiName, bezugslehrerAnzeige(vorher), bezugslehrerAnzeige(wert), kap)+sync,
+        "Rückgängig",
+        ()=> Azubis.bezugslehrerZustandHerstellen(davor));
+    } finally { this._zuordnungLaeuft=false; }
+  },
   /* Handler der Lehrkraft-Zeilen: Zuordnen (Klick/Drop) + Bearbeiten/Loeschen.
      Eigene Funktion, weil die Tabelle auch ohne vollen Render neu entsteht. */
   _lehrerZeilenVerdrahten(){
-    const zbZuordnen=(id, wert)=>{ if(id!=null && wert!=null){ this.boardAuswahl=null; Azubis.bezugslehrerSetzen(id, wert); } };
     this._aktionsMenueVerdrahten("#lehrerTabelle", (punkt, spId)=>{
       if(punkt==="edit")   this.lehrerFormular(Bezugslehrer.alle().find(l=>String(l.spId)===String(spId)));
       if(punkt==="archiv") this.lehrerArchivKlick(spId);
       if(punkt==="del")    this.lehrerLoeschenKlick(spId);
     });
     document.querySelectorAll("[data-zb-lehrer]").forEach(z=>{
-      z.onclick=()=>{ if(this.boardAuswahl) zbZuordnen(this.boardAuswahl, z.dataset.zbLehrer); };
+      z.onclick=()=>{ if(this.boardAuswahl) this._zuordnungAendern(this.boardAuswahl, z.dataset.zbLehrer); };
       z.ondragover=(ev)=>{ ev.preventDefault(); z.classList.add("zb-ueber"); };
       z.ondragleave=()=>z.classList.remove("zb-ueber");
-      z.ondrop=(ev)=>{ ev.preventDefault(); z.classList.remove("zb-ueber"); zbZuordnen(ev.dataTransfer.getData("text/plain"), z.dataset.zbLehrer); };
+      z.ondrop=(ev)=>{ ev.preventDefault(); z.classList.remove("zb-ueber");
+                       this._zuordnungAendern(ev.dataTransfer.getData("text/plain"), z.dataset.zbLehrer); };
     });
+    document.querySelectorAll("[data-lk-auf]").forEach(b=>{
+      /* stopPropagation: die Zeile ist Zuordnungs-Ziel -- ohne das wuerde das
+         Aufklappen bei gewaehltem Azubi zusaetzlich zuordnen. Dieselbe Falle
+         wie beim Aktionsmenue in v0.39. */
+      b.onclick=(ev)=>{ ev.stopPropagation();
+        const k=b.dataset.lkAuf;
+        if(this.lkOffen.has(k)) this.lkOffen.delete(k); else this.lkOffen.add(k);
+        this._lehrerTabelleRender(); };
+    });
+    document.querySelectorAll("[data-lk-azubi]").forEach(k=>{
+      /* stopPropagation: seit Fix 1 ist die Kachel-Zeile selbst Zuordnungs-Ziel --
+         ein Klick auf die Kachel soll aber nichts tun (Vorgabe: Klick != Ziehen laesst
+         sich bei Kacheln kaum unterscheiden). Dieselbe Falle wie beim Chevron/Aktionsmenue. */
+      k.onclick=(ev)=> ev.stopPropagation();
+      k.ondragstart=(ev)=>{ ev.dataTransfer.setData("text/plain", k.dataset.lkAzubi);
+                            ev.dataTransfer.effectAllowed="move";
+                            this._ziehenAn(k.dataset.lkAzubi, "zeile"); };
+      k.ondragend=()=> this._ziehenAus();
+    });
+    const spalte=document.getElementById("zoSpalte");
+    if(spalte){
+      spalte.ondragover=(ev)=>{ if(!this._ziehtAzubi) return;   /* Chip aus der Spalte: kein Ziel */
+                                ev.preventDefault(); spalte.classList.add("zb-ueber"); };
+      spalte.ondragleave=()=> spalte.classList.remove("zb-ueber");
+      spalte.ondrop=(ev)=>{ ev.preventDefault(); spalte.classList.remove("zb-ueber");
+                            if(!this._ziehtAzubi) return;
+                            this._zuordnungAendern(ev.dataTransfer.getData("text/plain"), ""); };
+    }
   },
   /* Dialog Bezugslehrer anlegen ODER bearbeiten. Mit Objekt l = bearbeiten (inkl.
      Aktiv/Archivieren), ohne = neu. Kapazität wird aus dem Stellenumfang vorgeschlagen
@@ -6340,14 +6739,30 @@ const Oberflaeche = {
     document.querySelectorAll("#lehrerSortUms button").forEach(b=>{
       b.onclick=()=>{ this.lehrerSort=b.dataset.lsort; this.render(); };
     });
+    document.querySelectorAll("#lkSortUms button").forEach(b=>{
+      b.onclick=()=>{ this.lkSort=b.dataset.lksort; this._lehrerTabelleRender(); };
+    });
     const kpiOZ=document.getElementById("kpiOhneZuordnung");   // Kachel -> zum Zuordnen springen
     if(kpiOZ) kpiOZ.onclick=()=>{ const t=document.getElementById("bereichBezugslehrende");
       if(t) t.scrollIntoView({behavior:"smooth", block:"start"}); };
+    const zoS=document.getElementById("zoSuche");
+    if(zoS) zoS.oninput=()=>{ this.zoSuche=zoS.value; this.render();
+      /* Fokus zurueck ins Feld: render() zeichnet die Spalte neu. Gleiches
+         Problem wie bei lehrerSuche, hier aber ohne Teil-Neuzeichnung geloest,
+         weil die Spalte klein ist. */
+      const neu=document.getElementById("zoSuche");
+      if(neu){ neu.focus(); neu.setSelectionRange(neu.value.length, neu.value.length); } };
+    document.querySelectorAll("#zoSortUms button").forEach(b=>{
+      b.onclick=()=>{ this.zoSort=b.dataset.zosort; this.render(); };
+    });
     // v0.34: Zuordnung per Klick (Azubi waehlen -> Lehrkraft-Zeile) ODER Drag-and-Drop.
     // Elemente existieren nur im Dashboard -> sonst leere NodeLists.
     document.querySelectorAll("[data-zb-azubi]").forEach(k=>{
       k.onclick=()=>{ this.boardAuswahl = (this.boardAuswahl===k.dataset.zbAzubi) ? null : k.dataset.zbAzubi; this.render(); };
-      k.ondragstart=(ev)=>{ ev.dataTransfer.setData("text/plain", k.dataset.zbAzubi); ev.dataTransfer.effectAllowed="move"; };
+      k.ondragstart=(ev)=>{ ev.dataTransfer.setData("text/plain", k.dataset.zbAzubi);
+                            ev.dataTransfer.effectAllowed="move";
+                            this._ziehenAn(k.dataset.zbAzubi, "spalte"); };
+      k.ondragend=()=> this._ziehenAus();
     });
     this._lehrerZeilenVerdrahten();
     document.querySelectorAll("[data-azubi]").forEach(z=> z.onclick=()=>this.azubiDetail(z.dataset.azubi));
