@@ -181,7 +181,13 @@
   .lk-kacheln{display:flex;flex-wrap:wrap;gap:6px}
   .lk-kacheln .zb-azubi{margin-bottom:0;min-width:150px}
   .lk-zeile.zb-ueber > td{background:#EEF4EF;box-shadow:inset 0 0 0 1px var(--forest)}
-  .lk-voll{opacity:.5}
+  /* v0.40: Volle Lehrkraefte werden gedimmt, solange zugeordnet wird -- per
+     Klick (zuordnen-aktiv, seit v0.37) ODER waehrend eines Ziehvorgangs
+     (zieht). Beim Ziehen wird nicht neu gezeichnet, deshalb haengt die Klasse
+     immer an der Zeile und das CSS entscheidet, wann sie wirkt. */
+  .zuordnen-aktiv .lk-voll,
+  #lehrerTabelle.zieht .lk-voll{opacity:.5}
+  .zo-spalte.zb-ueber{outline:2px dashed var(--forest);background:#EEF4EF}
   .zuordnen-aktiv .lk-zeile{cursor:copy}
   .lk-aktion{white-space:nowrap}
   .akt-menue{position:relative;display:inline-block}
@@ -5000,9 +5006,9 @@ const Oberflaeche = {
       const ausl=z.quote!==null
         ? `<span class="ampel ${z.ampel}"></span>${pz}\u00a0%<div class="ausl-balken"><i style="width:${Math.min(100,pz)}%;background:${farbe}"></i></div>`
         : `<span class="meta">Kapazität nicht hinterlegt</span>`;
-      /* Beim Zuordnen: volle Lehrkraefte gedimmt. Ueberbuchen bleibt moeglich --
-         es soll nur nicht unbemerkt passieren. */
-      const voll = waehlt && z.frei!=null && z.frei<=0;
+      /* Ueberbuchen bleibt moeglich -- es soll nur nicht unbemerkt passieren.
+         Wann gedimmt wird, entscheidet das CSS (Klick-Modus oder Ziehen). */
+      const voll = z.frei!=null && z.frei<=0;
       /* inListe=false: Lehrkraft existiert nur als Text an den Azubis (Drift-Punkt 2
          der Datenarchitektur). Sichtbar machen statt verstecken -- ohne spId gibt es
          nichts zu bearbeiten. */
@@ -5106,6 +5112,45 @@ const Oberflaeche = {
     this._lehrerZeilenVerdrahten();
   },
 
+  _ziehtAzubi:null,          // v0.40: id des gerade gezogenen Azubis (aus einer Zeile)
+  _asHandler:null,           // v0.40: Auto-Scroll-Handler waehrend des Ziehens
+
+  /* v0.40: Ein Ziehvorgang beginnt/endet. herkunft = "spalte" | "zeile" --
+     nur eine Kachel AUS einer Zeile darf in der Spalte abgelegt werden
+     (ein Chip aus der Spalte auf die Spalte waere ein Nichts-Zug). */
+  _ziehenAn(id, herkunft){
+    this._ziehtAzubi = (herkunft==="zeile") ? id : null;
+    const t=document.getElementById("lehrerTabelle");
+    if(t) t.classList.add("zieht");
+    this._autoScrollAn();
+  },
+  _ziehenAus(){
+    this._ziehtAzubi=null;
+    const t=document.getElementById("lehrerTabelle");
+    if(t) t.classList.remove("zieht");
+    this._autoScrollAus();
+  },
+
+  /* v0.40: Am oberen/unteren Fensterrand scrollt die Seite von selbst weiter.
+     Ohne das ist ein Ziel 30 Zeilen tiefer nicht erreichbar -- bei gedrueckter
+     Maustaste laesst sich weder scrollen noch suchen, und "vorher filtern" hilft
+     nicht: dann verschwindet die Quell-Zeile samt Kacheln. */
+  _autoScrollAn(){
+    if(this._asHandler) return;
+    const rand=60, schritt=14;
+    this._asHandler=(ev)=>{
+      const y=ev.clientY;
+      if(y<rand) window.scrollBy(0,-schritt);
+      else if(y>window.innerHeight-rand) window.scrollBy(0,schritt);
+    };
+    document.addEventListener("dragover", this._asHandler);
+  },
+  _autoScrollAus(){
+    if(!this._asHandler) return;
+    document.removeEventListener("dragover", this._asHandler);
+    this._asHandler=null;
+  },
+
   /* v0.40: EIN Weg fuer alle drei Handgriffe -- zuordnen, umhaengen, entfernen,
      egal ob per Klick oder per Ziehen. Statt einer Rueckfrage VOR dem Schreiben
      gibt es die Meldung mit "Rueckgaengig" DANACH (Spec v0.40, Abschnitt 4).
@@ -5113,6 +5158,9 @@ const Oberflaeche = {
      Azubi schon mitgezaehlt. */
   async _zuordnungAendern(id, wert){
     if(id==null || wert==null) return;
+    /* v0.40: sicher beenden -- nach dem folgenden render() ist das gezogene
+       Element weg und ondragend feuert nicht mehr. */
+    this._ziehenAus();
     const azubi=Azubis.alle().find(a=>String(a.id)===String(id));
     if(!azubi) return;
     const vorher=azubi.bezugslehrer||"";
@@ -5155,6 +5203,21 @@ const Oberflaeche = {
         if(this.lkOffen.has(k)) this.lkOffen.delete(k); else this.lkOffen.add(k);
         this._lehrerTabelleRender(); };
     });
+    document.querySelectorAll("[data-lk-azubi]").forEach(k=>{
+      k.ondragstart=(ev)=>{ ev.dataTransfer.setData("text/plain", k.dataset.lkAzubi);
+                            ev.dataTransfer.effectAllowed="move";
+                            this._ziehenAn(k.dataset.lkAzubi, "zeile"); };
+      k.ondragend=()=> this._ziehenAus();
+    });
+    const spalte=document.getElementById("zoSpalte");
+    if(spalte){
+      spalte.ondragover=(ev)=>{ if(!this._ziehtAzubi) return;   /* Chip aus der Spalte: kein Ziel */
+                                ev.preventDefault(); spalte.classList.add("zb-ueber"); };
+      spalte.ondragleave=()=> spalte.classList.remove("zb-ueber");
+      spalte.ondrop=(ev)=>{ ev.preventDefault(); spalte.classList.remove("zb-ueber");
+                            if(!this._ziehtAzubi) return;
+                            this._zuordnungAendern(ev.dataTransfer.getData("text/plain"), ""); };
+    }
   },
   /* Dialog Bezugslehrer anlegen ODER bearbeiten. Mit Objekt l = bearbeiten (inkl.
      Aktiv/Archivieren), ohne = neu. Kapazität wird aus dem Stellenumfang vorgeschlagen
@@ -6601,7 +6664,10 @@ const Oberflaeche = {
     // Elemente existieren nur im Dashboard -> sonst leere NodeLists.
     document.querySelectorAll("[data-zb-azubi]").forEach(k=>{
       k.onclick=()=>{ this.boardAuswahl = (this.boardAuswahl===k.dataset.zbAzubi) ? null : k.dataset.zbAzubi; this.render(); };
-      k.ondragstart=(ev)=>{ ev.dataTransfer.setData("text/plain", k.dataset.zbAzubi); ev.dataTransfer.effectAllowed="move"; };
+      k.ondragstart=(ev)=>{ ev.dataTransfer.setData("text/plain", k.dataset.zbAzubi);
+                            ev.dataTransfer.effectAllowed="move";
+                            this._ziehenAn(k.dataset.zbAzubi, "spalte"); };
+      k.ondragend=()=> this._ziehenAus();
     });
     this._lehrerZeilenVerdrahten();
     document.querySelectorAll("[data-azubi]").forEach(z=> z.onclick=()=>this.azubiDetail(z.dataset.azubi));
