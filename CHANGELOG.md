@@ -4,6 +4,26 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.40.3 – 2026-07-28
+
+Aus der Browser-Abnahme von v0.40.1.
+
+- **Fix: Der Umschalter „Kacheln: Kurs / Haus / Name" blieb optisch stehen.** Die
+  Reihenfolge änderte sich sofort, aber die blaue Markierung sprang erst beim nächsten
+  vollen Neuaufbau auf den geklickten Knopf – der Klick zeichnete nur die Tabelle neu,
+  und die Umschalter stehen davor in der Werkzeugzeile. Jetzt zeichnet er voll neu wie
+  die beiden Umschalter darüber; die aufgeklappten Zeilen bleiben dabei offen.
+- **Kursfarben treffen sich nicht mehr.** Der Farbton kam aus einer Quersumme über den
+  Kursnamen und wurde auf acht feste Farben abgebildet – bei drei Kursen kollidierte rund
+  jeder dritte Fall, in der Abnahme trafen sich „PFK T 041" und „PflAss 12". Jetzt
+  entscheidet der Rang im Kursverzeichnis: Alle vorkommenden Kurse werden gleichmäßig
+  über den Farbkreis verteilt, der Abstand ist damit garantiert statt erhofft. Kommt ein
+  Kurs dazu, rücken die Töne nach.
+- **Kursfarbe als Fläche statt als Kante.** Die Kachel trägt einen hellen Kurston, der
+  Name sitzt in einem kräftigeren Balken darin. Die dünne Farbkante links entfällt: Sie
+  war zu schmal, um zu gruppieren, und ließ zusammen mit dem fetten Namen die Hierarchie
+  gegenüber der Lehrkraft-Zeile kippen.
+
 ## v0.40.2 – 2026-07-26
 
 - **Fix: halb gelungene Schreibvorgänge waren unsichtbar.** Lehnt SharePoint eine Spalte

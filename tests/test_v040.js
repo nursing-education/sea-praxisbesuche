@@ -298,15 +298,35 @@ p('kachel-sort: nach Name',
 p('kachel-sort: nach Haus, innerhalb dessen Name',
   holen({ sortierung: 'haus' }).map(x => x.name).join(',') === 'Zeta, Z.,Alpha, A.,Beta, B.');
 
-p('kursfarbe: gleicher Kurs, gleiche Farbe',
-  Dashboard.kursFarbe('PFK N 041') === Dashboard.kursFarbe('PFK N 041'));
-p('kursfarbe: Schreibweise egal',
-  Dashboard.kursFarbe('pfk n 041') === Dashboard.kursFarbe('  PFK N 041  '));
-p('kursfarbe: immer im gueltigen Bereich',
-  ['PFK N 041','PflAss 12','x','Sehr langer Kursname 2026'].every(k => {
-    const f = Dashboard.kursFarbe(k); return Number.isInteger(f) && f >= 0 && f <= 7; }));
-p('kursfarbe: ohne Kurs keine Farbe',
-  Dashboard.kursFarbe('') === null && Dashboard.kursFarbe() === null);
+/* v0.40.3: Der Farbton kommt aus dem Rang im Kursverzeichnis, nicht mehr aus
+   einer Quersumme ueber den Namen. Grund: Die Quersumme traf sich -- "PFK T 041"
+   und "PflAss 12" bekamen in der Abnahme dieselbe Farbe. */
+const farbT = [
+  { kurs: 'PflAss 12' }, { kurs: 'PFK N 041' }, { kurs: 'PFK N 042' },
+  { kurs: 'PFK N 041' }, { kurs: '' }, { kurs: 'PFK T 041' }
+];
+const farben = Dashboard.kursFarben(farbT);
+
+p('kursfarben: jeder Kurs genau einmal',
+  farben.size === 4);
+p('kursfarben: Schreibweise egal',
+  farben.get(SPSync._norm('  PFK N 041  ')) === farben.get(SPSync._norm('pfk n 041')));
+p('kursfarben: ohne Kurs kein Eintrag',
+  farben.get('') === undefined);
+p('kursfarben: alle Toene im gueltigen Bereich',
+  [...farben.values()].every(h => Number.isInteger(h) && h >= 0 && h < 360));
+p('kursfarben: keine zwei Kurse mit demselben Ton',
+  new Set(farben.values()).size === farben.size);
+p('kursfarben: Toene liegen maximal weit auseinander', (() => {
+  const h = [...farben.values()].sort((a, b) => a - b);
+  /* 4 Kurse -> 90 Grad Abstand. Das ist die Zusage des Rang-Verfahrens: nicht
+     "wahrscheinlich verschieden", sondern gleichmaessig verteilt. */
+  return h.every((x, i) => i === 0 || x - h[i - 1] === 90);
+})());
+p('kursfarben: ohne Azubis leere Zuordnung',
+  Dashboard.kursFarben([]).size === 0 && Dashboard.kursFarben().size === 0);
+p('kursfarben: ein einziger Kurs bekommt den ersten Ton',
+  Dashboard.kursFarben([{ kurs: 'PFK N 041' }]).get('pfk n 041') === 0);
 
 /* ---------- 8. Vorheriger Bezugslehrer auf den Chips (v0.40.1) ---------- */
 const vorherT = [

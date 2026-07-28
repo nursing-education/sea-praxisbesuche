@@ -143,16 +143,16 @@
   .zb-azubi,.zb-lehrer{background:var(--flaeche);border:1px solid var(--rahmen);border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;flex-direction:column;gap:2px}
   .zb-azubi{cursor:grab}
   .zb-azubi.gewaehlt{outline:2px solid var(--navy);border-color:var(--navy)}
-  /* v0.40.1: Farbkante je Kurs. Ausschliesslich Farbwerte, die in dieser Datei
-     ohnehin vorkommen (SEA-Token und die Bereichs-Pillen). */
-  .zb-azubi.kf0{border-left:4px solid var(--navy)}
-  .zb-azubi.kf1{border-left:4px solid var(--forest)}
-  .zb-azubi.kf2{border-left:4px solid var(--orange)}
-  .zb-azubi.kf3{border-left:4px solid var(--gold)}
-  .zb-azubi.kf4{border-left:4px solid var(--danger)}
-  .zb-azubi.kf5{border-left:4px solid #6A3A66}
-  .zb-azubi.kf6{border-left:4px solid #9A5B00}
-  .zb-azubi.kf7{border-left:4px solid var(--text-leise)}
+  /* v0.40.3: Kursfarbe als Flaeche statt als Kante. Die Kante war zu duenn, um zu
+     gruppieren, aber dick genug, um zu stoeren -- und neben dem fetten Namen kippte
+     die Hierarchie. Jetzt traegt die ganze Kachel einen hellen Kurston und der Name
+     sitzt in einem kraeftigeren Balken darin. --kf ist der Farbwinkel aus
+     Dashboard.kursFarben; Saettigung und Helligkeit sind fest, dadurch wirken alle
+     Kurse wie eine Familie und der Text bleibt bei jedem Ton gleich gut lesbar. */
+  .zb-azubi .zb-name{font-weight:600;font-size:14px;line-height:1.3}
+  .zb-azubi.hat-kf{background:hsl(var(--kf), 42%, 96%);border-color:hsl(var(--kf), 30%, 82%)}
+  .zb-azubi.hat-kf .zb-name{background:hsl(var(--kf), 38%, 87%);color:hsl(var(--kf), 45%, 22%);
+    margin:-8px -10px 4px;padding:5px 10px;border-radius:5px 5px 0 0}
   .zb-lehrer{cursor:pointer}
   .zb-lehrer.zb-ueber{outline:2px dashed var(--forest);background:#EEF4EF}
   /* v0.37: Zuordnungs-Leiste (Chips oben) + Lehrkraft-Zeile als Zuordnungs-Ziel */
@@ -1585,7 +1585,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.40.2";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.40.3";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -4277,16 +4277,26 @@ const Dashboard = {
     :              (hinten(x.kurs).localeCompare(hinten(y.kurs),"de") || nachName(x,y))));
     return raus;
   },
-  /* v0.40.1: Farbindex 0-7 aus dem Kursnamen -- berechnet, nicht gespeichert.
-     Dadurch bedeutet dieselbe Farbe bei jeder Lehrkraft denselben Kurs, ohne
-     dass irgendwo eine Zuordnung gepflegt werden muesste. Die Farbe ist Zugabe:
-     der Kurs steht als Text auf der Kachel, niemand ist auf sie angewiesen. */
-  kursFarbe(kurs){
-    const k=SPSync._norm(kurs||"");
-    if(!k) return null;
-    let summe=0;
-    for(let i=0;i<k.length;i++) summe=(summe*31 + k.charCodeAt(i)) % 4096;
-    return summe % 8;
+  /* v0.40.3: Farbton je Kurs -- berechnet, nicht gespeichert. Dieselbe Farbe
+     bedeutet bei jeder Lehrkraft denselben Kurs, ohne dass irgendwo eine
+     Zuordnung gepflegt werden muesste. Die Farbe ist Zugabe: der Kurs steht als
+     Text auf der Kachel, niemand ist auf sie angewiesen.
+
+     Der Ton kommt aus dem RANG im sortierten Kursverzeichnis, nicht mehr aus
+     einer Quersumme ueber den Namen (v0.40.1). Die Quersumme traf sich: In der
+     Abnahme hatten "PFK T 041" und "PflAss 12" dieselbe Farbe -- bei acht Toepfen
+     und drei Kursen kollidiert rund jeder dritte Fall. Auch ein feiner verteilter
+     Zufallston hilft nicht zuverlaessig; zwei Kurse landeten 6 Grad auseinander,
+     das ist mit blossem Auge dieselbe Farbe. Der Rang kann sich nicht treffen.
+
+     Preis: Kommt ein Kurs dazu, ruecken die Toene der anderen. Das ist vertretbar
+     -- die Farbe gruppiert, was nebeneinander steht; sie ist kein Merkmal, das
+     sich jemand ueber Wochen merkt. */
+  kursFarben(azubis){
+    const kurse=[...new Set((azubis||[]).map(a=>SPSync._norm((a&&a.kurs)||"")).filter(Boolean))].sort();
+    const raus=new Map();
+    kurse.forEach((k,i)=> raus.set(k, Math.round(i*360/kurse.length)));
+    return raus;
   },
 
   /* v0.40: Wie steht die Ziel-Lehrkraft da, NACHDEM ein Azubi dazukommt?
@@ -4883,12 +4893,15 @@ const Oberflaeche = {
      unveraendert wirken.
      a = {id, name, kurs, stammeinrichtung}; attribute = zusaetzliche
      HTML-Attribute (data-*), zusatzKlasse = optionale Klasse. */
-  _azubiKachelHtml(a, attribute, zusatzKlasse){
+  _azubiKachelHtml(a, attribute, zusatzKlasse, farben){
     const e=s=> String(s==null?"":s).replace(/</g,"&lt;");
-    const f=Dashboard.kursFarbe(a.kurs);
-    const klassen=(zusatzKlasse?" "+zusatzKlasse:"")+(f!==null?" kf"+f:"");
-    return `<div class="zb-azubi${klassen}" draggable="true" ${attribute||""}>
-      <b>${e(a.name)}</b>
+    /* v0.40.3: Der Farbton kommt als CSS-Variable an die Kachel, das CSS baut
+       daraus Flaeche, Rahmen und Namensbalken. Ohne Kurs bleibt die Kachel weiss. */
+    const h=farben ? farben.get(SPSync._norm(a.kurs||"")) : undefined;
+    const klassen=(zusatzKlasse?" "+zusatzKlasse:"")+(h!==undefined?" hat-kf":"");
+    const stil=h!==undefined?` style="--kf:${h}"`:"";
+    return `<div class="zb-azubi${klassen}"${stil} draggable="true" ${attribute||""}>
+      <span class="zb-name">${e(a.name)}</span>
       <span class="meta">${e(a.kurs||"—")}</span>
       <span class="meta zb-haus" title="Trägerhaus (Stammeinrichtung)">${e(a.stammeinrichtung||"Trägerhaus fehlt")}</span>
       ${a.vorher?`<span class="meta zb-vorher" title="Zuletzt zugeordnet bei dieser Lehrkraft – zum Zurückgeben dorthin ziehen">↩ vorher: ${e(a.vorher)}</span>`:""}
@@ -5053,6 +5066,9 @@ const Oberflaeche = {
   viewBezugslehrende(){
     const admin=Dashboard.darfVerwalten();
     const sel=this.boardAuswahl;
+    /* v0.40.3: einmal fuer beide Spalten -- derselbe Kurs muss links wie rechts
+       denselben Ton tragen, sonst gruppiert die Farbe nicht, sondern verwirrt. */
+    const farben=Dashboard.kursFarben(Azubis.alle());
     /* Zuordnungs-Spalte: die unzugeordneten Azubis als Kacheln LINKS. Ab 1200px
        zweispaltig neben der Tabelle, darunter wieder als Leiste quer oben. */
     let spalte="";
@@ -5063,7 +5079,7 @@ const Oberflaeche = {
       /* v0.38: Traegerhaus mit auf den Chip -- es entscheidet mit, zu wem der
          Azubi passt (siehe Schwerpunkt-Spalte der Tabelle). */
       const chips=offen.map(a=>
-        this._azubiKachelHtml(a, `data-zb-azubi="${a.id}"`, sel===a.id?"gewaehlt":"")).join("");
+        this._azubiKachelHtml(a, `data-zb-azubi="${a.id}"`, sel===a.id?"gewaehlt":"", farben)).join("");
       const werkzeug=gesamt?`<div class="zo-werkzeug">
           <input type="search" id="zoSuche" placeholder="Name oder Kurs…" value="${String(this.zoSuche||"").replace(/"/g,"&quot;")}">
           <div class="seg-knopf" id="zoSortUms">
@@ -5135,6 +5151,7 @@ const Oberflaeche = {
     const waehlt=admin && !!this.boardAuswahl;
     /* einmal fuer die ganze Tabelle: welche Azubis haengen an wem? */
     const proLehrkraft = admin ? Dashboard.azubisJeLehrkraft(Azubis.alle(), Daten.state.azubiNamen, {sortierung:this.lkSort}) : new Map();
+    const farben = Dashboard.kursFarben(Azubis.alle());
     const rows=zeilen.map(z=>{
       const pz=z.quote!==null?Math.round(z.quote*100):null;
       const farbe=z.ampel==="rot"?"var(--danger)":z.ampel==="gelb"?"var(--gold)":"var(--forest)";
@@ -5174,7 +5191,7 @@ const Oberflaeche = {
          erst zu. So greift die Verdrahtung in _lehrerZeilenVerdrahten unveraendert. */
       const kacheln = (admin && offen && meine.length)
         ? `<tr class="lk-azubis" data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"><td colspan="8"><div class="lk-kacheln">${meine.map(m=>
-             this._azubiKachelHtml(m, `data-lk-azubi="${m.id}"`)
+             this._azubiKachelHtml(m, `data-lk-azubi="${m.id}"`, "", farben)
            ).join("")}</div></td></tr>`
         : "";
       return `<tr class="lk-zeile${voll?" lk-voll":""}"${admin?` data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"`:""}>
@@ -6804,7 +6821,12 @@ const Oberflaeche = {
       b.onclick=()=>{ this.lehrerSort=b.dataset.lsort; this.render(); };
     });
     document.querySelectorAll("#lkSortUms button").forEach(b=>{
-      b.onclick=()=>{ this.lkSort=b.dataset.lksort; this._lehrerTabelleRender(); };
+      /* v0.40.3: voll neu zeichnen wie die beiden Umschalter darueber. Die
+         Teil-Neuzeichnung ersetzt nur #lehrerTabelle -- die Umschalter stehen in
+         der Werkzeugzeile davor, ihre "an"-Markierung blieb deshalb auf dem alten
+         Knopf stehen, waehrend die Kacheln sich laengst umsortiert hatten.
+         Der Aufklapp-Zustand ueberlebt das: er haengt an lkOffen, nicht am DOM. */
+      b.onclick=()=>{ this.lkSort=b.dataset.lksort; this.render(); };
     });
     const kpiOZ=document.getElementById("kpiOhneZuordnung");   // Kachel -> zum Zuordnen springen
     if(kpiOZ) kpiOZ.onclick=()=>{ const t=document.getElementById("bereichBezugslehrende");
