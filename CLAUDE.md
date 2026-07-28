@@ -83,16 +83,27 @@ headless testbar.
 Zweck: In `git branch -r` soll ohne Blick in den Diff erkennbar sein, was auf einem
 Branch liegt – für Menschen wie für KI-Sessions, die einen fremden Stand vorfinden.
 
+Ein Test entscheidet: **Zählt die Änderung `APP_VERSION` hoch?**
+
 | Muster | wofür | Beispiel |
 |--------|-------|----------|
-| `vX.Y-kurzname` | geplante Scheibe – die Version steht vorab in der Spec | `v0.41-vertretung` |
-| `fix/kurzname` | ungeplanter Bugfix, Patch-Stelle noch offen | `fix/archivierte-ohne-azubis` |
-| `chore/kurzname` | Infrastruktur ohne Versionssprung | `chore/ci-logiktests` |
+| `vX.Y-kurzname` bzw. `vX.Y.Z-kurzname` | alles mit Versionssprung – geplante Scheibe wie ungeplanter Bugfix | `v0.41-vertretung`, `v0.40.2-schreibfehler` |
+| `chore/kurzname` | ohne Versionssprung – Infrastruktur, Doku, Aufräumen | `chore/ci-logiktests` |
+
+**Kein `fix/`-Muster.** Der Workflow verlangt, `APP_VERSION` in derselben Änderung
+hochzuzählen – die Version steht also spätestens beim Commit fest, und ein Bugfix, der
+ausgeliefert wird, *ist* eine Version. Ob geplant oder nicht, steht in der Spec und im
+Changelog, nicht im Branchnamen.
 
 Kleinbuchstaben und Bindestriche, nur ASCII (`traegerhaus`, nicht `trägerhaus`), ein
 Thema pro Branch, kein Autor/Werkzeug/Zufallssuffix im Namen. Versionsschreibweise wie
-`APP_VERSION`: `v0.41`, nicht `v0-41`. Beim `vX.Y-`-Muster tragen Branch, Spec-Datei,
-`APP_VERSION`, `CHANGELOG`-Überschrift und PR-Titel denselben Begriff.
+`APP_VERSION`: `v0.41`, nicht `v0-41`.
+
+**Ein Begriff für dieselbe Sache.** Bei jedem Versions-Branch tragen Branch, Spec-Datei,
+`APP_VERSION`, `CHANGELOG`-Überschrift und PR-Titel **denselben** Begriff. Beispiel für
+das Gegenteil: `fix/stille-schreibfehler` mit PR-Titel „v0.40.2 – Halb gelungene
+Schreibvorgänge sichtbar machen" – vier Namen, kein gemeinsames Wort, aus dem Branch
+nicht erkennbar, welche Version darauf liegt.
 
 **Beide Repos, gleicher Name.** Spec (privates Kontext-Repo) und Code (hier) entstehen
 im Gleichschritt – derselbe Branch-Name macht das Paar auffindbar.
