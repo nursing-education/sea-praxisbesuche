@@ -4,6 +4,29 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.40.6 – 2026-07-28
+
+- **Die eingebetteten Fremd-Libraries liegen jetzt in `vendor/`.** MSAL, Leaflet
+  (JS + CSS) und jsPDF waren als minifizierter Code direkt in `index.html`
+  einkopiert und machten dort rund 70 % der Datei aus. Sie stehen jetzt als
+  eigene Dateien in `vendor/` und werden über `<script src="…">` bzw.
+  `<link href="…">` geladen – in exakt derselben Reihenfolge wie zuvor.
+
+  **Funktional ändert sich nichts.** Weiterhin kein Build-Schritt, weiterhin kein
+  CDN (im Schulnetz gesperrt), weiterhin lokal lauffähig – der Ordner `vendor/` muss
+  dabei neben der `index.html` liegen. Die Versionsnummer steigt, weil sich die
+  ausgelieferte Datei substanziell ändert und im Fehlerfall („Karte lädt nicht")
+  erkennbar sein muss, welcher Stand läuft.
+
+  Damit ist die Bezeichnung „Single-File-App" nicht mehr zutreffend und in `README.md`
+  und `CLAUDE.md` ersetzt. Dort steht jetzt auch, dass ein Test **mit** Microsoft-Login
+  über `http://localhost:8000/` laufen muss – unter `file://` schlägt er fehl, weil
+  `file://` keine registrierbare Redirect-URI ist.
+
+  Nutzen: `index.html` schrumpft von rund 1.140.000 auf 345.000 Zeichen. Damit
+  wird die Datei für Mensch und Werkzeug wieder lesbar, und die Library-Versionen
+  sind am Dateinamen ablesbar statt in einem Kommentar zu stehen.
+
 ## v0.40.5 – 2026-07-28
 
 - **Das selbst gesetzte Ziehbild aus v0.40.4 ist zurückgenommen.** Es hat das blasse

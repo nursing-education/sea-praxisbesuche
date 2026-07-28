@@ -1,7 +1,8 @@
 # SEA Praxisbesuche – Entwickler-Leitfaden
 
-Single-File-Web-App zur Planung von Praxisbesuchen in der Pflegeausbildung. Die App
-heißt in der Oberfläche „SEA Praxisbesuche".
+Web-App ohne Build-Schritt zur Planung von Praxisbesuchen in der Pflegeausbildung.
+Der gesamte eigene Code liegt in einer Datei (`index.html`), die Fremd-Libraries
+daneben in `vendor/`. Die App heißt in der Oberfläche „SEA Praxisbesuche".
 
 ## Planung & Kontext liegen im privaten Repo (nicht hier)
 
@@ -16,13 +17,38 @@ diesem öffentlichen Repo ausgeschlossen. Grund: Planung/Kontext könnten Intern
 
 ## Tech-Stack
 
-- **Vanilla JS**, eine einzige Datei: `index.html` (HTML + CSS + JS inline, kein Build).
-- Läuft durch Doppelklick im Browser; keine Installation, keine node-Runtime nötig.
-- Externe Libraries werden zur Laufzeit dynamisch geladen (nicht gebündelt):
-  - **MSAL** – Microsoft-Login
-  - **Microsoft Graph** – liest/schreibt die Daten in **SharePoint**-Listen
-  - **Leaflet** – Karten für Routen/Touren
-  - **jsPDF** – erzeugt die PDFs
+- **Vanilla JS**, eigener Code in einer einzigen Datei: `index.html` (HTML + CSS + JS
+  inline, kein Build).
+- Keine Installation, keine node-Runtime nötig (node nur für die Tests).
+- Externe Libraries liegen **lokal in `vendor/`** und werden per `<script src="…">`
+  bzw. `<link href="…">` geladen – **kein CDN** (im Schulnetz gesperrt), **kein Build**:
+  - **MSAL** (`vendor/msal-browser-*.js`) – Microsoft-Login
+  - **Leaflet** (`vendor/leaflet-*.js` **und** `vendor/leaflet-*.css`) – Karten für
+    Routen/Touren. Das CSS nicht vergessen, sonst rendert die Karte falsch.
+  - **jsPDF** (`vendor/jspdf-*.js`) – erzeugt die PDFs
+  - **Microsoft Graph** – keine Library, wird per `fetch` angesprochen
+- Die Versionsnummer steht im Dateinamen; bei einem Update ändern sich Datei **und**
+  Pfad in `index.html`. `vendor/` muss immer neben der `index.html` liegen – die
+  `index.html` allein ist nicht mehr lauffähig.
+- **Ladereihenfolge ist bindend:** Leaflet CSS + JS im `<head>`, dann jsPDF und MSAL
+  direkt nach `<body>`, der eigene Code zuletzt. Kein `defer`, kein `async` – sonst
+  läuft der eigene Code, bevor die Libraries da sind.
+
+## Lokal ausprobieren
+
+**Über `http://localhost:8000/`, nicht per Doppelklick.** Diese Adresse ist in der
+App-Registrierung als Redirect-URI freigeschaltet und dient als Testumgebung gegen den
+echten SharePoint. Unter `file://` schlägt der MSAL-Login fehl, weil `file://` keine
+registrierbare Redirect-URI ist – Karte und PDF liessen sich so zwar prüfen, der Login
+aber nicht.
+
+```
+python -m http.server 8000 --bind 127.0.0.1     # im Projektordner
+```
+
+Was eine Browser-Abnahme abdecken muss (kein Test erreicht das): **Login** (MSAL),
+**Karte** inklusive Aussehen (Leaflet JS + CSS), **PDF-Export** (jsPDF). Vorher prüfen,
+ob oben die erwartete Versionsnummer steht – sonst zeigt der Browser einen Cache-Stand.
 
 ## Code-Aufbau (Module in `index.html`)
 

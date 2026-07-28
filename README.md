@@ -1,6 +1,8 @@
 # SEA Praxisbesuche
 
-Single-File-Web-App zur Planung von **Praxisbesuchen** in der Pflegeausbildung.
+Web-App ohne Build-Schritt zur Planung von **Praxisbesuchen** in der Pflegeausbildung.
+Der gesamte eigene Code liegt in einer Datei (`index.html`), die Fremd-Libraries
+daneben in `vendor/`.
 Lehrkräfte verwalten Auszubildende, Einsatzorte und Termine, planen Touren
 (Karte/Route) und erzeugen Besuchs-PDFs. Ein Onboarding-Wizard führt durch die
 Ersteinrichtung.
@@ -15,9 +17,16 @@ Ersteinrichtung.
 
 ## Wie starten
 
-`index.html` im Browser öffnen (Doppelklick). Kein Build, keine Installation.
-Für die SharePoint-Funktionen ist ein Microsoft-Login nötig; die übrige Oberfläche
-funktioniert auch ohne.
+Kein Build, keine Installation. Zwei Wege:
+
+- **Mit Microsoft-Login** (SharePoint-Funktionen): über einen lokalen Server, weil
+  `file://` keine registrierbare Redirect-URI ist.
+  ```
+  python -m http.server 8000 --bind 127.0.0.1
+  ```
+  dann `http://localhost:8000/` öffnen.
+- **Ohne Login:** `index.html` per Doppelklick öffnen. Die übrige Oberfläche
+  funktioniert, der Ordner `vendor/` muss dabei daneben liegen.
 
 ## Tests
 
@@ -31,7 +40,8 @@ Headless-Logiktests (Node-Builtins, keine Dependencies). Siehe `CLAUDE.md` → T
 
 | Pfad | Inhalt |
 |------|--------|
-| `index.html` | die gesamte App |
+| `index.html` | die App – gesamter eigener Code |
+| `vendor/` | Fremd-Libraries (MSAL, Leaflet, jsPDF), lokal, kein CDN |
 | `CHANGELOG.md` | Änderungen je Version |
 | `tests/` | Logiktests + Bundle-Extraktor |
 
