@@ -1,0 +1,36 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
+  "formatter": {
+    "enabled": false
+  },
+  "javascript": {
+    "globals": ["L", "msal"]
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUndeclaredVariables": "error",
+        "noUnusedVariables": "off",
+        "noUnusedFunctionParameters": "off"
+      },
+      "suspicious": {
+        "useIterableCallbackReturn": "off",
+        "noAssignInExpressions": "off",
+        "noGlobalIsNan": "off",
+        "noGlobalIsFinite": "off"
+      },
+      "complexity": {
+        "useOptionalChain": "off",
+        "noUselessThisAlias": "off",
+        "useArrowFunction": "off"
+      },
+      "style": {
+        "useTemplate": "off",
+        "useConst": "off",
+        "useNamingConvention": "off"
+      }
+    }
+  }
+}

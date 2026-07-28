@@ -1,5 +1,9 @@
-# Build-Artefakt der Tests (wird aus index.html erzeugt)
+# Build-Artefakte (werden aus index.html erzeugt)
 tests/extracted_test_bundle.js
+tests/extracted_lint_bundle.js
+
+# Werkzeuge fuer die Entwicklung (Biome). Die App selbst braucht kein npm.
+node_modules/
 
 # Interne Projekt-Doku (kontext.md + spec/) – liegt jetzt im Unterordner planung/,
 # der ein eigenes, privates Git-Repo ist. Gehoert nicht in die public Repo.
