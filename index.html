@@ -1585,7 +1585,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.40.1";    // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.40.2";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -1725,7 +1725,7 @@ const SP_FELDER_AZUBIS = {
   praxisanleitung: "field_5",
   /* v0.40: von Hand ueber die Listenoberflaeche angelegt -- deshalb interner
      Name = Anzeigename. Die field_N stammen aus dem Excel-Import, der alle
-     Spalten auf einmal anlegte. */
+     Spalten auf einmal anlegte. In den Listeneinstellungen bestaetigt (26.07.2026). */
   vorherigerBezugslehrer: "VorherigerBezugslehrer"
 };
 
@@ -1848,7 +1848,8 @@ const Daten = {
              onboardingGesehen:false,                        /* v0.27: Einführung schon durchlaufen/übersprungen? (lokal, steuert Auto-Start) */
              meldungen:[],                                   /* v0.19: Feedback der Kolleg:innen (fürs Dashboard) */
              azubis:[], azubiNamen:{}, einrichtungen:[], termine:[], touren:[],
-             lehrer:[] };                                    /* v0.35: Bezugslehrer-Stammliste */
+             lehrer:[],                                      /* v0.35: Bezugslehrer-Stammliste */
+             schreibDefekt:null };                           /* v0.40.2: von SharePoint abgelehnte Spalte (stehender Hinweis) */
   },
   async laden(){
     try{ this.state = await DB.get("app","haupt") || this.leererState(); }
@@ -2706,21 +2707,44 @@ const SPSync = {
     }
   },
 
-  /* v0.40: Der interne Name von SP_FELDER_AZUBIS.vorherigerBezugslehrer ist nicht
-     verifiziert. Waere er falsch, lehnte SharePoint den GANZEN PATCH ab -- also auch
-     den Bezugslehrer, der seit v0.34 laeuft. Eine verlorene Zuordnung wiegt ungleich
-     schwerer als ein verlorener Merker, deshalb wird einmal ohne das neue Feld
-     nachgefasst. Genutzt von bezugslehrerSenden UND offeneSenden. */
+  /* v0.40: Waere der interne Name von SP_FELDER_AZUBIS.vorherigerBezugslehrer falsch,
+     lehnte SharePoint den GANZEN PATCH ab -- also auch den Bezugslehrer, der seit
+     v0.34 laeuft. Eine verlorene Zuordnung wiegt ungleich schwerer als ein verlorener
+     Merker, deshalb wird einmal ohne das neue Feld nachgefasst.
+     Genutzt von bezugslehrerSenden UND offeneSenden.
+
+     v0.40.2: Der Name ist inzwischen bestaetigt (Listeneinstellungen, 26.07.2026) --
+     das Nachfassen ist damit Vorsorge, kein erwarteter Fall. Es bleibt trotzdem
+     stehen: eine Spalte kann umbenannt werden, und der Preis dafuer, dass eine
+     Zuordnung wegen eines Merkers verloren geht, waere hoeher.
+
+     v0.40.2: Dieses Nachfassen war stumm -- kein Log, kein Hinweis. Die App
+     behauptete damit vollen Erfolg, obwohl die Haelfte verschluckt wurde; genau
+     dieser Fehlertyp blieb bei BesuchStatus wochenlang unbemerkt. Der Teil-Erfolg
+     wird jetzt zweifach vermerkt: am Azubi (vorgaengerOffen, fuer die Meldung
+     direkt nach dem Handgriff) und im State (schreibDefekt, fuer den stehenden
+     Hinweis -- der Toast ist nach Sekunden weg, die Ursache bleibt).
+     Ein spaeter gelungener voller PATCH loescht den Vermerk wieder: der Marker
+     beschreibt den letzten Stand, nicht die Vergangenheit. */
   async _bezugslehrerPatch(url, token, azubi){
     const felder={};
     felder[SP_FELDER_AZUBIS.bezugslehrer]=azubi.bezugslehrer||"";
     felder[SP_FELDER_AZUBIS.vorherigerBezugslehrer]=azubi.vorherigerBezugslehrer||"";
     try{
       await this._schreiben(url, token, "PATCH", felder);
+      azubi.vorgaengerOffen=false;
+      if(Daten.state) Daten.state.schreibDefekt=null;
     }catch(e){
       const nurBezugslehrer={};
       nurBezugslehrer[SP_FELDER_AZUBIS.bezugslehrer]=azubi.bezugslehrer||"";
+      /* Scheitert auch das, fliegt der Fehler weiter -- dann ist gar nichts
+         angekommen und der Aufrufer setzt blOffen. */
       await this._schreiben(url, token, "PATCH", nurBezugslehrer);
+      azubi.vorgaengerOffen=true;
+      if(Daten.state) Daten.state.schreibDefekt={
+        feld: SP_FELDER_AZUBIS.vorherigerBezugslehrer,
+        grund: String((e&&e.message)||e||""),
+        wann: new Date().toISOString() };
     }
   },
 
@@ -4285,6 +4309,33 @@ const Dashboard = {
     const zusatz=(kap && kap.ueberbucht) ? ` · jetzt ${kap.ist} / ${kap.soll}` : "";
     return `${azubiName}: ${von} → ${nach}${zusatz}`;
   },
+
+  /* v0.40.2: Zusatz zur Meldung nach einem Schreibvorgang. Die Sync-Warnung stand
+     bisher als Ternaer in der Oberflaeche (nicht testbar), der Teil-Erfolg nirgends.
+     Reihenfolge ist Absicht: "nichts angekommen" wiegt schwerer als "Merker fehlt"
+     und verdraengt es -- zwei Zusaetze in einer Zeile liest niemand. */
+  schreibHinweis(azubi){
+    if(!azubi) return "";
+    if(azubi.blOffen)         return " · noch nicht in SharePoint";
+    if(azubi.vorgaengerOffen) return " · Vorgänger nicht gemerkt";
+    return "";
+  },
+
+  /* v0.40.2: Text des stehenden Hinweises, solange SharePoint eine Spalte ablehnt.
+     Bewusst unabhaengig davon, ob noch markierte Azubis vorliegen: der Sync ersetzt
+     die Azubi-Liste komplett (azubisLaden ist fuehrend), die Flags sind danach weg --
+     die abgelehnte Spalte ist damit aber nicht in Ordnung. Ohne Zahl bleibt der
+     Hinweis stehen, mit Zahl nennt er den Umfang. */
+  schreibDefektMeldung(st){
+    const d=st && st.schreibDefekt;
+    if(!d || !d.feld) return null;
+    const n=(st.azubis||[]).filter(a=>a && a.vorgaengerOffen).length;
+    const umfang = n ? ` Betrifft ${n===1?"1 Azubi":n+" Azubis"} seit dem letzten Abgleich.` : "";
+    return `SharePoint nimmt die Spalte „${d.feld}“ nicht an. Zuordnungen werden `
+         + `gespeichert, der vorherige Bezugslehrer aber nicht – die Vertretung `
+         + `hätte damit nichts, worauf sie zurückgreifen kann.${umfang} `
+         + `Bitte den internen Feldnamen in den Listeneinstellungen prüfen.`;
+  },
   /* v0.40: Inhalt der Zuordnungs-Spalte. Standard ist die Sortierung nach
      Traegerhaus: Ein frisch importierter Kurs wird meist hausweise verteilt --
      so stehen die Azubis zusammen, die zur selben Lehrkraft gehen, und die
@@ -5055,8 +5106,20 @@ const Oberflaeche = {
       </div>
       <div id="lehrerTabelle">${this._lehrerTabelleHtml()}</div>
     </div>`;
+    /* v0.40.2: stehender Hinweis, wenn ein Schreibvorgang nur halb gelungen ist.
+       Nur fuer Admins -- nur sie schreiben hier, und nur sie koennen die Spalte
+       richtigstellen. Steht ueber den Spalten, damit er nicht im Scrollbereich
+       untergeht. */
+    const defekt = admin ? Dashboard.schreibDefektMeldung(Daten.state) : null;
+    /* Der Text kommt aus festen Konstanten -- escapen ist reine Vorsorge, falls
+       je ein Feldname aus SharePoint hier landet. Gleiches Mittel wie in
+       _azubiKachelHtml (dort ebenfalls lokal). */
+    const esc = s => String(s==null?"":s).replace(/</g,"&lt;");
+    const defektHtml = defekt
+      ? `<div class="hinweis" id="schreibDefekt">⚠ ${esc(defekt)}</div>` : "";
     return `<section class="einst-block" id="bereichBezugslehrende">
       <h2>Bezugslehrende <span class="einst-info" title="Eine Zeile je Lehrkraft. Ist = aktuell zugeordnete Azubis, Soll = Kapazität aus der SharePoint-Liste „Bezugslehrende“ (ersatzweise die „(Zahl)“ am Namen, solange die Liste jemanden nicht kennt). Trägerhaus (Schwerpunkt) = das Haus, aus dem die meisten ihrer Azubis kommen.">i</span></h2>
+      ${defektHtml}
       <div class="${admin?"zo-zweispaltig":""}">${spalte}${rechts}</div>
     </section>`;
   },
@@ -5260,7 +5323,8 @@ const Oberflaeche = {
          und, falls das Senden scheiterte, in dieselbe Meldung haengen. */
       const davor=await Azubis.bezugslehrerUmhaengen(azubi.id, wert, true);
       if(!davor) return;                       /* unveraendert -- keine Meldung */
-      const sync=azubi.blOffen ? " · noch nicht in SharePoint" : "";
+      /* v0.40.2: auch der halbe Erfolg kommt hier an (Zuordnung ja, Vorgaenger nein). */
+      const sync=Dashboard.schreibHinweis(azubi);
       this.toastAktion(
         Dashboard.umhaengenMeldung(azubiName, bezugslehrerAnzeige(vorher), bezugslehrerAnzeige(wert), kap)+sync,
         "Rückgängig",
