@@ -4,14 +4,19 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
-## v0.40.4 – 2026-07-28
+## v0.40.5 – 2026-07-28
 
-- **Fix: blasses Ziehbild beim Ziehen aus der Zuordnungs-Spalte.** Chip und Kachel sind
-  identisch gestaltet, aber die Spalte ist ein eigener Scrollbereich (`position:sticky`
-  + `overflow-y:auto`). Erzeugt der Browser das Ziehbild daraus, wird es durchscheinend
-  und unsauber berandet, während dieselbe Kachel unter einer Lehrkraft klar aussieht.
-  Das Ziehbild wird jetzt selbst gesetzt – ein Klon am Seitenrumpf, der den Scrollbereich
-  nicht kennt. Beide Richtungen sehen damit gleich aus.
+- **Das selbst gesetzte Ziehbild aus v0.40.4 ist zurückgenommen.** Es hat das blasse
+  Ziehbild beim Ziehen aus der Zuordnungs-Spalte nicht behoben und dabei den Greifpunkt
+  verschoben: Die Kachel hing anschließend immer an der linken oberen Ecke statt an der
+  Stelle, an der man sie gegriffen hat. Damit war die Erklärung widerlegt, der Scrollbereich
+  der Spalte (`position:sticky` + `overflow-y:auto`) sei die Ursache – ein Klon am
+  Seitenrumpf kennt diesen Bereich nicht und wurde trotzdem blass dargestellt.
+
+  Der ursprüngliche Punkt bleibt **offen und bekannt**: Beim Ziehen aus der linken Spalte
+  ist das Ziehbild durchscheinend und unsauber berandet, beim Ziehen einer Kachel unter
+  einer Lehrkraft nicht. Rein optisch, das Ziehen selbst funktioniert in beide Richtungen.
+  Zurückgestellt, bis die Ursache belegt ist – zwei ungeprüfte Erklärungen haben gereicht.
 
 ## v0.40.3 – 2026-07-28
 
