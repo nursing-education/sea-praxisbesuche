@@ -1585,7 +1585,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.40.3";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.40.4";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -5273,6 +5273,23 @@ const Oberflaeche = {
   /* v0.40: Ein Ziehvorgang beginnt/endet. herkunft = "spalte" | "zeile" --
      nur eine Kachel AUS einer Zeile darf in der Spalte abgelegt werden
      (ein Chip aus der Spalte auf die Spalte waere ein Nichts-Zug). */
+  /* v0.40.4: Das Ziehbild selbst bestimmen. Ueberlaesst man es dem Browser, malt er
+     die Kachel so, wie ihr Behaelter sie zeigt -- und die Zuordnungs-Spalte ist ein
+     eigener Scrollbereich (position:sticky + overflow-y:auto, siehe .zo-spalte).
+     Daraus entsteht ein blasses, unsauber berandetes Abbild, waehrend dieselbe
+     Kachel unter einer Lehrkraft klar aussieht. Ein Klon am body kennt diesen
+     Behaelter nicht, deshalb sehen jetzt beide Richtungen gleich aus. */
+  _ziehBildSetzen(el, ev){
+    if(!ev.dataTransfer.setDragImage) return;          /* aeltere Browser: unveraendert */
+    const klon=el.cloneNode(true);
+    klon.style.position="fixed"; klon.style.top="-1000px"; klon.style.left="0";
+    klon.style.width=el.offsetWidth+"px"; klon.style.pointerEvents="none";
+    document.body.appendChild(klon);
+    ev.dataTransfer.setDragImage(klon, 12, 12);
+    /* Das Bild ist aufgenommen, sobald der Handler durch ist -- der Klon darf weg. */
+    setTimeout(()=>klon.remove(), 0);
+  },
+
   _ziehenAn(id, herkunft){
     this._ziehtAzubi = (herkunft==="zeile") ? id : null;
     const t=document.getElementById("lehrerTabelle");
@@ -5379,6 +5396,8 @@ const Oberflaeche = {
       k.onclick=(ev)=> ev.stopPropagation();
       k.ondragstart=(ev)=>{ ev.dataTransfer.setData("text/plain", k.dataset.lkAzubi);
                             ev.dataTransfer.effectAllowed="move";
+                            /* auch hier -- beide Richtungen sollen gleich aussehen */
+                            this._ziehBildSetzen(k, ev);
                             this._ziehenAn(k.dataset.lkAzubi, "zeile"); };
       k.ondragend=()=> this._ziehenAus();
     });
@@ -6847,6 +6866,7 @@ const Oberflaeche = {
       k.onclick=()=>{ this.boardAuswahl = (this.boardAuswahl===k.dataset.zbAzubi) ? null : k.dataset.zbAzubi; this.render(); };
       k.ondragstart=(ev)=>{ ev.dataTransfer.setData("text/plain", k.dataset.zbAzubi);
                             ev.dataTransfer.effectAllowed="move";
+                            this._ziehBildSetzen(k, ev);
                             this._ziehenAn(k.dataset.zbAzubi, "spalte"); };
       k.ondragend=()=> this._ziehenAus();
     });

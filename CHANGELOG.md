@@ -4,6 +4,15 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.40.4 – 2026-07-28
+
+- **Fix: blasses Ziehbild beim Ziehen aus der Zuordnungs-Spalte.** Chip und Kachel sind
+  identisch gestaltet, aber die Spalte ist ein eigener Scrollbereich (`position:sticky`
+  + `overflow-y:auto`). Erzeugt der Browser das Ziehbild daraus, wird es durchscheinend
+  und unsauber berandet, während dieselbe Kachel unter einer Lehrkraft klar aussieht.
+  Das Ziehbild wird jetzt selbst gesetzt – ein Klon am Seitenrumpf, der den Scrollbereich
+  nicht kennt. Beide Richtungen sehen damit gleich aus.
+
 ## v0.40.3 – 2026-07-28
 
 Aus der Browser-Abnahme von v0.40.1.
