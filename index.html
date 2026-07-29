@@ -3264,6 +3264,74 @@ const Dashboard = {
     return `${azubiName}: ${von} → ${nach}${zusatz}`;
   },
 
+  /* ---------- v0.41: Vertretung bei laengerer Abwesenheit ------------------
+     Alles Pruefbare liegt hier und nicht in Oberflaeche -- die ist headless
+     nicht testbar. Verglichen wird durchgehend ueber _norm(bezugslehrerAnzeige(..)),
+     weil dieselbe Lehrkraft mal mit und mal ohne "(Zahl)" geschrieben wird. */
+  _blSchluessel(wert){ return SPSync._norm(bezugslehrerAnzeige(wert||"")||wert||""); },
+
+  /* Wer kann vertreten? Nicht sie selbst, nicht Archivierte, nicht wer selbst
+     abwesend ist (sonst vertritt jemand, der auch fehlt), und keine Nur-Text-
+     Lehrkraft -- fuer die gibt es keinen Datensatz, den man beschreiben koennte. */
+  vertretungKandidaten(zeilen, eigenerWert){
+    const eigen=this._blSchluessel(eigenerWert);
+    return (zeilen||[]).filter(z=> z.inListe && z.aktiv && !z.abwesend
+                                   && this._blSchluessel(z.wert)!==eigen);
+  },
+
+  /* Was passiert, wenn A abwesend gemeldet wird und B uebernimmt? Liefert die
+     betroffenen Azubis MIT NAMEN (Entscheidung 1 der Spec: eine blosse Zahl
+     laesst sich nicht pruefen) und die Kapazitaetsfolge bei B.
+     Ueberbuchung ist erlaubt, sie soll nur nicht unbemerkt passieren. */
+  vertretungVorschau(azubis, namen, vonWert, nachWert, zeilen){
+    const von=this._blSchluessel(vonWert);
+    const betroffen=(azubis||[])
+      .filter(a=> this._blSchluessel(a && a.bezugslehrer)===von)
+      .map(a=> ({ id:a.id, name:((namen||{})[a.id])||a.kuerzel||"" }));
+    const nach=this._blSchluessel(nachWert);
+    const zielZeile=(zeilen||[]).find(z=> this._blSchluessel(z.wert)===nach) || null;
+    const soll=(zielZeile && zielZeile.soll!=null) ? zielZeile.soll : null;
+    const ist=(zielZeile ? zielZeile.ist : 0) + betroffen.length;
+    return { azubis:betroffen, anzahl:betroffen.length, ist, soll,
+             ueberbucht: soll!==null && ist>soll };
+  },
+
+  /* "Ist zurueck": zurueck geholt wird nur, wer BEI DER VERTRETUNG liegt und
+     von A kam. Ein Azubi mit vorheriger=A, der inzwischen bei einer dritten
+     Lehrkraft liegt, ist eine bewusste Abgabe und gehoert nach "anderswo" --
+     sonst dreht die Aktion mehr zurueck, als sie ankuendigt (der Befund, der
+     den urspruenglichen Entwurf verworfen hat).
+     Ohne Vertretungseintrag bleiben beide Listen leer: dann fehlt der
+     Bezugspunkt, und "anderswo" waere eine Behauptung ins Blaue. */
+  rueckschubKandidaten(azubis, namen, zeile){
+    const leer={ zurueck:[], anderswo:[] };
+    if(!zeile) return leer;
+    const vertretung=this._blSchluessel(zeile.vertretungDurch);
+    if(!vertretung) return leer;
+    const a=this._blSchluessel(zeile.wert);
+    const raus={ zurueck:[], anderswo:[] };
+    (azubis||[]).forEach(x=>{
+      if(this._blSchluessel(x && x.vorherigerBezugslehrer)!==a) return;
+      const eintrag={ id:x.id, name:((namen||{})[x.id])||x.kuerzel||"" };
+      if(this._blSchluessel(x.bezugslehrer)===vertretung) raus.zurueck.push(eintrag);
+      else                                                raus.anderswo.push(eintrag);
+    });
+    return raus;
+  },
+
+  /* Meldung nach einem Gruppen-Schreibvorgang. Anschluss an v0.40.2: ein halb
+     gelungener Vorgang darf nicht als Erfolg aussehen, ein komplett
+     gescheiterter erst recht nicht. */
+  gruppenMeldung(ok, offen, was){
+    const gut=Number(ok)||0, fehlt=Number(offen)||0, gesamt=gut+fehlt;
+    const wo=String(was||"").trim();
+    /* Ohne Schlusspunkt -- wie umhaengenMeldung und schreibHinweis daneben. */
+    if(gesamt===0) return "Keine Azubis betroffen";
+    if(fehlt===0)  return gesamt+" Azubi"+(gesamt===1?"":"s")+(wo?" "+wo:"");
+    if(gut===0)    return "Kein Azubi konnte übertragen werden, "+gesamt+" werden nachgereicht";
+    return gut+" von "+gesamt+" übertragen, "+fehlt+" werden nachgereicht";
+  },
+
   /* v0.40.2: Zusatz zur Meldung nach einem Schreibvorgang. Die Sync-Warnung stand
      bisher als Ternaer in der Oberflaeche (nicht testbar), der Teil-Erfolg nirgends.
      Reihenfolge ist Absicht: "nichts angekommen" wiegt schwerer als "Merker fehlt"

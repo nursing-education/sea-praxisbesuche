@@ -68,6 +68,93 @@ p('filter: archiviert und abwesend beissen sich nicht',
   namen(Dashboard.lehrkraftFiltern(zeilen, { modus: 'archiviert' })) === 'Curt, Cara'
   && namen(Dashboard.lehrkraftFiltern(zeilen, { modus: 'alle' })).indexOf('Curt, Cara') < 0);
 
+/* ---------- 2. Vertretungs-Logik --------------------------------------- */
+/* Berg bekommt bewusst nur Kapazitaet 2: die drei Azubis von Abele ueberbuchen
+   sie, und genau das soll die Vorschau sagen statt es zu verschlucken.
+   Curt hat gar keine Kapazitaet hinterlegt -- dort ist "ueberbucht" keine
+   Aussage, die man treffen kann. */
+Daten.state.lehrer = [
+  { spId: '1', name: 'Abele, Anna', kapazitaet: 12,   aktiv: true,  abwesend: false, vertretungDurch: '' },
+  { spId: '2', name: 'Berg, Bea',   kapazitaet: 2,    aktiv: true,  abwesend: false, vertretungDurch: '' },
+  { spId: '3', name: 'Curt, Cara',  kapazitaet: null, aktiv: true,  abwesend: false, vertretungDurch: '' },
+  { spId: '4', name: 'Dorn, Dirk',  kapazitaet: 12,   aktiv: false, abwesend: false, vertretungDurch: '' },
+  { spId: '5', name: 'Egli, Eva',   kapazitaet: 12,   aktiv: true,  abwesend: true,  vertretungDurch: '' }
+];
+const azubis2 = [
+  { id: 'a1', bezugslehrer: 'Abele, Anna (12)' },
+  { id: 'a2', bezugslehrer: 'Abele, Anna (12)' },
+  { id: 'a3', bezugslehrer: 'Abele, Anna (12)' },
+  { id: 'a9', bezugslehrer: 'Textlehrer, Tim (5)' }
+];
+const namen2 = { a1: 'Klein, K.', a2: 'Roth, R.', a3: 'Weber, W.', a9: 'Tim, T.' };
+const zeilen2 = Dashboard.lehrkraftZeilen(azubis2);
+const abele = 'Abele, Anna (12)';
+
+const kand = Dashboard.vertretungKandidaten(zeilen2, abele);
+p('kandidaten: sie selbst ist nicht dabei',
+  kand.every(x => x.name !== 'Abele, Anna'));
+p('kandidaten: Archivierte und bereits Abwesende sind draussen',
+  kand.every(x => x.name !== 'Dorn, Dirk' && x.name !== 'Egli, Eva'));
+p('kandidaten: Nur-Text-Lehrkraft ist draussen',
+  kand.every(x => x.name !== 'Textlehrer, Tim'));
+p('kandidaten: es bleiben genau die zwei moeglichen',
+  namen(kand) === 'Berg, Bea,Curt, Cara');
+
+const vor = Dashboard.vertretungVorschau(azubis2, namen2, abele, 'Berg, Bea (2)', zeilen2);
+p('vorschau: zaehlt die Azubis der abgebenden Lehrkraft',
+  vor.anzahl === 3);
+p('vorschau: nennt Namen, nicht nur eine Zahl',
+  vor.azubis.map(x => x.name).sort().join(',') === 'Klein, K.,Roth, R.,Weber, W.');
+p('vorschau: meldet die Ueberbuchung bei der Vertretung',
+  vor.ist === 3 && vor.soll === 2 && vor.ueberbucht === true);
+
+const vorOhneKap = Dashboard.vertretungVorschau(azubis2, namen2, abele, 'Curt, Cara', zeilen2);
+p('vorschau: ohne hinterlegte Kapazitaet keine Ueberbuchungs-Aussage',
+  vorOhneKap.soll === null && vorOhneKap.ueberbucht === false);
+
+const vorLeer = Dashboard.vertretungVorschau(azubis2, namen2, 'Egli, Eva (12)', 'Berg, Bea (2)', zeilen2);
+p('vorschau: Abwesenheit ohne Azubis ist gueltig',
+  vorLeer.anzahl === 0 && vorLeer.azubis.length === 0);
+
+/* Der Befund, der den urspruenglichen Entwurf verworfen hat: Weber hat zwar
+   vorheriger=Abele, liegt aber inzwischen bei Curt -- eine bewusste Abgabe.
+   "Ist zurueck" darf ihn nicht stumm zurueckziehen. */
+const rueckAzubis = [
+  { id: 'a1', bezugslehrer: 'Berg, Bea (2)',  vorherigerBezugslehrer: 'Abele, Anna (12)' },
+  { id: 'a2', bezugslehrer: 'Berg, Bea (2)',  vorherigerBezugslehrer: 'Abele, Anna (12)' },
+  { id: 'a3', bezugslehrer: 'Curt, Cara',     vorherigerBezugslehrer: 'Abele, Anna (12)' },
+  { id: 'a4', bezugslehrer: 'Berg, Bea (2)',  vorherigerBezugslehrer: 'Zeta, Zoe (3)' }
+];
+const zeileAbwesend = { wert: abele, name: 'Abele, Anna', abwesend: true, vertretungDurch: 'Berg, Bea (2)' };
+const rueck = Dashboard.rueckschubKandidaten(rueckAzubis, namen2, zeileAbwesend);
+
+p('rueckschub: holt nur, wer bei der Vertretung liegt und von ihr kam',
+  rueck.zurueck.map(x => x.id).sort().join(',') === 'a1,a2');
+p('rueckschub: wer inzwischen woanders liegt, steht unter "anderswo"',
+  rueck.anderswo.map(x => x.id).join(',') === 'a3');
+p('rueckschub: wer nie von ihr kam, taucht nirgends auf',
+  rueck.zurueck.concat(rueck.anderswo).every(x => x.id !== 'a4'));
+p('rueckschub: liefert Namen mit',
+  rueck.zurueck.map(x => x.name).sort().join(',') === 'Klein, K.,Roth, R.');
+
+/* Ohne Vertretungseintrag gibt es keinen Bezugspunkt: "anderswo" waere dann
+   eine Behauptung ueber Abgaben, von denen niemand weiss, ob sie je eine
+   Vertretung waren. Beide Listen bleiben leer. */
+const ohneVertretung = Dashboard.rueckschubKandidaten(rueckAzubis, namen2,
+  { wert: abele, name: 'Abele, Anna', abwesend: true, vertretungDurch: '' });
+p('rueckschub: ohne Vertretungseintrag bleiben beide Listen leer',
+  ohneVertretung.zurueck.length === 0 && ohneVertretung.anderswo.length === 0);
+
+p('meldung: vollstaendig nennt nur das Ergebnis',
+  Dashboard.gruppenMeldung(12, 0, 'bei Schulz') === '12 Azubis bei Schulz');
+p('meldung: teilweise nennt beide Zahlen',
+  Dashboard.gruppenMeldung(9, 3, 'bei Schulz') === '9 von 12 übertragen, 3 werden nachgereicht');
+p('meldung: komplett gescheitert behauptet keinen Erfolg',
+  /^Kein/.test(Dashboard.gruppenMeldung(0, 12, 'bei Schulz'))
+  && Dashboard.gruppenMeldung(0, 12, 'bei Schulz').indexOf('12') >= 0);
+p('meldung: ein einzelner Azubi wird nicht gemehrzahlt',
+  Dashboard.gruppenMeldung(1, 0, 'bei Schulz') === '1 Azubi bei Schulz');
+
 console.log(log.join('\n'));
 console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
 process.exit(fail ? 1 : 0);
