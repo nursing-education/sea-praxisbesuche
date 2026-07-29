@@ -4,6 +4,45 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.41.0 – 2026-07-29
+
+- **Vertretung bei längerer Abwesenheit.** Fällt eine Lehrkraft länger aus, lassen
+  sich ihre Azubis in einem Zug an eine Vertretung übergeben – und beim Zurückkommen
+  in einem Zug zurückholen.
+
+  **Neu in der Liste `Bezugslehrende`:** die Spalten `Abwesend` (Ja/Nein) und
+  `VertretungDurch` (Text). `Abwesend` ist unabhängig von `Aktiv`: aktiv und
+  abwesend heißt „gehört dazu, ist gerade nicht verfügbar".
+
+  **Der eigentliche Kern ist eine Bedingung im Filter „Freie Kapazität":** Wer
+  abwesend ist, erscheint dort nicht mehr. Ohne das schlägt die Verteilung genau
+  die Lehrkraft vor, die gerade ausfällt – sie steht dort sogar ganz oben, weil ihre
+  Azubis bei der Vertretung liegen und ihr Ist damit 0 ist. In „Alle" und über die
+  Suche bleibt sie sichtbar, Ist/Soll und Ampel bleiben unverändert: 0 / 25 ist bei
+  ihr die Wahrheit, falsch war nur der Filter.
+
+  **„Als abwesend melden"** (⋮-Menü, nur Admin): Vertretung auswählen, darunter eine
+  Vorschau mit den **Namen** der betroffenen Azubis und der Kapazitätsfolge bei der
+  Vertretung. Überbuchen bleibt erlaubt, wird aber genannt. Erst werden die Azubis
+  umgehängt, dann wird die Abwesenheit gesetzt – kommt kein einziger Azubi an, steht
+  die Lehrkraft nicht als „vertreten durch X" da.
+
+  **„Ist zurück"**: Namensliste mit Häkchen, alle vorausgewählt. Zurückgeholt wird
+  nur, wer **bei der Vertretung liegt und von dieser Lehrkraft kam**. Ein Azubi, der
+  zwischenzeitlich bewusst an eine dritte Lehrkraft ging, wird **nicht** stumm
+  zurückgezogen, sondern oberhalb der Liste namentlich genannt. Abgewählte bleiben,
+  wo sie sind; die Abwesenheit endet trotzdem.
+
+  **Die Zeile zeigt „abwesend · vertreten durch X"** als dritte Status-Pille und wird
+  beim Zuordnen gedimmt wie eine volle Lehrkraft. Zuordnen bleibt möglich – bewusstes
+  Überstimmen.
+
+  **Bekannte Grenzen, bewusst:** Verkettete Vertretung (die Vertretung fällt selbst
+  aus) wird nur sichtbar gemacht, nicht aufgelöst – das Gedächtnis ist einstufig.
+  Kein „abwesend bis"-Datum, keine Historie, kein Genehmigungsweg. Ein Gruppenvorgang
+  schreibt je Azubi einzeln und zeichnet dazwischen neu; bei vielen Azubis dauert das
+  entsprechend.
+
 ## v0.40.6 – 2026-07-28
 
 - **Die eingebetteten Fremd-Libraries liegen jetzt in `vendor/`.** MSAL, Leaflet
