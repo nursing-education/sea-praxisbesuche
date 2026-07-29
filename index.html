@@ -135,6 +135,9 @@
   .unsicher-mark{background:#FDEEDB}
   .hinweis.warn{border-left-color:#C8521E;background:#FDEEDB}
   .pill.vorschlag{background:#F6D9C2;color:#8a3b00;font-weight:600}
+  /* v0.41: dritter Zustand neben aktiv und archiviert. Farbwerte aus dem
+     vorhandenen Bestand (.unsicher-mark / .hinweis.warn), keine neue Farbe. */
+  .pill.abwesend{background:#FDEEDB;color:#C8521E}
   .werkzeug{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
   /* v0.34: Azubi-Zuordnungs-Board (Dashboard, Admin) */
   .zb-board{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
@@ -3319,6 +3322,15 @@ const Dashboard = {
     return raus;
   },
 
+  /* Text der Status-Pille. Bewusst hier und nicht in der Oberflaeche: dass die
+     "(Zahl)" wegfaellt und dass ohne Vertretung nur "abwesend" dasteht, sind
+     pruefbare Regeln -- das Markup drumherum ist es nicht. */
+  abwesenheitsText(z){
+    if(!z || !z.abwesend) return "";
+    const v=bezugslehrerAnzeige(z.vertretungDurch||"");
+    return v ? "abwesend · vertreten durch "+v : "abwesend";
+  },
+
   /* Meldung nach einem Gruppen-Schreibvorgang. Anschluss an v0.40.2: ein halb
      gelungener Vorgang darf nicht als Erfolg aussehen, ein komplett
      gescheiterter erst recht nicht. */
@@ -3491,6 +3503,10 @@ const Bezugslehrer = {
         if(obj.stellenumfang!==undefined) l.stellenumfang=(obj.stellenumfang!=null && obj.stellenumfang!=="")?Number(obj.stellenumfang):null;
         if(obj.kapazitaet!==undefined)    l.kapazitaet   =(obj.kapazitaet!=null    && obj.kapazitaet!=="")   ?Number(obj.kapazitaet):null;
         if(obj.aktiv!=null) l.aktiv=!!obj.aktiv;
+        /* v0.41: gleiche Bedingungen wie in SPSync.lehrerAendern -- sonst weicht
+           der lokale Stand von dem ab, was in SharePoint steht. */
+        if(obj.abwesend!=null) l.abwesend=!!obj.abwesend;
+        if(obj.vertretungDurch!==undefined) l.vertretungDurch=obj.vertretungDurch||"";
       }
       await Daten.speichern("Bezugslehrer geändert");
       return true;
@@ -4159,6 +4175,9 @@ const Oberflaeche = {
      diesen Teil neu zeichnet (siehe _lehrerTabelleRender). */
   _lehrerTabelleHtml(){
     const admin=Dashboard.darfVerwalten();
+    /* v0.41: Der Vertretungsname kommt aus SharePoint -- hier ist Escapen nicht
+       Vorsorge wie in der Funktion darueber, sondern noetig. */
+    const esc = s => String(s==null?"":s).replace(/</g,"&lt;");
     const alle=Dashboard.lehrkraftZeilen(Azubis.alle());
     if(!alle.length) return `<div class="leer">Noch keine Azubis geladen. Bitte im Praxisbesuchsplaner unter „Einstellungen" bei SharePoint anmelden bzw. synchronisieren.</div>`;
     const zeilen=Dashboard.lehrkraftFiltern(alle,{suche:this.lehrerSuche, modus:this.lehrerModus, sortierung:this.lehrerSort});
@@ -4174,14 +4193,22 @@ const Oberflaeche = {
         ? `<span class="ampel ${z.ampel}"></span>${pz}\u00a0%<div class="ausl-balken"><i style="width:${Math.min(100,pz)}%;background:${farbe}"></i></div>`
         : `<span class="meta">Kapazität nicht hinterlegt</span>`;
       /* Ueberbuchen bleibt moeglich -- es soll nur nicht unbemerkt passieren.
-         Wann gedimmt wird, entscheidet das CSS (Klick-Modus oder Ziehen). */
-      const voll = z.frei!=null && z.frei<=0;
+         Wann gedimmt wird, entscheidet das CSS (Klick-Modus oder Ziehen).
+         v0.41: Abwesende werden genauso gedimmt. Dieselbe Klasse, weil es
+         dieselbe Aussage ist ("hier eher nicht") und Zuordnen in beiden
+         Faellen moeglich bleibt -- bewusstes Ueberstimmen. */
+      const gedimmt = z.abwesend || (z.frei!=null && z.frei<=0);
       /* inListe=false: Lehrkraft existiert nur als Text an den Azubis (Drift-Punkt 2
          der Datenarchitektur). Sichtbar machen statt verstecken -- ohne spId gibt es
          nichts zu bearbeiten. */
+      /* v0.41: Reihenfolge ist Absicht -- archiviert schlaegt abwesend. Wer
+         ausgeschieden ist, ist nicht "abwesend, vertreten durch X"; die beiden
+         Zustaende sind unabhaengig, aber nur einer passt in eine Pille. */
       const status = !z.inListe
         ? `<span class="pill warn" title="Steht nur als Text an den Azubis, nicht in der Liste „Bezugslehrende“ – daher nicht bearbeitbar.">nicht in Stammliste</span>`
-        : (z.aktiv ? `<span class="pill">aktiv</span>` : `<span class="pill warn">archiviert</span>`);
+        : !z.aktiv   ? `<span class="pill warn">archiviert</span>`
+        : z.abwesend ? `<span class="pill abwesend">${esc(Dashboard.abwesenheitsText(z))}</span>`
+        :              `<span class="pill">aktiv</span>`;
       const aktionen = admin
         ? this._aktionsMenueHtml(Dashboard.lehrkraftAktionen(z), z.spId)
         : "";
@@ -4209,7 +4236,7 @@ const Oberflaeche = {
              this._azubiKachelHtml(m, `data-lk-azubi="${m.id}"`, "", farben)
            ).join("")}</div></td></tr>`
         : "";
-      return `<tr class="lk-zeile${voll?" lk-voll":""}"${admin?` data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"`:""}>
+      return `<tr class="lk-zeile${gedimmt?" lk-voll":""}"${admin?` data-zb-lehrer="${String(z.wert).replace(/"/g,"&quot;")}"`:""}>
         ${admin?`<td class="lk-auf">${chevron}</td>`:""}
         <td>${z.name.replace(/</g,"&lt;")}</td>
         <td>${z.stellenumfang!=null?z.stellenumfang+"\u00a0%":`<span class="meta">—</span>`}</td>

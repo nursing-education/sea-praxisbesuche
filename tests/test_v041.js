@@ -155,6 +155,38 @@ p('meldung: komplett gescheitert behauptet keinen Erfolg',
 p('meldung: ein einzelner Azubi wird nicht gemehrzahlt',
   Dashboard.gruppenMeldung(1, 0, 'bei Schulz') === '1 Azubi bei Schulz');
 
+/* ---------- 3. Lokale Uebernahme und Pillen-Text ----------------------- */
+/* SPSync.lehrerAendern PATCHt die beiden Felder korrekt (Aufgabe 1), aber
+   Bezugslehrer.aendern schrieb sie nicht in den lokalen State zurueck -- die
+   Zeile haette bis zum naechsten Sync unveraendert dagestanden. */
+Daten.state.lehrer = [
+  { spId: '7', name: 'Abele, Anna', stellenumfang: 100, kapazitaet: 12, aktiv: true, abwesend: false, vertretungDurch: '' }
+];
+const gemerkt = Daten.state.lehrer[0];
+SPSync.lehrerAendern = async () => {};
+
+await Bezugslehrer.aendern('7', { abwesend: true, vertretungDurch: 'Berg, Bea (2)' });
+p('aendern: abwesend kommt lokal an',
+  gemerkt.abwesend === true);
+p('aendern: vertretungDurch kommt lokal an',
+  gemerkt.vertretungDurch === 'Berg, Bea (2)');
+p('aendern: Teil-Update laesst die Nachbarfelder stehen',
+  gemerkt.kapazitaet === 12 && gemerkt.stellenumfang === 100 && gemerkt.aktiv === true);
+
+await Bezugslehrer.aendern('7', { abwesend: false, vertretungDurch: '' });
+p('aendern: das Leeren kommt lokal an -- sonst bliebe eine beendete Vertretung stehen',
+  gemerkt.abwesend === false && gemerkt.vertretungDurch === '');
+
+/* Der Pillen-Text gehoert nach Dashboard, nicht in die Oberflaeche: die Regel
+   "ohne (Zahl)" und der Fall ohne Vertretung sind pruefbar, das Markup nicht. */
+p('pille: nennt die Vertretung ohne die "(Zahl)"',
+  Dashboard.abwesenheitsText({ abwesend: true, vertretungDurch: 'Berg, Bea (2)' })
+    === 'abwesend · vertreten durch Berg, Bea');
+p('pille: ohne Vertretung nur "abwesend"',
+  Dashboard.abwesenheitsText({ abwesend: true, vertretungDurch: '' }) === 'abwesend');
+p('pille: wer da ist, bekommt keinen Text',
+  Dashboard.abwesenheitsText({ abwesend: false, vertretungDurch: 'Berg, Bea (2)' }) === '');
+
 console.log(log.join('\n'));
 console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
 process.exit(fail ? 1 : 0);
