@@ -684,10 +684,16 @@ const SP_FELDER_EINSAETZE = {
 /* v0.35 -- Feldzuordnung Liste "Bezugslehrer" (Lehrkräfte-Stammdaten). Einwort-
    Spaltennamen -> interner SharePoint-Name = Anzeigename. */
 const SP_FELDER_BEZUGSLEHRER = {
-  name         : "Title",         /* "Nachname, Vorname" */
-  stellenumfang: "Stellenumfang", /* Stellenprozent (Zahl) */
-  kapazitaet   : "Kapazitaet",    /* max. Azubi-Zahl (Zahl) */
-  aktiv        : "Aktiv"          /* Ja/Nein: true=aktiv, false=archiviert */
+  name           : "Title",         /* "Nachname, Vorname" */
+  stellenumfang  : "Stellenumfang", /* Stellenprozent (Zahl) */
+  kapazitaet     : "Kapazitaet",    /* max. Azubi-Zahl (Zahl) */
+  aktiv          : "Aktiv",         /* Ja/Nein: true=aktiv, false=archiviert */
+  /* v0.41 -- von Hand ueber die Listenoberflaeche angelegt, interner Name =
+     Anzeigename (in den Listeneinstellungen bestaetigt 28.07.2026).
+     "Abwesend" ist unabhaengig von "Aktiv": aktiv+abwesend = gehoert dazu,
+     ist gerade nicht verfuegbar. */
+  abwesend       : "Abwesend",      /* Ja/Nein: true=faellt gerade aus */
+  vertretungDurch: "VertretungDurch"/* Rohwert inkl. "(Zahl)", wie Azubis.Bezugslehrer */
 };
 
 /* Ausbildung ergibt sich aus dem Kurs-Text (bestaetigte Regel):
@@ -1473,7 +1479,10 @@ const SPSync = {
         name: f[F.name]!=null ? String(f[F.name]) : "",
         stellenumfang: zahl(f[F.stellenumfang]),
         kapazitaet: zahl(f[F.kapazitaet]),
-        aktiv: f[F.aktiv]!==false        /* fehlt/true -> aktiv; nur explizit false = archiviert */
+        aktiv: f[F.aktiv]!==false,       /* fehlt/true -> aktiv; nur explizit false = archiviert */
+        /* v0.41 -- fehlt die Spalte, ist das Ergebnis false bzw. "": kein Sonderfall. */
+        abwesend: f[F.abwesend]===true,
+        vertretungDurch: f[F.vertretungDurch]!=null ? String(f[F.vertretungDurch]) : ""
       };
     }).filter(l=> l.name);
   },
@@ -1505,6 +1514,10 @@ const SPSync = {
     if(obj.stellenumfang!==undefined) felder[F.stellenumfang]=(obj.stellenumfang!=null && obj.stellenumfang!=="")?Number(obj.stellenumfang):null;
     if(obj.kapazitaet!==undefined)    felder[F.kapazitaet]   =(obj.kapazitaet!=null    && obj.kapazitaet!=="")   ?Number(obj.kapazitaet):null;
     if(obj.aktiv!=null) felder[F.aktiv]=!!obj.aktiv;
+    if(obj.abwesend!=null) felder[F.abwesend]=!!obj.abwesend;
+    /* v0.41: !==undefined statt !=null -- "" ist hier das gewollte Signal zum Leeren,
+       genau wie bei kapazitaet. Mit !=null bliebe eine beendete Vertretung stehen. */
+    if(obj.vertretungDurch!==undefined) felder[F.vertretungDurch]=obj.vertretungDurch||"";
     await this._schreiben(url + "/" + spId + "/fields", token, "PATCH", felder);
   },
   /* v0.36 -- Lehrkraft löschen. */
