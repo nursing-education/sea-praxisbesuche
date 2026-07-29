@@ -3150,6 +3150,10 @@ const Dashboard = {
                  /* Nur-Text-Lehrkraft (nicht in der Stammliste) gilt als aktiv --
                     sie hat ja Azubis. inListe=false steuert Markierung + Aktionen. */
                  aktiv:   l ? (l.aktiv!==false) : true,
+                 /* v0.41: Nur-Text-Lehrkraft gilt auch als anwesend -- es gibt
+                    keinen Datensatz, der etwas anderes sagen koennte. */
+                 abwesend:        l ? l.abwesend===true : false,
+                 vertretungDurch: (l && l.vertretungDurch) ? l.vertretungDurch : "",
                  inListe: !!l,
                  frei:    (z.soll!=null) ? (z.soll - z.ist) : null };
       });
@@ -3330,7 +3334,10 @@ const Dashboard = {
       }
       if(modus==="archiviert")  return !z.aktiv;
       if(!z.aktiv)              return false;
-      if(modus==="frei")        return z.frei!=null && z.frei>0;
+      /* v0.41: Wer abwesend ist, hat keine freie Kapazitaet -- sonst schlaegt die
+         Verteilung genau die Lehrkraft vor, die gerade nicht da ist. Ist/Soll und
+         Ampel bleiben unveraendert: 0/25 ist bei ihr die Wahrheit. */
+      if(modus==="frei")        return z.frei!=null && z.frei>0 && !z.abwesend;
       if(modus==="ueberlastet") return z.ampel==="rot";
       return true;
     });
