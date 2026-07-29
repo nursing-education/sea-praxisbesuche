@@ -187,6 +187,26 @@ p('pille: ohne Vertretung nur "abwesend"',
 p('pille: wer da ist, bekommt keinen Text',
   Dashboard.abwesenheitsText({ abwesend: false, vertretungDurch: 'Berg, Bea (2)' }) === '');
 
+/* ---------- 4. Menuepunkte der Lehrkraft-Zeile ------------------------- */
+const mp = z => Dashboard.lehrkraftAktionen(z).map(x => x.id).join(',');
+const da       = { inListe: true,  aktiv: true,  abwesend: false };
+const weg      = { inListe: true,  aktiv: true,  abwesend: true  };
+const archiv   = { inListe: true,  aktiv: false, abwesend: false };
+const nurText  = { inListe: false, aktiv: true,  abwesend: false };
+
+p('menue: wer da ist, kann abwesend gemeldet werden',
+  mp(da).indexOf('abwesend') >= 0 && mp(da).indexOf('zurueck') < 0);
+p('menue: wer abwesend ist, kann zurueckgemeldet werden',
+  mp(weg).indexOf('zurueck') >= 0 && mp(weg).indexOf('abwesend') < 0);
+p('menue: eine archivierte Lehrkraft bekommt keinen der beiden Punkte',
+  mp(archiv).indexOf('abwesend') < 0 && mp(archiv).indexOf('zurueck') < 0);
+p('menue: die bestehenden Punkte bleiben erhalten',
+  mp(da).indexOf('edit') >= 0 && mp(da).indexOf('archiv') >= 0 && mp(da).indexOf('del') >= 0);
+p('menue: Nur-Text-Lehrkraft hat weiterhin gar kein Menue',
+  Dashboard.lehrkraftAktionen(nurText).length === 0);
+p('menue: Loeschen bleibt der letzte Punkt',
+  Dashboard.lehrkraftAktionen(weg).slice(-1)[0].id === 'del');
+
 console.log(log.join('\n'));
 console.log('\n' + ok + '/' + (ok + fail) + ' Tests bestanden.');
 process.exit(fail ? 1 : 0);

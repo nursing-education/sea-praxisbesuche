@@ -28,9 +28,12 @@ const ids = liste => liste.map(x => x.id).join(',');
 
 /* --- Lehrkraft: aktiv, in der Stammliste --- */
 const aktiv = Dashboard.lehrkraftAktionen({ inListe: true, aktiv: true });
-p('aktiv: drei Punkte in fester Reihenfolge', ids(aktiv) === 'edit,archiv,del');
+/* v0.41 hat "Als abwesend melden" ergaenzt -- die Erwartung ist deshalb von
+   drei auf vier Punkte nachgezogen. Loeschen bleibt der letzte Punkt, das ist
+   die eigentliche Zusage dieses Tests. */
+p('aktiv: vier Punkte in fester Reihenfolge', ids(aktiv) === 'edit,archiv,abwesend,del');
 p('aktiv: Punkt heisst Archivieren', aktiv[1].label === 'Archivieren');
-p('aktiv: Loeschen ist als Gefahr markiert', aktiv[2].gefahr === true);
+p('aktiv: Loeschen ist als Gefahr markiert', aktiv[aktiv.length-1].gefahr === true);
 p('aktiv: Bearbeiten ist keine Gefahr', !aktiv[0].gefahr);
 
 /* --- Lehrkraft: archiviert --- */

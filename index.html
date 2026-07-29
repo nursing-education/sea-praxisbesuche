@@ -3431,11 +3431,17 @@ const Dashboard = {
      Ohne spId (nur als Text am Azubi) gibt es nichts zu bearbeiten -> kein Menue. */
   lehrkraftAktionen(z){
     if(!z || !z.inListe) return [];
-    return [
+    const punkte=[
       {id:"edit",   label:"Bearbeiten"},
       {id:"archiv", label: z.aktiv ? "Archivieren" : "Reaktivieren"},
-      {id:"del",    label:"Löschen", gefahr:true},
     ];
+    /* v0.41: nur bei aktiven Lehrkraeften. Eine archivierte vertreten zu lassen
+       ergibt keinen Sinn -- sie betreut niemanden mehr. Loeschen bleibt letzter
+       Punkt, damit der gefaehrliche Eintrag nicht mitten in der Liste steht. */
+    if(z.aktiv && !z.abwesend) punkte.push({id:"abwesend", label:"Als abwesend melden"});
+    if(z.aktiv &&  z.abwesend) punkte.push({id:"zurueck",  label:"Ist zurück"});
+    punkte.push({id:"del", label:"Löschen", gefahr:true});
+    return punkte;
   },
   /* v0.39: Einrichtungen bekommen bewusst KEIN Archivieren -- fuer die Liste
      existiert kein Schreibweg nach SharePoint, ein solcher Knopf wuerde nur
@@ -4396,6 +4402,8 @@ const Oberflaeche = {
     this._aktionsMenueVerdrahten("#lehrerTabelle", (punkt, spId)=>{
       if(punkt==="edit")   this.lehrerFormular(Bezugslehrer.alle().find(l=>String(l.spId)===String(spId)));
       if(punkt==="archiv") this.lehrerArchivKlick(spId);
+      if(punkt==="abwesend") this.lehrerAbwesendKlick(spId);
+      if(punkt==="zurueck")  this.lehrerZurueckKlick(spId);
       if(punkt==="del")    this.lehrerLoeschenKlick(spId);
     });
     document.querySelectorAll("[data-zb-lehrer]").forEach(z=>{
@@ -4494,6 +4502,147 @@ const Oberflaeche = {
       this.toast(neu?`„${nm}" ist wieder aktiv`:`„${nm}" archiviert`);
       this.render();
     }
+  },
+
+  /* ---- v0.41: Vertretung bei laengerer Abwesenheit -----------------------
+     Beide Dialoge zeichnen sich bei jeder Auswahl neu (Muster von _dfaRendern):
+     Der Zustand steckt in den Parametern, nicht in einem Instanzfeld -- so kann
+     kein alter Dialogzustand einen neuen ueberleben. */
+  _dlgEsc(v){ return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); },
+
+  lehrerAbwesendKlick(spId){
+    const l=Bezugslehrer.alle().find(x=>String(x.spId)===String(spId)); if(!l) return;
+    const zeilen=Dashboard.lehrkraftZeilen(Azubis.alle());
+    const kandidaten=Dashboard.vertretungKandidaten(zeilen, Bezugslehrer.wertFuer(l));
+    if(!kandidaten.length){
+      this.toast("Es gibt niemanden, der vertreten könnte – alle anderen sind archiviert oder selbst abwesend.", true);
+      return;
+    }
+    this._abwesendDialog(l, zeilen, kandidaten, kandidaten[0].wert);
+  },
+
+  _abwesendDialog(l, zeilen, kandidaten, nachWert){
+    const esc=v=>this._dlgEsc(v);
+    const vonWert=Bezugslehrer.wertFuer(l);
+    const vor=Dashboard.vertretungVorschau(Azubis.alle(), Daten.state.azubiNamen, vonWert, nachWert, zeilen);
+    const optionen=kandidaten.map(k=>
+      `<option value="${esc(k.wert)}"${k.wert===nachWert?" selected":""}>${esc(k.name)}</option>`).join("");
+    /* Namen statt blosser Zahl -- eine Zahl laesst sich nicht nachpruefen, und
+       genau hier entscheidet sich, ob der Vorgang das Richtige tut. */
+    const liste=vor.anzahl
+      ? `<div class="meta">${vor.azubis.map(a=>esc(a.name)).join(" · ")}</div>`
+      : `<div class="meta">Keine Azubis zugeordnet – die Abwesenheit lässt sich trotzdem melden.</div>`;
+    const kap=(vor.soll===null)
+      ? "Kapazität nicht hinterlegt"
+      : `danach ${vor.ist} / ${vor.soll}${vor.ueberbucht?" – überbucht":""}`;
+    this.modal(`<h3>${esc(bezugslehrerAnzeige(l.name))} als abwesend melden</h3>
+      <div class="feld"><label>Vertretung
+        <select id="abwWer">${optionen}</select></label></div>
+      <div class="hinweis${vor.ueberbucht?" warn":""}">${vor.anzahl} Azubi${vor.anzahl===1?"":"s"} gehen an die Vertretung · ${kap}</div>
+      ${liste}
+      <div class="modal-aktionen">
+        <button id="abwAbbruch">Abbrechen</button>
+        <button class="aktion" id="abwOk">Abwesend melden</button>
+      </div>`);
+    document.getElementById("abwWer").onchange=(ev)=>
+      this._abwesendDialog(l, zeilen, kandidaten, ev.target.value);
+    document.getElementById("abwAbbruch").onclick=()=>this.modalZu();
+    document.getElementById("abwOk").onclick=()=>this._abwesendAusfuehren(l, nachWert, vor);
+  },
+
+  async _abwesendAusfuehren(l, nachWert, vor){
+    /* Derselbe Riegel wie beim einzelnen Handgriff -- hier umso noetiger, weil
+       eine Schleife laenger schreibt als ein einzelner Klick. */
+    if(this._zuordnungLaeuft) return;
+    this._zuordnungLaeuft=true;
+    this.modalZu();
+    try{
+      const bilanz=await this._azubisUmhaengen(vor.azubis, nachWert);
+      /* Entscheidung 8 der Spec: erst die Azubis, dann das Flag. Ist kein
+         einziger Azubi angekommen, wird sie NICHT als vertreten markiert --
+         sonst behauptet die Zeile eine Uebergabe, die nicht stattgefunden hat. */
+      if(bilanz.ok>0 || vor.anzahl===0){
+        await Bezugslehrer.aendern(l.spId, {abwesend:true, vertretungDurch:nachWert});
+      }
+      const nachName=bezugslehrerAnzeige(nachWert);
+      this.toast(vor.anzahl===0
+        ? `${bezugslehrerAnzeige(l.name)} ist abwesend gemeldet, vertreten durch ${nachName}`
+        : Dashboard.gruppenMeldung(bilanz.ok, bilanz.offen, "bei "+nachName),
+        bilanz.ok===0 && vor.anzahl>0);
+      this.render();
+    } finally { this._zuordnungLaeuft=false; }
+  },
+
+  lehrerZurueckKlick(spId){
+    const l=Bezugslehrer.alle().find(x=>String(x.spId)===String(spId)); if(!l) return;
+    const zeile=Dashboard.lehrkraftZeilen(Azubis.alle())
+      .find(z=> Dashboard._blSchluessel(z.wert)===Dashboard._blSchluessel(Bezugslehrer.wertFuer(l)));
+    if(!zeile) return;
+    const kand=Dashboard.rueckschubKandidaten(Azubis.alle(), Daten.state.azubiNamen, zeile);
+    this._zurueckDialog(l, kand);
+  },
+
+  _zurueckDialog(l, kand){
+    const esc=v=>this._dlgEsc(v);
+    /* Alle vorausgewaehlt: der Normalfall ist "alle zurueck". Abwaehlen heisst
+       "soll dort bleiben" -- deshalb wird die Vertretung danach trotzdem
+       geleert, die Abwesenheit ist ja beendet. */
+    const zeilen=kand.zurueck.map(a=>
+      `<label style="display:flex;gap:8px;align-items:center;margin:6px 0">
+        <input type="checkbox" class="zurueckAzubi" value="${esc(a.id)}" checked>
+        <span>${esc(a.name)}</span></label>`).join("");
+    /* Entscheidung 6: die Luecke des einstufigen Gedaechtnisses sichtbar machen,
+       statt sie zu beheben. Wer inzwischen woanders liegt, kam bewusst dorthin. */
+    const anderswo=kand.anderswo.length
+      ? `<div class="hinweis warn">${kand.anderswo.length} weitere waren übergeben, liegen inzwischen aber bei jemand anderem:
+         ${kand.anderswo.map(a=>esc(a.name)).join(" · ")}</div>`
+      : "";
+    const rumpf=kand.zurueck.length
+      ? zeilen
+      : `<div class="meta">Bei der Vertretung liegt niemand mehr, der von hier kam.</div>`;
+    this.modal(`<h3>${esc(bezugslehrerAnzeige(l.name))} ist zurück</h3>
+      ${anderswo}
+      ${rumpf}
+      <div class="modal-aktionen">
+        <button id="zbAbbruch">Abbrechen</button>
+        <button class="aktion" id="zbOk">Zurückholen &amp; Abwesenheit beenden</button>
+      </div>`);
+    document.getElementById("zbAbbruch").onclick=()=>this.modalZu();
+    document.getElementById("zbOk").onclick=()=>{
+      const gewaehlt=[...document.querySelectorAll(".zurueckAzubi:checked")].map(c=>c.value);
+      this._zurueckAusfuehren(l, kand.zurueck.filter(a=> gewaehlt.includes(String(a.id))));
+    };
+  },
+
+  async _zurueckAusfuehren(l, azubis){
+    if(this._zuordnungLaeuft) return;
+    this._zuordnungLaeuft=true;
+    this.modalZu();
+    try{
+      const zurueckAuf=Bezugslehrer.wertFuer(l);
+      const bilanz=await this._azubisUmhaengen(azubis, zurueckAuf);
+      /* Auch wenn jemand abgewaehlt wurde: die Abwesenheit ist beendet, also
+         wird sie beendet. Abgewaehlte bleiben bewusst bei der Vertretung. */
+      await Bezugslehrer.aendern(l.spId, {abwesend:false, vertretungDurch:""});
+      const nm=bezugslehrerAnzeige(l.name);
+      this.toast(azubis.length===0
+        ? `${nm} ist zurück`
+        : Dashboard.gruppenMeldung(bilanz.ok, bilanz.offen, "zurück bei "+nm));
+      this.render();
+    } finally { this._zuordnungLaeuft=false; }
+  },
+
+  /* Gemeinsamer Schreib-Loop beider Aktionen. stumm=true, sonst meldet sich
+     _bezugslehrerSchreiben je Azubi einzeln zu Wort. Gezaehlt wird nach dem
+     Schreiben ueber blOffen -- der Wert steht erst danach fest (v0.40.2). */
+  async _azubisUmhaengen(azubis, wert){
+    let ok=0, offen=0;
+    for(const a of (azubis||[])){
+      await Azubis.bezugslehrerUmhaengen(a.id, wert, true);
+      const az=Azubis.alle().find(x=>String(x.id)===String(a.id));
+      if(az && az.blOffen) offen++; else ok++;
+    }
+    return { ok, offen };
   },
 
   /* ---- Anstehende Besuche ---- */
