@@ -1,0 +1,12 @@
+{
+  "name": "sea-praxisbesuche",
+  "private": true,
+  "description": "Werkzeuge fuer die Entwicklung. Die App selbst braucht kein npm - index.html laeuft ohne Build.",
+  "scripts": {
+    "test": "node tests/run-all.js",
+    "lint": "node tests/extract-lint-bundle.js && biome lint tests/extracted_lint_bundle.js"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.1"
+  }
+}

@@ -2,13 +2,19 @@
 # nach jedem Merge auf main. Ergebnis erscheint als grüner Haken bzw. rotes Kreuz
 # am Commit und im PR.
 #
-# Die Tests brauchen ausschliesslich Node-Builtins (keine Dependencies, kein
-# package.json) – deshalb kein "npm install", nur Node bereitstellen und den
-# vorhandenen Runner starten. Er baut das Bundle aus index.html selbst.
+# Die Tests brauchen ausschliesslich Node-Builtins – deshalb kein "npm install",
+# nur Node bereitstellen und den vorhandenen Runner starten. Er baut das Bundle
+# aus index.html selbst. (Seit dem Biome-Setup gibt es zwar eine package.json,
+# aber nur für Entwickler-Werkzeuge; die Tests hängen weiterhin an nichts davon.)
+#
+# Das Linting läuft deshalb als **eigener Job** daneben statt im selben: Es braucht
+# npm, die Tests nicht. Beide laufen parallel, und ein fehlendes node_modules kann
+# die Logiktests nicht ausbremsen.
 #
 # Grenze: geprüft wird nur die Logik. Ob das Dashboard im Browser gut aussieht
 # und sich gut bedienen lässt, kann dieser Workflow nicht beantworten – die
-# Browser-Abnahme bleibt Handarbeit.
+# Browser-Abnahme bleibt Handarbeit. Auch der Linter ändert daran nichts: Er liest
+# den Code, er führt ihn nicht aus.
 
 name: Tests
 
@@ -40,3 +46,22 @@ jobs:
 
       - name: Logiktests ausführen
         run: node tests/run-all.js
+
+  linting:
+    name: npm run lint (Biome)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo auschecken
+        uses: actions/checkout@v4
+
+      - name: Node bereitstellen
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Werkzeuge installieren
+        run: npm ci
+
+      - name: Linter ausführen
+        run: npm run lint

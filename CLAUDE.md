@@ -93,11 +93,52 @@ Getestet wird stets der **echte, aus `index.html` extrahierte Code**, keine
 Nachbildung. Die SVG-/Blasen-Zeichnung des Wizards ist Browser-Sache und nicht
 headless testbar.
 
+## Linting (Biome)
+
+```
+npm install     # einmalig - installiert Biome als Entwickler-Werkzeug
+npm run lint
+```
+
+Das Repo hat seit dem Biome-Setup eine `package.json`. **Die App selbst braucht sie
+nicht** – `index.html` läuft weiterhin ohne Build und ohne npm; auch die Logiktests
+kommen ohne aus. npm ist nur für Werkzeuge da.
+
+**Worauf Biome läuft.** Nicht auf `index.html` (kein HTML-Support) und **nicht** auf
+`tests/extracted_test_bundle.js`. Letzteres schneidet nur zwölf benannte Blöcke für die
+Tests heraus – ein Linter hält dann jedes nicht mitgeschnittene Modul (`Daten`,
+`Oberflaeche`, `SharePoint` …) für undeklariert und meldet lauter Fehlalarme.
+Stattdessen baut `tests/extract-lint-bundle.js` ein eigenes Extrakt aus dem
+**kompletten** eigenen JS-Block (das einzige `<script>` ohne Attribute).
+
+**Ändert sich das Gerüst der `index.html`, bricht dieser Extraktor absichtlich ab** –
+etwa wenn der App-Block ein Attribut bekommt oder ein zweites attributloses `<script>`
+dazukommt. Dann `tests/extract-lint-bundle.js` anpassen, nicht die Meldung ignorieren.
+
+**Der Regelsatz ist bewusst schmal.** Scharf ist vor allem
+`correctness/noUndeclaredVariables` – sie findet vertippte Namen, die JavaScript sonst
+erst bemerkt, wenn die betroffene Zeile tatsächlich ausgeführt wird (die Fehlerklasse
+aus `fix/stille-schreibfehler`, v0.40.2). Abgeschaltet sind reine Geschmacksregeln
+(`useTemplate`, `useOptionalChain` u. a.), die auf 7.000 Zeilen gewachsenem Code
+zusammen 299 Meldungen erzeugten, ohne einen einzigen echten Fehler zu zeigen.
+Was aus ist und warum, steht in `biome.json`.
+
+Libraries, die zur Laufzeit global bereitstehen (`L` für Leaflet, `msal`), sind dort
+als bekannte Globals eingetragen. **Kommt eine Library dazu, gehört sie in diese
+Liste** – sonst meldet der Linter sie als undeklariert.
+
+Zum Formatieren wird Biome **nicht** benutzt (`formatter.enabled: false`): Das würde
+den bestehenden Stil der Datei auf einen Schlag umschreiben.
+
 ## Konventionen
 
 - Deutsch für Kommentare und Bezeichner, PascalCase für Komponenten.
 - Keine neuen Libraries ohne Rückfrage; minimale, chirurgische Änderungen.
 - **Nach jeder Code-Änderung an `index.html`: `node tests/run-all.js` grün halten.**
+- **Und `npm run lint` grün halten.** Beides läuft in der CI als zwei getrennte Jobs.
+- Die Regel „`npx ultracite check`" aus `CONVENTIONS.md` (KI-Hub) gilt hier **nicht** –
+  Ultracite ist eine Regel-Voreinstellung für Biome, zugeschnitten auf TypeScript und
+  React. Hier gilt Biome mit eigener Konfiguration.
 
 ## GitHub
 
