@@ -4,6 +4,47 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.41.1 – 2026-07-30
+
+- **Abwesenheit parkt die Azubis, statt sie einer Vertretung aufzuhalsen.** Korrektur
+  an v0.41.0, noch vor dessen Browser-Abnahme. Zwölf Azubis geschlossen auf eine
+  Person zu schieben ist fast immer falsch – jetzt landen sie in **„Ohne Zuordnung"**
+  und lassen sich dort einzeln an die passenden Kolleg:innen verteilen.
+
+  **Neu in der Liste `Azubis`:** die Spalte `ParkendBei` (Text) – Name der abwesenden
+  Lehrkraft, zu der dieser Azubi zurückgehört.
+
+  **Der Marker.** Jede Kachel eines geparkten Azubis trägt „⏸ wartet auf X" – auch
+  dann, wenn er zwischenzeitlich jemand anderem zugeordnet wurde. So ist überall
+  sichtbar, wer nur geliehen ist und später zurückgeht.
+
+  **„Als abwesend melden"**: Die Vertretung wird weiterhin ausgewählt und in
+  `VertretungDurch` vermerkt, bekommt die Azubis aber **nicht** – sie ist
+  Ansprechpartnerin während der Abwesenheit. Damit entfällt die Kapazitätsvorschau:
+  die Auslastung der Vertretung ändert sich durch die Abwesenheit nicht mehr.
+
+  **„Ist zurück" holt jetzt alle zurück** – die geparkten wie die zwischenzeitlich
+  weitergegebenen. Hinter jedem Namen steht, wo er gerade liegt; wer bei einer
+  dritten Lehrkraft sitzt, wird zusätzlich oberhalb der Liste gezählt. Abwählen
+  lässt ihn dort. Die Park-Marke wird in beiden Fällen gelöscht – die Abwesenheit
+  ist vorbei, ein weiter wartender Marker wäre eine Falschaussage.
+
+  **Warum eine eigene Spalte und nicht `VorherigerBezugslehrer`?** Der merkt nur
+  *eine* Station. Gibt man einen geparkten Azubi an eine dritte Lehrkraft weiter,
+  ist „X" dort überschrieben – danach weiß kein Feld mehr, dass er zu X gehört, und
+  er käme nie zurück. `ParkendBei` bleibt stehen, bis „Ist zurück" es leert.
+
+  **Nebenbefund aus v0.41.0:** Abnahmepunkt 5 („Azubi von der Vertretung an eine
+  dritte Lehrkraft hängen → muss unter ‚liegen inzwischen bei jemand anderem'
+  auftauchen") hätte im Browser nicht funktioniert. Nach dem Weitergeben ist der
+  Vorgänger die Vertretung, nicht mehr die abwesende Lehrkraft – der Azubi wäre in
+  keiner der beiden Listen aufgetaucht. Der Test dazu war grün, weil er einen
+  Zustand von Hand setzte, der auf diesem Weg nicht entsteht. Mit `ParkendBei` ist
+  der Fall erledigt.
+
+  **Unverändert:** Ohne wählbare Vertretung lässt sich die Abwesenheit weiterhin
+  nicht melden – die Vertretung bleibt Pflichtangabe.
+
 ## v0.41.0 – 2026-07-29
 
 - **Vertretung bei längerer Abwesenheit.** Fällt eine Lehrkraft länger aus, lassen
