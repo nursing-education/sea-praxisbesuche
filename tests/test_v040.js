@@ -371,8 +371,12 @@ p('marker: Teil-Erfolg gilt weiter als gesendet (Zuordnung ist drin)', halbOk ==
 p('marker: Teil-Erfolg fasst genau einmal nach', versucheMarker === 2);
 p('marker: Teil-Erfolg markiert den Azubi', azHalb.vorgaengerOffen === true);
 p('marker: Teil-Erfolg haelt blOffen falsch (die Zuordnung kam an)', azHalb.blOffen === false);
-p('marker: Teil-Erfolg vermerkt das abgelehnte Feld im State',
-  Daten.state.schreibDefekt && Daten.state.schreibDefekt.feld === SP_FELDER_AZUBIS.vorherigerBezugslehrer);
+/* v0.41.1: Im PATCH stecken jetzt ZWEI Merker (Vorgaenger + ParkendBei). Welchen
+   davon SharePoint ablehnt, sagt die Antwort nicht -- der Vermerk nennt deshalb
+   beide, damit die Meldung nicht auf das falsche Feld zeigt. */
+p('marker: Teil-Erfolg vermerkt die abgelehnten Felder im State',
+  Daten.state.schreibDefekt && Daten.state.schreibDefekt.feld
+    === SP_FELDER_AZUBIS.vorherigerBezugslehrer + ' / ' + SP_FELDER_AZUBIS.parkendBei);
 p('marker: der Grund wird mitgeschrieben',
   /VorherigerBezugslehrer does not exist/.test((Daten.state.schreibDefekt || {}).grund || ''));
 

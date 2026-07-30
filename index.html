@@ -166,6 +166,10 @@
   .zo-chips .zb-azubi{margin-bottom:0;min-width:150px}
   .zb-haus{font-style:italic}
   .zb-vorher{color:var(--text-leise);font-style:italic}
+  /* v0.41.1: Park-Marker -- hebt sich vom blassen "vorher" ab, weil er das
+     Gegenteil sagt: nicht frei, sondern reserviert. Farbwerte wie .pill.abwesend,
+     damit Zeile und Kachel dieselbe Abwesenheit gleich einfaerben. */
+  .zb-wartet{background:#FDEEDB;color:#C8521E;font-weight:600;border-radius:4px;padding:0 4px}
   /* v0.40: zweispaltiger Arbeitsbereich. Vertikaler Platz ist bei 40 Zeilen das
      Nadeloehr, horizontaler ist frei -- deshalb steht die Zuordnungs-Spalte
      links und nicht als Leiste oben. Sie bleibt beim Scrollen stehen und
@@ -515,7 +519,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.41.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.41.1";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -656,7 +660,15 @@ const SP_FELDER_AZUBIS = {
   /* v0.40: von Hand ueber die Listenoberflaeche angelegt -- deshalb interner
      Name = Anzeigename. Die field_N stammen aus dem Excel-Import, der alle
      Spalten auf einmal anlegte. In den Listeneinstellungen bestaetigt (26.07.2026). */
-  vorherigerBezugslehrer: "VorherigerBezugslehrer"
+  vorherigerBezugslehrer: "VorherigerBezugslehrer",
+  /* v0.41.1: Name der abwesenden Lehrkraft, zu der dieser Azubi zurueckgehoert.
+     Eigenes Feld und NICHT vorherigerBezugslehrer, weil dieses nur eine Station
+     merkt: wird ein geparkter Azubi weitergegeben, ist die Erinnerung dort
+     ueberschrieben. ParkendBei bleibt stehen, bis "Ist zurueck" es leert --
+     nur so kommen auch weitergegebene Azubis zurueck.
+     Von Hand ueber die Listenoberflaeche angelegt, deshalb interner Name =
+     Anzeigename (wie vorherigerBezugslehrer). */
+  parkendBei: "ParkendBei"
 };
 
 /* v0.25 -- Feldzuordnung Liste "Admins". Eine Spalte (intern weiterhin
@@ -1389,6 +1401,7 @@ const SPSync = {
         stammeinrichtung: txt(f,F.stammeinrichtung),
         bezugslehrer: txt(f,F.bezugslehrer),
         vorherigerBezugslehrer: txt(f,F.vorherigerBezugslehrer),
+        parkendBei: txt(f,F.parkendBei),
         bemerkung: txt(f,F.bemerkung),
         praxisanleitung: txt(f,F.praxisanleitung)
       };
@@ -1673,6 +1686,10 @@ const SPSync = {
     const felder={};
     felder[SP_FELDER_AZUBIS.bezugslehrer]=azubi.bezugslehrer||"";
     felder[SP_FELDER_AZUBIS.vorherigerBezugslehrer]=azubi.vorherigerBezugslehrer||"";
+    /* v0.41.1: ParkendBei laeuft im selben PATCH mit und faellt beim Nachfassen
+       mit dem Vorgaenger zusammen weg. Welches der beiden Felder SharePoint
+       ablehnt, sagt die Antwort nicht -- deshalb nennt die Meldung beide. */
+    felder[SP_FELDER_AZUBIS.parkendBei]=azubi.parkendBei||"";
     try{
       await this._schreiben(url, token, "PATCH", felder);
       azubi.vorgaengerOffen=false;
@@ -1685,7 +1702,7 @@ const SPSync = {
       await this._schreiben(url, token, "PATCH", nurBezugslehrer);
       azubi.vorgaengerOffen=true;
       if(Daten.state) Daten.state.schreibDefekt={
-        feld: SP_FELDER_AZUBIS.vorherigerBezugslehrer,
+        feld: SP_FELDER_AZUBIS.vorherigerBezugslehrer+" / "+SP_FELDER_AZUBIS.parkendBei,
         grund: String((e&&e.message)||e||""),
         wann: new Date().toISOString() };
     }
@@ -1771,6 +1788,7 @@ const SPSync = {
         stammeinrichtung: a.stammeinrichtung||"",
         bezugslehrer: a.bezugslehrer||"",
         vorherigerBezugslehrer: a.vorherigerBezugslehrer||"",
+        parkendBei: a.parkendBei||"",
         bemerkung: a.bemerkung||"",
         praxisanleitung: a.praxisanleitung||"",
         einsaetze: eig,
@@ -2070,6 +2088,19 @@ const Azubis = {
     a.vorherigerBezugslehrer=a.bezugslehrer||"";
     await this._bezugslehrerSchreiben(a, neu, stumm);
     return davor;
+  },
+
+  /* v0.41.1: Park-Marke setzen oder loeschen, OHNE die Zuordnung anzufassen.
+     Braucht es fuer den Fall, dass ein Azubi bei "Ist zurueck" abgewaehlt wird:
+     er bleibt, wo er liegt, darf aber nicht weiter auf eine Lehrkraft warten,
+     die zurueck ist. bezugslehrerUmhaengen taugt dafuer nicht -- es schreibt
+     nichts, wenn sich die Zuordnung nicht aendert.
+     wert = "" loescht die Marke. */
+  async parkmarkeSetzen(id, wert){
+    const a=this.alle().find(x=>x.id===id); if(!a) return;
+    if((a.parkendBei||"")===(wert||"")) return;
+    a.parkendBei=wert||"";
+    await this._bezugslehrerSchreiben(a, a.bezugslehrer||"", true);
   },
 
   /* v0.40: Rueckgaengig -- BEIDE Werte zurueck auf den Stand davor. Nur den
@@ -3211,7 +3242,12 @@ const Dashboard = {
       raus.get(w).push({ id:a.id,
                          name:((namen||{})[a.id])||a.kuerzel||"",
                          kurs:a.kurs||"",
-                         stammeinrichtung:a.stammeinrichtung||"" });
+                         stammeinrichtung:a.stammeinrichtung||"",
+                         /* v0.41.1: Der Park-Marker gilt auch hier. Wer waehrend
+                            einer Abwesenheit weitergegeben wurde, sitzt in einer
+                            fremden Gruppe und geht spaeter trotzdem zurueck --
+                            ohne Marker waere das an dieser Kachel unsichtbar. */
+                         wartetAuf: bezugslehrerAnzeige(a.parkendBei||"")||"" });
     });
     const nachName=(x,y)=> x.name.localeCompare(y.name,"de");
     const s=(opt&&opt.sortierung)||"kurs";
@@ -3275,49 +3311,64 @@ const Dashboard = {
 
   /* Wer kann vertreten? Nicht sie selbst, nicht Archivierte, nicht wer selbst
      abwesend ist (sonst vertritt jemand, der auch fehlt), und keine Nur-Text-
-     Lehrkraft -- fuer die gibt es keinen Datensatz, den man beschreiben koennte. */
+     Lehrkraft -- fuer die gibt es keinen Datensatz, den man beschreiben koennte.
+     v0.41.1: Die Auswahl vermerkt nur noch, wer einspringt -- die Azubis gehen
+     nach "Ohne Zuordnung". Die Liste bleibt trotzdem dieselbe: als Vertretung
+     taugt weiterhin nur, wer da und aktiv ist. */
   vertretungKandidaten(zeilen, eigenerWert){
     const eigen=this._blSchluessel(eigenerWert);
     return (zeilen||[]).filter(z=> z.inListe && z.aktiv && !z.abwesend
                                    && this._blSchluessel(z.wert)!==eigen);
   },
 
-  /* Was passiert, wenn A abwesend gemeldet wird und B uebernimmt? Liefert die
-     betroffenen Azubis MIT NAMEN (Entscheidung 1 der Spec: eine blosse Zahl
-     laesst sich nicht pruefen) und die Kapazitaetsfolge bei B.
-     Ueberbuchung ist erlaubt, sie soll nur nicht unbemerkt passieren. */
-  vertretungVorschau(azubis, namen, vonWert, nachWert, zeilen){
+  /* Was passiert, wenn A abwesend gemeldet wird? Liefert die betroffenen Azubis
+     MIT NAMEN (Entscheidung 1 der Spec: eine blosse Zahl laesst sich nicht
+     pruefen).
+     v0.41.1: Sie gehen nach "Ohne Zuordnung" statt an eine Vertretung -- damit
+     entfaellt das Zielziel und mit ihm die Kapazitaets-/Ueberbuchungsvorschau.
+     Eine Ueberbuchung kann hier nicht mehr entstehen: die Ablage hat kein Soll. */
+  abwesenheitVorschau(azubis, namen, vonWert){
     const von=this._blSchluessel(vonWert);
+    if(!von) return { azubis:[], anzahl:0 };
     const betroffen=(azubis||[])
       .filter(a=> this._blSchluessel(a && a.bezugslehrer)===von)
       .map(a=> ({ id:a.id, name:((namen||{})[a.id])||a.kuerzel||"" }));
-    const nach=this._blSchluessel(nachWert);
-    const zielZeile=(zeilen||[]).find(z=> this._blSchluessel(z.wert)===nach) || null;
-    const soll=(zielZeile && zielZeile.soll!=null) ? zielZeile.soll : null;
-    const ist=(zielZeile ? zielZeile.ist : 0) + betroffen.length;
-    return { azubis:betroffen, anzahl:betroffen.length, ist, soll,
-             ueberbucht: soll!==null && ist>soll };
+    return { azubis:betroffen, anzahl:betroffen.length };
   },
 
   /* "Ist zurueck": zurueck geholt wird nur, wer BEI DER VERTRETUNG liegt und
      von A kam. Ein Azubi mit vorheriger=A, der inzwischen bei einer dritten
      Lehrkraft liegt, ist eine bewusste Abgabe und gehoert nach "anderswo" --
-     sonst dreht die Aktion mehr zurueck, als sie ankuendigt (der Befund, der
-     den urspruenglichen Entwurf verworfen hat).
-     Ohne Vertretungseintrag bleiben beide Listen leer: dann fehlt der
-     Bezugspunkt, und "anderswo" waere eine Behauptung ins Blaue. */
+     sonst dreht die Aktion mehr zurueck, als sie ankuendigt.
+
+     v0.41.1 kehrt diese Regel auf Christians Entscheidung um: Zurueck kommt
+     JEDER, der auf A wartet -- ob er ohne Zuordnung liegt, bei der Vertretung
+     oder inzwischen bei einer dritten Lehrkraft. Moeglich wird das erst durch
+     ParkendBei: vorherigerBezugslehrer merkt nur eine Station und waere beim
+     Weitergeben ueberschrieben.
+     Wo einer gerade liegt, steht als "bei" am Eintrag -- der Dialog nennt es,
+     damit ein Rueckholen von einer dritten Lehrkraft nicht unbemerkt passiert.
+     Altbestand aus v0.41.0 hat kein ParkendBei; dort greift der Vorgaenger-Weg,
+     damit die Azubis einer laufenden Abwesenheit nicht unauffindbar werden. */
   rueckschubKandidaten(azubis, namen, zeile){
-    const leer={ zurueck:[], anderswo:[] };
+    const leer={ zurueck:[] };
     if(!zeile) return leer;
-    const vertretung=this._blSchluessel(zeile.vertretungDurch);
-    if(!vertretung) return leer;
     const a=this._blSchluessel(zeile.wert);
-    const raus={ zurueck:[], anderswo:[] };
+    if(!a) return leer;
+    const vertretung=this._blSchluessel(zeile.vertretungDurch);
+    const raus={ zurueck:[] };
     (azubis||[]).forEach(x=>{
-      if(this._blSchluessel(x && x.vorherigerBezugslehrer)!==a) return;
-      const eintrag={ id:x.id, name:((namen||{})[x.id])||x.kuerzel||"" };
-      if(this._blSchluessel(x.bezugslehrer)===vertretung) raus.zurueck.push(eintrag);
-      else                                                raus.anderswo.push(eintrag);
+      if(!x) return;
+      const wartet=this._blSchluessel(x.parkendBei)===a;
+      /* Altbestand: ohne ParkendBei zaehlt, wer von A kam und noch ungeordnet
+         liegt oder bei der eingetragenen Vertretung. */
+      const alt=!String(x.parkendBei||"").trim()
+             && this._blSchluessel(x.vorherigerBezugslehrer)===a
+             && (!String(x.bezugslehrer||"").trim()
+                 || (!!vertretung && this._blSchluessel(x.bezugslehrer)===vertretung));
+      if(!wartet && !alt) return;
+      raus.zurueck.push({ id:x.id, name:((namen||{})[x.id])||x.kuerzel||"",
+                          bei: bezugslehrerAnzeige(x.bezugslehrer||"")||"" });
     });
     return raus;
   },
@@ -3366,8 +3417,8 @@ const Dashboard = {
     const n=(st.azubis||[]).filter(a=>a && a.vorgaengerOffen).length;
     const umfang = n ? ` Betrifft ${n===1?"1 Azubi":n+" Azubis"} seit dem letzten Abgleich.` : "";
     return `SharePoint nimmt die Spalte „${d.feld}“ nicht an. Zuordnungen werden `
-         + `gespeichert, der vorherige Bezugslehrer aber nicht – die Vertretung `
-         + `hätte damit nichts, worauf sie zurückgreifen kann.${umfang} `
+         + `gespeichert, die Merker für Vorgänger und Abwesenheit aber nicht – `
+         + `„Ist zurück“ hätte damit nichts, worauf es zurückgreifen kann.${umfang} `
          + `Bitte den internen Feldnamen in den Listeneinstellungen prüfen.`;
   },
   /* v0.40: Inhalt der Zuordnungs-Spalte. Standard ist die Sortierung nach
@@ -3386,7 +3437,11 @@ const Dashboard = {
                  stammeinrichtung:a.stammeinrichtung||"",
                  /* v0.40.1: ohne "(Zahl)" -- auf dem Chip zaehlt der Name, nicht
                     die Kapazitaet der fruheren Lehrkraft. */
-                 vorher: bezugslehrerAnzeige(a.vorherigerBezugslehrer||"")||"" }))
+                 vorher: bezugslehrerAnzeige(a.vorherigerBezugslehrer||"")||"",
+                 /* v0.41.1: Der Park-Marker -- steht in ParkendBei und sagt, dass
+                    dieser Azubi zu einer abwesenden Lehrkraft zurueckgehoert und
+                    nicht frei zu verplanen ist. */
+                 wartetAuf: bezugslehrerAnzeige(a.parkendBei||"")||"" }))
       .filter(a=> !q || SPSync._norm(a.name).indexOf(q)>=0 || SPSync._norm(a.kurs).indexOf(q)>=0);
     const nachName=(x,y)=> x.name.localeCompare(y.name,"de");
     if((o.sortierung||"haus")==="haus"){
@@ -3941,7 +3996,9 @@ const Oberflaeche = {
       <span class="zb-name">${e(a.name)}</span>
       <span class="meta">${e(a.kurs||"—")}</span>
       <span class="meta zb-haus" title="Trägerhaus (Stammeinrichtung)">${e(a.stammeinrichtung||"Trägerhaus fehlt")}</span>
-      ${a.vorher?`<span class="meta zb-vorher" title="Zuletzt zugeordnet bei dieser Lehrkraft – zum Zurückgeben dorthin ziehen">↩ vorher: ${e(a.vorher)}</span>`:""}
+      ${a.wartetAuf
+        ? `<span class="meta zb-wartet" title="Diese Lehrkraft ist abwesend – der Azubi kommt mit „Ist zurück“ wieder zu ihr. Bis dahin kann er auch von Hand jemand anderem zugeordnet werden.">⏸ wartet auf ${e(a.wartetAuf)}</span>`
+        : a.vorher?`<span class="meta zb-vorher" title="Zuletzt zugeordnet bei dieser Lehrkraft – zum Zurückgeben dorthin ziehen">↩ vorher: ${e(a.vorher)}</span>`:""}
     </div>`;
   },
   modal(html){
@@ -4514,17 +4571,24 @@ const Oberflaeche = {
     const l=Bezugslehrer.alle().find(x=>String(x.spId)===String(spId)); if(!l) return;
     const zeilen=Dashboard.lehrkraftZeilen(Azubis.alle());
     const kandidaten=Dashboard.vertretungKandidaten(zeilen, Bezugslehrer.wertFuer(l));
+    /* v0.41.1: Die Vertretung bleibt Pflicht (Christians Entscheidung) -- ohne
+       Kandidaten laesst sich die Abwesenheit deshalb weiterhin nicht melden. */
     if(!kandidaten.length){
       this.toast("Es gibt niemanden, der vertreten könnte – alle anderen sind archiviert oder selbst abwesend.", true);
       return;
     }
-    this._abwesendDialog(l, zeilen, kandidaten, kandidaten[0].wert);
+    this._abwesendDialog(l, kandidaten, kandidaten[0].wert);
   },
 
-  _abwesendDialog(l, zeilen, kandidaten, nachWert){
+  /* v0.41.1: Das Auswahlfeld bleibt, seine Bedeutung aendert sich. Die Vertretung
+     wird VERMERKT (Ansprechpartner waehrend der Abwesenheit), bekommt die Azubis
+     aber NICHT: die gehen nach "Ohne Zuordnung" und lassen sich von dort einzeln
+     verteilen. Damit entfaellt die Kapazitaetsvorschau -- die Auslastung der
+     Vertretung aendert sich durch die Abwesenheit nicht mehr. */
+  _abwesendDialog(l, kandidaten, nachWert){
     const esc=v=>this._dlgEsc(v);
-    const vonWert=Bezugslehrer.wertFuer(l);
-    const vor=Dashboard.vertretungVorschau(Azubis.alle(), Daten.state.azubiNamen, vonWert, nachWert, zeilen);
+    const vor=Dashboard.abwesenheitVorschau(Azubis.alle(), Daten.state.azubiNamen,
+                                            Bezugslehrer.wertFuer(l));
     const optionen=kandidaten.map(k=>
       `<option value="${esc(k.wert)}"${k.wert===nachWert?" selected":""}>${esc(k.name)}</option>`).join("");
     /* Namen statt blosser Zahl -- eine Zahl laesst sich nicht nachpruefen, und
@@ -4532,20 +4596,20 @@ const Oberflaeche = {
     const liste=vor.anzahl
       ? `<div class="meta">${vor.azubis.map(a=>esc(a.name)).join(" · ")}</div>`
       : `<div class="meta">Keine Azubis zugeordnet – die Abwesenheit lässt sich trotzdem melden.</div>`;
-    const kap=(vor.soll===null)
-      ? "Kapazität nicht hinterlegt"
-      : `danach ${vor.ist} / ${vor.soll}${vor.ueberbucht?" – überbucht":""}`;
+    const wohin=vor.anzahl
+      ? `<div class="hinweis">${vor.anzahl} Azubi${vor.anzahl===1?"":"s"} ${vor.anzahl===1?"geht":"gehen"} nach „Ohne Zuordnung“, markiert mit „⏸ wartet auf ${esc(bezugslehrerAnzeige(l.name))}“. Die Vertretung wird nur vermerkt und bekommt die Azubis nicht – du kannst sie von dort einzeln verteilen. „Ist zurück“ holt später alle wieder her, auch die inzwischen verteilten.</div>`
+      : "";
     this.modal(`<h3>${esc(bezugslehrerAnzeige(l.name))} als abwesend melden</h3>
-      <div class="feld"><label>Vertretung
+      <div class="feld"><label>Vertretung <span class="meta">(Ansprechpartner, bekommt die Azubis nicht)</span>
         <select id="abwWer">${optionen}</select></label></div>
-      <div class="hinweis${vor.ueberbucht?" warn":""}">${vor.anzahl} Azubi${vor.anzahl===1?"":"s"} gehen an die Vertretung · ${kap}</div>
+      ${wohin}
       ${liste}
       <div class="modal-aktionen">
         <button id="abwAbbruch">Abbrechen</button>
         <button class="aktion" id="abwOk">Abwesend melden</button>
       </div>`);
     document.getElementById("abwWer").onchange=(ev)=>
-      this._abwesendDialog(l, zeilen, kandidaten, ev.target.value);
+      this._abwesendDialog(l, kandidaten, ev.target.value);
     document.getElementById("abwAbbruch").onclick=()=>this.modalZu();
     document.getElementById("abwOk").onclick=()=>this._abwesendAusfuehren(l, nachWert, vor);
   },
@@ -4557,17 +4621,20 @@ const Oberflaeche = {
     this._zuordnungLaeuft=true;
     this.modalZu();
     try{
-      const bilanz=await this._azubisUmhaengen(vor.azubis, nachWert);
+      /* v0.41.1: Zielwert ist LEER -- die Azubis gehen nach "Ohne Zuordnung".
+         Zusaetzlich bekommt jeder die Park-Marke auf die abwesende Lehrkraft;
+         sie ueberlebt ein spaeteres Weitergeben und traegt damit "Ist zurueck". */
+      const bilanz=await this._azubisUmhaengen(vor.azubis, "", Bezugslehrer.wertFuer(l));
       /* Entscheidung 8 der Spec: erst die Azubis, dann das Flag. Ist kein
-         einziger Azubi angekommen, wird sie NICHT als vertreten markiert --
-         sonst behauptet die Zeile eine Uebergabe, die nicht stattgefunden hat. */
+         einziger Azubi angekommen, wird sie NICHT als abwesend markiert --
+         sonst behauptet die Zeile eine Umlage, die nicht stattgefunden hat. */
       if(bilanz.ok>0 || vor.anzahl===0){
         await Bezugslehrer.aendern(l.spId, {abwesend:true, vertretungDurch:nachWert});
       }
-      const nachName=bezugslehrerAnzeige(nachWert);
+      const nm=bezugslehrerAnzeige(l.name);
       this.toast(vor.anzahl===0
-        ? `${bezugslehrerAnzeige(l.name)} ist abwesend gemeldet, vertreten durch ${nachName}`
-        : Dashboard.gruppenMeldung(bilanz.ok, bilanz.offen, "bei "+nachName),
+        ? `${nm} ist abwesend gemeldet, vertreten durch ${bezugslehrerAnzeige(nachWert)}`
+        : Dashboard.gruppenMeldung(bilanz.ok, bilanz.offen, `ohne Zuordnung – warten auf ${nm}`),
         bilanz.ok===0 && vor.anzahl>0);
       this.render();
     } finally { this._zuordnungLaeuft=false; }
@@ -4587,21 +4654,26 @@ const Oberflaeche = {
     /* Alle vorausgewaehlt: der Normalfall ist "alle zurueck". Abwaehlen heisst
        "soll dort bleiben" -- deshalb wird die Vertretung danach trotzdem
        geleert, die Abwesenheit ist ja beendet. */
+    /* v0.41.1: Wo einer gerade liegt, steht hinter seinem Namen. Ein Azubi, der
+       waehrend der Abwesenheit weitergegeben wurde, kommt jetzt mit zurueck --
+       das soll man sehen und abwaehlen koennen, nicht nachtraeglich entdecken. */
     const zeilen=kand.zurueck.map(a=>
       `<label style="display:flex;gap:8px;align-items:center;margin:6px 0">
         <input type="checkbox" class="zurueckAzubi" value="${esc(a.id)}" checked>
-        <span>${esc(a.name)}</span></label>`).join("");
-    /* Entscheidung 6: die Luecke des einstufigen Gedaechtnisses sichtbar machen,
-       statt sie zu beheben. Wer inzwischen woanders liegt, kam bewusst dorthin. */
-    const anderswo=kand.anderswo.length
-      ? `<div class="hinweis warn">${kand.anderswo.length} weitere waren übergeben, liegen inzwischen aber bei jemand anderem:
-         ${kand.anderswo.map(a=>esc(a.name)).join(" · ")}</div>`
+        <span>${esc(a.name)}${a.bei?` <span class="meta">– derzeit bei ${esc(a.bei)}</span>`:""}</span></label>`).join("");
+    const verteilt=kand.zurueck.filter(a=>a.bei).length;
+    const hinweis=verteilt
+      ? `<div class="hinweis warn">${verteilt} davon ${verteilt===1?"ist":"sind"} inzwischen jemand anderem zugeordnet und ${verteilt===1?"wird":"werden"} von dort zurückgeholt. Abwählen lässt ${verteilt===1?"ihn":"sie"} dort.</div>`
       : "";
+    /* v0.41.1: "Abwaehlen heisst dort bleiben" gilt weiter -- nur ist "dort"
+       jetzt die Ablage oder eine dritte Lehrkraft, nicht mehr die Vertretung.
+       Die Park-Marke wird in beiden Faellen geloescht: die Abwesenheit ist vorbei,
+       ein weiter wartender Marker waere eine Falschaussage. */
     const rumpf=kand.zurueck.length
       ? zeilen
-      : `<div class="meta">Bei der Vertretung liegt niemand mehr, der von hier kam.</div>`;
+      : `<div class="meta">Es wartet niemand mehr auf die Rückkehr.</div>`;
     this.modal(`<h3>${esc(bezugslehrerAnzeige(l.name))} ist zurück</h3>
-      ${anderswo}
+      ${hinweis}
       ${rumpf}
       <div class="modal-aktionen">
         <button id="zbAbbruch">Abbrechen</button>
@@ -4610,19 +4682,27 @@ const Oberflaeche = {
     document.getElementById("zbAbbruch").onclick=()=>this.modalZu();
     document.getElementById("zbOk").onclick=()=>{
       const gewaehlt=[...document.querySelectorAll(".zurueckAzubi:checked")].map(c=>c.value);
-      this._zurueckAusfuehren(l, kand.zurueck.filter(a=> gewaehlt.includes(String(a.id))));
+      this._zurueckAusfuehren(l,
+        kand.zurueck.filter(a=>  gewaehlt.includes(String(a.id))),
+        kand.zurueck.filter(a=> !gewaehlt.includes(String(a.id))));
     };
   },
 
-  async _zurueckAusfuehren(l, azubis){
+  async _zurueckAusfuehren(l, azubis, abgewaehlt){
     if(this._zuordnungLaeuft) return;
     this._zuordnungLaeuft=true;
     this.modalZu();
     try{
       const zurueckAuf=Bezugslehrer.wertFuer(l);
-      const bilanz=await this._azubisUmhaengen(azubis, zurueckAuf);
+      /* Zurueckgeholte: Zuordnung wieder auf die Lehrkraft, Park-Marke weg. */
+      const bilanz=await this._azubisUmhaengen(azubis, zurueckAuf, "");
+      /* v0.41.1: Abgewaehlte bleiben, wo sie sind -- aber ihre Marke muss weg,
+         sonst warten sie laut Kachel weiter auf jemanden, der zurueck ist.
+         Eigener Weg, weil bezugslehrerUmhaengen ohne Zuordnungswechsel nichts
+         schreibt. */
+      for(const a of (abgewaehlt||[])) await Azubis.parkmarkeSetzen(a.id, "");
       /* Auch wenn jemand abgewaehlt wurde: die Abwesenheit ist beendet, also
-         wird sie beendet. Abgewaehlte bleiben bewusst bei der Vertretung. */
+         wird sie beendet. */
       await Bezugslehrer.aendern(l.spId, {abwesend:false, vertretungDurch:""});
       const nm=bezugslehrerAnzeige(l.name);
       this.toast(azubis.length===0
@@ -4634,10 +4714,17 @@ const Oberflaeche = {
 
   /* Gemeinsamer Schreib-Loop beider Aktionen. stumm=true, sonst meldet sich
      _bezugslehrerSchreiben je Azubi einzeln zu Wort. Gezaehlt wird nach dem
-     Schreiben ueber blOffen -- der Wert steht erst danach fest (v0.40.2). */
-  async _azubisUmhaengen(azubis, wert){
+     Schreiben ueber blOffen -- der Wert steht erst danach fest (v0.40.2).
+     v0.41.1: parkWert wird VOR dem Umhaengen gesetzt, damit die Marke im selben
+     PATCH mitgeht -- ein zweiter Schreibvorgang je Azubi waere die doppelte
+     Wartezeit. undefined = Marke unangetastet lassen. */
+  async _azubisUmhaengen(azubis, wert, parkWert){
     let ok=0, offen=0;
     for(const a of (azubis||[])){
+      if(parkWert!==undefined){
+        const az0=Azubis.alle().find(x=>String(x.id)===String(a.id));
+        if(az0) az0.parkendBei=parkWert||"";
+      }
       await Azubis.bezugslehrerUmhaengen(a.id, wert, true);
       const az=Azubis.alle().find(x=>String(x.id)===String(a.id));
       if(az && az.blOffen) offen++; else ok++;
