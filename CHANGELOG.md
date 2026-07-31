@@ -4,6 +4,36 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.42.0 – 2026-07-31
+
+- **Footer mit Impressum und Datenschutz.** Unter jeder Ansicht steht jetzt eine
+  Fußzeile mit zwei Links; beide öffnen einen Dialog. Der Footer liegt außerhalb
+  von `#inhalt` und überlebt damit jedes Neuzeichnen – § 5 DDG verlangt „ständig
+  verfügbar", nicht „auf einer Unterseite".
+
+  **Impressum:** Die Pflichtangaben stehen als Datenfelder in `IMPRESSUM_FELDER`.
+  Gefüllt ist bislang nur der Anbieter; alles Weitere ist auf das Impressum des
+  Trägers verlinkt. **Leere Felder erzeugen bewusst keine Zeile** – eine
+  Beschriftung „Telefon:" ohne Wert würde eine Angabe vortäuschen. Sobald die
+  Anschrift eingetragen ist, verschwindet der Hinweis auf die Lücke.
+
+  **Datenschutz:** Der Text ist **aus dem Code abgeleitet, nicht abgeschrieben.**
+  Die Erklärung des Trägers beschreibt dessen Website und kennt weder SharePoint
+  noch die drei OpenStreetMap-Dienste; sie einzukopieren wäre eine Falschaussage
+  darüber, was diese App tut. Benannt werden deshalb: Anmeldung über Microsoft
+  Entra ID, die Ausbildungs- und Einsatzdaten in SharePoint, die lokale Kopie in
+  IndexedDB, **Kartenkacheln von OpenStreetMap, Adresssuche über Nominatim
+  (inklusive der hinterlegten Privatadresse) und Routenberechnung über OSRM**,
+  die Auslieferung über GitHub Pages samt USA-Transfer, Speicherdauer und
+  Betroffenenrechte.
+
+  **Kein Cookie-Banner**, weil keine Werbe- oder Analyse-Cookies gesetzt werden.
+  Die lokale Kopie in IndexedDB ist für den Offline-Betrieb technisch notwendig.
+
+  Neu: Modul `Rechtliches`, 18 Tests in `tests/test_v042.js` (gesamt 423). Geprüft
+  wird die Feld-Logik und dass die drei externen Dienste genannt bleiben – nicht
+  der Wortlaut, der ist Sache des Trägers.
+
 ## v0.41.1 – 2026-07-30
 
 - **Abwesenheit parkt die Azubis, statt sie einer Vertretung aufzuhalsen.** Korrektur

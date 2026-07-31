@@ -138,6 +138,27 @@
   /* v0.41: dritter Zustand neben aktiv und archiviert. Farbwerte aus dem
      vorhandenen Bestand (.unsicher-mark / .hinweis.warn), keine neue Farbe. */
   .pill.abwesend{background:#FDEEDB;color:#C8521E}
+  /* v0.42: Rechtliches. Der Footer steht unter JEDER Ansicht -- Impressum und
+     Datenschutzerklaerung muessen von jeder Stelle aus erreichbar sein (§ 5 DDG:
+     "leicht erkennbar, unmittelbar erreichbar, staendig verfuegbar"). Deshalb
+     ausserhalb von #app, nicht in einer Ansicht. */
+  footer.rechtliches{margin:32px 0 0;padding:14px 16px;border-top:1px solid var(--rahmen);
+    background:var(--sekundaer);display:flex;gap:8px 18px;flex-wrap:wrap;align-items:center;
+    font-size:13px;color:var(--text-leise)}
+  footer.rechtliches button{background:none;border:none;padding:0;font:inherit;color:var(--navy);
+    text-decoration:underline;cursor:pointer}
+  footer.rechtliches button:hover{color:var(--orange)}
+  footer.rechtliches .betreiber{margin-right:auto}
+  /* Laufender Text in den beiden Rechtstexten -- laenger als alles andere in der
+     App, deshalb eine lesbare Zeilenlaenge und Luft zwischen den Abschnitten. */
+  .rechtstext{max-height:65vh;overflow-y:auto;font-size:14px;line-height:1.55}
+  .rechtstext h4{margin:16px 0 4px;font-size:14px;color:var(--navy)}
+  .rechtstext h4:first-child{margin-top:0}
+  .rechtstext p, .rechtstext ul{margin:0 0 8px}
+  .rechtstext ul{padding-left:20px}
+  .rechtstext dt{font-weight:600;margin-top:8px}
+  .rechtstext dd{margin:0 0 4px}
+  .rechtstext a{color:var(--navy)}
   .werkzeug{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
   /* v0.34: Azubi-Zuordnungs-Board (Dashboard, Admin) */
   .zb-board{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
@@ -510,6 +531,14 @@
 </nav>
 <main id="inhalt"></main>
 
+<!-- v0.42: steht bewusst AUSSERHALB von #inhalt -- die Ansichten zeichnen sich
+     staendig neu, der Footer muss das ueberleben und unter jeder Ansicht stehen. -->
+<footer class="rechtliches">
+  <span class="betreiber">St. Elisabeth Akademie · SEA Praxisbesuche</span>
+  <button type="button" id="fussImpressum">Impressum</button>
+  <button type="button" id="fussDatenschutz">Datenschutz</button>
+</footer>
+
 <div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
 
@@ -519,7 +548,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.41.1";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.42.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3946,6 +3975,12 @@ const Oberflaeche = {
         this.render(); };
     });
     const fb=document.getElementById("bugBtn"); if(fb) fb.onclick=()=>this.feedbackFormular();
+    /* v0.42: Footer-Links. Einmalig gebunden -- der Footer steht ausserhalb von
+       #inhalt und ueberlebt jedes Neuzeichnen. */
+    const fi=document.getElementById("fussImpressum");
+    if(fi) fi.onclick=()=>Rechtliches.impressum();
+    const fd=document.getElementById("fussDatenschutz");
+    if(fd) fd.onclick=()=>Rechtliches.datenschutz();
     /* v0.39: Klick daneben oder Esc schliesst jedes offene Aktionsmenue. Hier
        einmalig gebunden -- im Render wuerden sich die Handler stapeln. */
     document.addEventListener("click", ()=> this._aktionsMenueZu());
@@ -6332,6 +6367,165 @@ const Oberflaeche = {
 };
 
 /* ---------- Start ----------------------------------------------------- */
+/* =========================================================================
+   v0.42: Rechtliches -- Impressum und Datenschutzerklaerung
+   -------------------------------------------------------------------------
+   Beides sind Texte, keine Logik. Sie stehen trotzdem hier und nicht als
+   eigene HTML-Dateien: Die App ist eine Datei ohne Build, und ein zweites
+   Dokument daneben muesste bei jedem Umzug mitwandern.
+
+   WICHTIG -- was hier NICHT drinsteht und nachgetragen werden muss:
+   Die Pflichtangaben nach § 5 DDG (Anschrift, Vertretungsberechtigte,
+   Registergericht, USt-IdNr., Aufsichtsbehoerde) und die Kontaktdaten des
+   Datenschutzbeauftragten stehen bislang nur auf den Webseiten des Traegers
+   und sind hier VERLINKT, nicht eingetragen. Wer sie hat, traegt sie in
+   IMPRESSUM_FELDER ein -- dann zeigt der Dialog sie direkt an, was sicherer
+   ist als ein Verweis auf eine fremde Seite.
+   ========================================================================= */
+const RECHT_LINKS = {
+  impressum:  "https://www.elisabeth-akademie.de/impressum",
+  datenschutz:"https://www.st-augustinus-kliniken.de/datenschutz"
+};
+
+/* Leer = "noch nicht eingetragen, es gilt der verlinkte Text". Sobald ein Wert
+   gefuellt ist, erscheint die Zeile im Dialog. Bewusst als Daten und nicht als
+   HTML, damit das Nachtragen kein Markup-Wissen verlangt. */
+const IMPRESSUM_FELDER = {
+  anbieter:       "St. Elisabeth Akademie",
+  anschrift:      "",
+  vertreten:      "",
+  telefon:        "",
+  email:          "",
+  register:       "",
+  ustId:          "",
+  aufsicht:       "",
+  inhaltlich:     ""   /* Verantwortlicher nach § 18 Abs. 2 MStV */
+};
+
+const Rechtliches = {
+  _esc(v){ return String(v==null?"":v)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); },
+
+  /* Nur gefuellte Felder werden zu Zeilen -- eine leere Zeile "Telefon:" waere
+     schlechter als keine, weil sie eine Angabe vortaeuscht. */
+  _felderHtml(){
+    const e=v=>this._esc(v);
+    const zeilen=[
+      ["Anbieter",                         IMPRESSUM_FELDER.anbieter],
+      ["Anschrift",                        IMPRESSUM_FELDER.anschrift],
+      ["Vertretungsberechtigte",           IMPRESSUM_FELDER.vertreten],
+      ["Telefon",                          IMPRESSUM_FELDER.telefon],
+      ["E-Mail",                           IMPRESSUM_FELDER.email],
+      ["Registergericht / Registernummer", IMPRESSUM_FELDER.register],
+      ["Umsatzsteuer-Identifikationsnummer", IMPRESSUM_FELDER.ustId],
+      ["Zuständige Aufsichtsbehörde",      IMPRESSUM_FELDER.aufsicht],
+      ["Inhaltlich verantwortlich (§ 18 Abs. 2 MStV)", IMPRESSUM_FELDER.inhaltlich]
+    ].filter(z=> String(z[1]||"").trim());
+    if(!zeilen.length) return "";
+    return "<dl>"+zeilen.map(z=>
+      `<dt>${e(z[0])}</dt><dd>${e(z[1])}</dd>`).join("")+"</dl>";
+  },
+
+  impressum(){
+    const felder=this._felderHtml();
+    /* Solange die Pflichtangaben nicht eingetragen sind, ist der Verweis auf den
+       Traeger die einzige belastbare Quelle -- lieber ehrlich verlinken als
+       unvollstaendig behaupten. */
+    const vollstaendig=String(IMPRESSUM_FELDER.anschrift||"").trim();
+    Oberflaeche.modal(`<h3>Impressum</h3>
+      <div class="rechtstext">
+        ${felder}
+        ${vollstaendig ? "" : `<p>Die vollständigen Pflichtangaben nach § 5 DDG
+          – Anschrift, Vertretungsberechtigte, Registereintrag, Umsatzsteuer-ID und
+          Aufsichtsbehörde – stehen im Impressum des Trägers:</p>`}
+        <p><a href="${RECHT_LINKS.impressum}" target="_blank" rel="noopener noreferrer">
+          Impressum der St. Elisabeth Akademie</a></p>
+        <h4>Haftung für Inhalte</h4>
+        <p>Diese Anwendung dient der internen Planung von Praxisbesuchen in der
+        Pflegeausbildung. Die angezeigten Daten stammen aus den SharePoint-Listen
+        der Akademie; für ihre Richtigkeit ist die jeweils pflegende Stelle
+        verantwortlich.</p>
+        <h4>Haftung für Links</h4>
+        <p>Diese Anwendung verweist auf externe Seiten, auf deren Inhalte kein
+        Einfluss besteht. Für diese Inhalte ist stets der jeweilige Anbieter
+        verantwortlich.</p>
+      </div>
+      <div class="modal-aktionen">
+        <button class="aktion" onclick="Oberflaeche.modalZu()">Schließen</button>
+      </div>`);
+  },
+
+  /* Die Verarbeitungen sind aus dem Code abgeleitet, nicht abgeschrieben: Die
+     Datenschutzerklaerung des Traegers beschreibt dessen WEBSITE und kennt weder
+     SharePoint noch die drei OpenStreetMap-Dienste. Sie hier einzukopieren waere
+     eine Falschaussage darueber, was diese App tut. */
+  datenschutz(){
+    Oberflaeche.modal(`<h3>Datenschutz</h3>
+      <div class="rechtstext">
+        <p>Diese Seite beschreibt, was <b>diese Anwendung</b> verarbeitet. Die
+        allgemeinen Angaben des Trägers – Verantwortlicher, Datenschutzbeauftragter
+        und Betroffenenrechte im Wortlaut – stehen hier:
+        <a href="${RECHT_LINKS.datenschutz}" target="_blank" rel="noopener noreferrer">
+        Datenschutzerklärung des Trägers</a>.</p>
+
+        <h4>Anmeldung (Microsoft Entra ID)</h4>
+        <p>Die Anmeldung läuft über das Microsoft-Konto der Akademie. Dabei werden
+        Name, dienstliche E-Mail-Adresse und Kennung an Microsoft übermittelt. Zweck
+        ist die Authentifizierung und die Unterscheidung, wer Verwaltungsrechte hat.</p>
+
+        <h4>Ausbildungs- und Einsatzdaten</h4>
+        <p>Aus den SharePoint-Listen der Akademie werden gelesen und geschrieben:
+        Name, Kurs und Trägerhaus der Auszubildenden, die zugeordnete Bezugslehrkraft,
+        die Einsätze sowie der Status der Praxisbesuche. Zweck ist die Planung und
+        Dokumentation der Praxisbesuche. Empfänger ist Microsoft als
+        Auftragsverarbeiter des Trägers.</p>
+
+        <h4>Speicherung auf Ihrem Gerät</h4>
+        <p>Damit die Anwendung auch ohne Netz arbeitet, liegt eine Kopie dieser Daten
+        im Browser-Speicher (IndexedDB) des benutzten Geräts. Es werden <b>keine
+        Cookies zu Werbe- oder Analysezwecken</b> gesetzt und es findet keine
+        Reichweitenmessung statt. Die Kopie lässt sich über die Browser-Einstellungen
+        („Websitedaten löschen“) entfernen.</p>
+
+        <h4>Karten, Adresssuche und Routen</h4>
+        <p>Für die Tourenplanung werden drei Dienste der OpenStreetMap-Gemeinschaft
+        angesprochen. Dabei wird jeweils Ihre IP-Adresse übertragen:</p>
+        <ul>
+          <li><b>Kartenkacheln</b> von <code>tile.openstreetmap.org</code> – beim
+          Öffnen einer Karte.</li>
+          <li><b>Adresssuche (Nominatim)</b> – die Anschriften der Einrichtungen und,
+          falls hinterlegt, <b>Ihre Privatadresse</b> werden zur Ermittlung der
+          Koordinaten übermittelt.</li>
+          <li><b>Routenberechnung (OSRM)</b> – die ermittelten Koordinaten werden zur
+          Berechnung von Fahrtzeiten übermittelt.</li>
+        </ul>
+        <p>Diese Dienste werden erst angesprochen, wenn Sie die Tourenplanung oder
+        eine Karte benutzen – nicht beim Start der Anwendung.</p>
+
+        <h4>Bereitstellung der Anwendung</h4>
+        <p>Die Anwendung wird über GitHub Pages ausgeliefert. Beim Abruf verarbeitet
+        GitHub Inc. technisch notwendige Verbindungsdaten einschließlich der
+        IP-Adresse; dabei kann eine Übermittlung in die USA stattfinden.</p>
+
+        <h4>Speicherdauer</h4>
+        <p>Die Daten in SharePoint werden so lange gespeichert, wie es für die
+        Ausbildungsbegleitung erforderlich ist; es gelten die Aufbewahrungsfristen
+        des Trägers. Die lokale Kopie bleibt bis zum Löschen der Websitedaten
+        bestehen.</p>
+
+        <h4>Ihre Rechte</h4>
+        <p>Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung
+        der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie ein
+        Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde. Wenden Sie sich dazu
+        an den Datenschutzbeauftragten des Trägers – Kontaktdaten in der oben
+        verlinkten Datenschutzerklärung.</p>
+      </div>
+      <div class="modal-aktionen">
+        <button class="aktion" onclick="Oberflaeche.modalZu()">Schließen</button>
+      </div>`);
+  }
+};
+
 (async function start(){
   await Daten.laden();
   if(!Array.isArray(Daten.state.einrichtungen)) Daten.state.einrichtungen=[];

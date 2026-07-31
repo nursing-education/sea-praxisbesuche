@@ -63,6 +63,7 @@ Die JS-Logik ist in benannte Objekt-Module gegliedert (Reihenfolge in der Datei)
 | `Dashboard` | Auslastung, Ampel-Logik |
 | `Onboarding` | Spotlight-Wizard (Ersteinrichtung) |
 | `Oberflaeche` | Rendering / Views |
+| `Rechtliches` | Impressum + Datenschutz (Footer-Dialoge, seit v0.42) |
 
 `bezugslehrerAnzeige()` (freie Funktion) trennt die „(Zahl)" vom Bezugslehrer-Namen.
 
