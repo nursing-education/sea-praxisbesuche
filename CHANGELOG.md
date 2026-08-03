@@ -4,6 +4,28 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.42.0 – 2026-08-03
+
+- **Rechtliches: Fußzeile und Datenschutzerklärung.** Unter der Anwendung steht
+  jetzt eine Zeile mit **Impressum**, **Urheberrecht** und **Datenschutz**. Die
+  ersten beiden führen zu den zentralen Seiten auf `percursus.de` und öffnen sich
+  in einem neuen Tab – sie liegen dort, weil dieses Repo öffentlich ist und
+  Christians Anschrift nicht hineingehört.
+
+  **Neu: `datenschutz.html`** neben der `index.html`. Sie benennt jeden Empfänger,
+  den die Anwendung tatsächlich anspricht – am Code nachgemessen, nicht geschätzt:
+  `login.microsoftonline.com` (Anmeldung), `graph.microsoft.com` (die
+  SharePoint-Listen samt Azubi-Daten), `*.tile.openstreetmap.org`,
+  `nominatim.openstreetmap.org` und `router.project-osrm.org` (Karte und Routen –
+  diese drei erhalten die IP-Adresse) sowie Hostinger als Hoster.
+
+  Ebenfalls beschrieben: die Speicherung auf dem Gerät (IndexedDB
+  `sea-praxisbesuche` und das Microsoft-Token im `localStorage`) – keine Cookies,
+  nach § 25 Abs. 2 Nr. 2 TDDDG einwilligungsfrei, weil ohne sie die Anwendung
+  nicht funktioniert.
+
+  Kein Verhalten der Anwendung geändert; die Fußzeile fügt kein Skript hinzu.
+
 ## v0.41.1 – 2026-07-30
 
 - **Abwesenheit parkt die Azubis, statt sie einer Vertretung aufzuhalsen.** Korrektur

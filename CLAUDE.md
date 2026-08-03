@@ -30,6 +30,11 @@ diesem öffentlichen Repo ausgeschlossen. Grund: Planung/Kontext könnten Intern
 - Die Versionsnummer steht im Dateinamen; bei einem Update ändern sich Datei **und**
   Pfad in `index.html`. `vendor/` muss immer neben der `index.html` liegen – die
   `index.html` allein ist nicht mehr lauffähig.
+- **`datenschutz.html`** liegt seit v0.42 ebenfalls neben der `index.html`; die
+  Fußzeile verlinkt sie relativ. Sie ist eigenständig (eigenes CSS, lädt nichts
+  nach) und muss beim Ausliefern mit. Impressum und Urheberrecht liegen dagegen
+  **zentral auf `percursus.de`** – dieses Repo ist öffentlich, Christians Anschrift
+  gehört nicht hinein.
 - **Ladereihenfolge ist bindend:** Leaflet CSS + JS im `<head>`, dann jsPDF und MSAL
   direkt nach `<body>`, der eigene Code zuletzt. Kein `defer`, kein `async` – sonst
   läuft der eigene Code, bevor die Libraries da sind.

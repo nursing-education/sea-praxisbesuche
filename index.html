@@ -42,6 +42,10 @@
   .spalte h2{font-size:14px;margin:0 0 10px;color:var(--navy);text-transform:uppercase;letter-spacing:.04em}
   .leer{color:var(--text-leise);font-size:14px;padding:8px 0}
 
+  footer.rechtliches{max-width:1280px;margin:0 auto;padding:14px 18px 22px;
+    border-top:1px solid var(--rahmen);font-size:13px;color:var(--text-leise)}
+  footer.rechtliches a{margin-right:14px}
+
   .zeile{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--rahmen);border-radius:6px;margin-bottom:6px;background:var(--flaeche)}
   .zeile:hover{border-color:var(--navy)}
   .zeile .haupt{font-weight:600}
@@ -510,6 +514,14 @@
 </nav>
 <main id="inhalt"></main>
 
+<!-- v0.42: Impressum und Urheberrecht liegen zentral auf percursus.de - dieses Repo
+     ist oeffentlich, Christians Anschrift gehoert nicht hinein. -->
+<footer class="rechtliches">
+  <a href="https://www.percursus.de/impressum/" target="_blank" rel="noopener noreferrer">Impressum ↗</a>
+  <a href="https://www.percursus.de/urheberrecht/" target="_blank" rel="noopener noreferrer">Urheberrecht ↗</a>
+  <a href="datenschutz.html">Datenschutz</a>
+</footer>
+
 <div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
 
@@ -519,7 +531,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.41.1";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.42.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
