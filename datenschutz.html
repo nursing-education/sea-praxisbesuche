@@ -21,7 +21,10 @@
     background:var(--bg);font-size:15px;line-height:1.55}
 
   header{background:var(--navy);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:16px}
-  header h1{font-size:17px;margin:0;font-weight:600}
+  /* Die Marke ist bewusst keine Ueberschrift: Die einzige h1 der Seite ist ihr
+     Titel weiter unten. Zwei h1 wuerden Screenreader und Suchmaschinen im
+     Unklaren lassen, wovon die Seite handelt. */
+  header .marke{font-size:17px;font-weight:600}
   header a{color:#fff;margin-left:auto;font-size:13px}
 
   main{max-width:44rem;margin:0 auto;padding:2rem 18px 0}
@@ -45,6 +48,7 @@
   .kasten.warnung{border-left:4px solid var(--orange)}
 
   table{border-collapse:collapse;width:100%;margin:0 0 1rem;font-size:14px}
+  caption{text-align:left;font-size:13px;color:var(--text-leise);padding-bottom:6px}
   th,td{text-align:left;vertical-align:top;padding:7px 9px;border:1px solid var(--rahmen)}
   th{background:var(--sekundaer);color:var(--navy);font-size:13px}
 
@@ -56,7 +60,7 @@
 <body>
 
 <header>
-  <h1>SEA&nbsp;Praxisbesuche</h1>
+  <span class="marke">SEA&nbsp;Praxisbesuche</span>
   <a href="index.html">← Zurück zur Anwendung</a>
 </header>
 
@@ -132,11 +136,15 @@
     <strong>IP-Adresse</strong>, weil Ihr Browser sie direkt aufruft:
   </p>
   <table>
+    <caption>Fremde Dienste, die beim Anzeigen einer Karte angesprochen werden</caption>
+    <thead>
     <tr>
-      <th>Dienst</th>
-      <th>Was übertragen wird</th>
-      <th>Wann</th>
+      <th scope="col">Dienst</th>
+      <th scope="col">Was übertragen wird</th>
+      <th scope="col">Wann</th>
     </tr>
+    </thead>
+    <tbody>
     <tr>
       <td>*.tile.openstreetmap.org<br>(OpenStreetMap Foundation)</td>
       <td>IP-Adresse, angefragter Kartenausschnitt</td>
@@ -152,6 +160,7 @@
       <td>IP-Adresse, Koordinaten der Start-, Zwischen- und Zielpunkte</td>
       <td>beim Berechnen einer Fahrstrecke</td>
     </tr>
+    </tbody>
   </table>
   <p>
     Übertragen werden Anschriften und Koordinaten von <em>Einrichtungen</em>,

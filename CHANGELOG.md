@@ -26,6 +26,11 @@ mittlere Stelle (0.28→0.29).
 
   Kein Verhalten der Anwendung geändert; die Fußzeile fügt kein Skript hinzu.
 
+- **Kopfdaten der `index.html`.** Eine Kurzbeschreibung (`meta description`) und
+  `robots: noindex, nofollow` – die Anwendung liegt hinter der Microsoft-Anmeldung
+  und gehört in keinen Suchindex. Die Datenschutzerklärung hat eine eigene
+  Beschreibung und bleibt indexierbar.
+
 ## v0.41.1 – 2026-07-30
 
 - **Abwesenheit parkt die Azubis, statt sie einer Vertretung aufzuhalsen.** Korrektur
