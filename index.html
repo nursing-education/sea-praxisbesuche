@@ -510,7 +510,7 @@
 </header>
 <nav>
   <button class="nav-start" onclick="Oberflaeche.ansichtWechseln('start')" title="Zurück zur Startseite">⌂ Startseite</button>
-  <button data-tab="anstehend" class="aktiv">Anstehend</button>
+  <button data-tab="anstehend" class="aktiv" aria-current="page">Anstehend</button>
   <button data-tab="azubis">Azubis</button>
   <button data-tab="einrichtungen">Einrichtungen</button>
   <button data-tab="touren">Touren</button>
@@ -526,8 +526,14 @@
   <a href="datenschutz.html">Datenschutz</a>
 </footer>
 
-<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
-<div class="toast" id="toast"></div>
+<!-- v0.42: role/aria-modal sagen dem Screenreader, dass alles dahinter gerade
+     nicht gilt. Eine Fokusfalle (Tab bleibt im Dialog) fehlt weiterhin -- die
+     waere eine Verhaltensaenderung und gehoert in eine eigene Scheibe. -->
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+<!-- role="status" macht die Meldung ansagbar, ohne den Nutzer zu unterbrechen.
+     Bewusst nicht "alert": Das Element traegt auch Erfolgsmeldungen, und ein
+     Rollenwechsel kurz vor dem Textwechsel wird von Screenreadern oft verschluckt. -->
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 /* =========================================================================
@@ -769,6 +775,19 @@ function dateinameVonLabel(label){
 function bezugslehrerAnzeige(wert){
   const m=String(wert||"").match(/^(.*?)\s*\(\d+\)\s*$/);
   return (m ? m[1] : String(wert||"")).trim();
+}
+
+/* v0.42: Welcher Reiter offen ist, stand bisher nur in der CSS-Klasse "aktiv" --
+   sichtbar, aber nicht ansagbar. aria-current sagt es dem Screenreader.
+   Beides hier zusammen, weil es an drei Stellen gebraucht wird und sonst
+   auseinanderlaeuft. Der Vergleich kommt als Funktion herein, weil die drei
+   Stellen unterschiedlich vergleichen (Tab-Name bzw. Knopf-Identitaet). */
+function reiterMarkieren(istAktiv){
+  document.querySelectorAll("nav button[data-tab]").forEach(x=>{
+    const an=!!istAktiv(x);
+    x.classList.toggle("aktiv",an);
+    if(an) x.setAttribute("aria-current","page"); else x.removeAttribute("aria-current");
+  });
 }
 
 /* ---------- DB: dünne IndexedDB-Hülle --------------------------------- */
@@ -3722,7 +3741,7 @@ const Onboarding = {
     if(s.ansicht && Oberflaeche.ansicht!==s.ansicht){ Oberflaeche.ansicht=s.ansicht; neuRendern=true; }
     if(s.tab && Oberflaeche.tab!==s.tab){
       Oberflaeche.tab=s.tab;
-      document.querySelectorAll("nav button[data-tab]").forEach(x=>x.classList.toggle("aktiv",x.dataset.tab===s.tab));
+      reiterMarkieren(x=>x.dataset.tab===s.tab);
       neuRendern=true;
     }
     if(neuRendern) Oberflaeche.render();
@@ -3958,7 +3977,7 @@ const Oberflaeche = {
   init(){
     document.querySelectorAll("nav button[data-tab]").forEach(b=>{
       b.onclick=()=>{ this.tab=b.dataset.tab;
-        document.querySelectorAll("nav button[data-tab]").forEach(x=>x.classList.toggle("aktiv",x===b));
+        reiterMarkieren(x=>x===b);
         this.render(); };
     });
     const fb=document.getElementById("bugBtn"); if(fb) fb.onclick=()=>this.feedbackFormular();
@@ -4965,7 +4984,7 @@ const Oberflaeche = {
     this.modalZu();
     this.tab="azubis";
     this.azubiAnsicht="liste";
-    document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("aktiv",x.dataset.tab==="azubis"));
+    reiterMarkieren(x=>x.dataset.tab==="azubis");
     this.render();
     this.azubiDetail(id);
     const el=document.getElementById("azubiDetail");

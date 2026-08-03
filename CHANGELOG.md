@@ -31,6 +31,17 @@ mittlere Stelle (0.28→0.29).
   und gehört in keinen Suchindex. Die Datenschutzerklärung hat eine eigene
   Beschreibung und bleibt indexierbar.
 
+- **Drei Schritte für Screenreader**, ohne sichtbare Änderung:
+  - Der **offene Reiter** trägt jetzt `aria-current="page"` und nicht mehr nur eine
+    Farbe. Wer nicht sieht, wusste bisher nicht, wo er ist. Die Markierung sitzt in
+    der neuen Funktion `reiterMarkieren()` – sie wird an drei Stellen gebraucht und
+    lief sonst auseinander.
+  - Der **Dialog** ist als `role="dialog"` mit `aria-modal="true"` ausgewiesen.
+    Eine Fokusfalle (Tab bleibt im Dialog) fehlt weiterhin – das wäre eine
+    Verhaltensänderung und gehört in eine eigene Scheibe.
+  - Die **Meldungen unten** (`role="status"`) werden angesagt, statt nur
+    aufzublitzen. Betrifft beide Toast-Bauformen, sie teilen sich ein Element.
+
 ## v0.41.1 – 2026-07-30
 
 - **Abwesenheit parkt die Azubis, statt sie einer Vertretung aufzuhalsen.** Korrektur
