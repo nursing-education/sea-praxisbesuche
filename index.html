@@ -46,9 +46,6 @@
   .spalte h2{font-size:14px;margin:0 0 10px;color:var(--navy);text-transform:uppercase;letter-spacing:.04em}
   .leer{color:var(--text-leise);font-size:14px;padding:8px 0}
 
-  footer.rechtliches{max-width:1280px;margin:0 auto;padding:14px 18px 22px;
-    border-top:1px solid var(--rahmen);font-size:13px;color:var(--text-leise)}
-  footer.rechtliches a{margin-right:14px}
 
   .zeile{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--rahmen);border-radius:6px;margin-bottom:6px;background:var(--flaeche)}
   .zeile:hover{border-color:var(--navy)}
@@ -146,6 +143,15 @@
   /* v0.41: dritter Zustand neben aktiv und archiviert. Farbwerte aus dem
      vorhandenen Bestand (.unsicher-mark / .hinweis.warn), keine neue Farbe. */
   .pill.abwesend{background:#FDEEDB;color:#C8521E}
+  /* v0.42: Rechtliches. Der Footer steht unter JEDER Ansicht -- Impressum und
+     Datenschutzerklaerung muessen von jeder Stelle aus erreichbar sein (§ 5 DDG:
+     "leicht erkennbar, unmittelbar erreichbar, staendig verfuegbar"). Deshalb
+     ausserhalb von #inhalt, nicht in einer Ansicht. */
+  footer.rechtliches{margin:32px 0 0;padding:14px 18px;border-top:1px solid var(--rahmen);
+    background:var(--sekundaer);display:flex;gap:8px 18px;flex-wrap:wrap;align-items:center;
+    font-size:13px;color:var(--text-leise)}
+  footer.rechtliches a{color:var(--navy)}
+  footer.rechtliches a:hover{color:var(--orange)}
   .werkzeug{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
   /* v0.34: Azubi-Zuordnungs-Board (Dashboard, Admin) */
   .zb-board{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
@@ -518,8 +524,13 @@
 </nav>
 <main id="inhalt"></main>
 
-<!-- v0.42: Impressum und Urheberrecht liegen zentral auf percursus.de - dieses Repo
-     ist oeffentlich, Christians Anschrift gehoert nicht hinein. -->
+<!-- v0.42: steht bewusst AUSSERHALB von #inhalt -- die Ansichten zeichnen sich
+     staendig neu, der Footer muss das ueberleben und unter jeder Ansicht stehen
+     (§ 5 DDG: "staendig verfuegbar").
+     Impressum und Urheberrecht liegen zentral auf percursus.de: Anbieter ist
+     Christian privat (entschieden 31.07., bestaetigt 03.08.2026), und dieses
+     Repo ist oeffentlich -- seine Anschrift gehoert nicht hinein. Der
+     Datenschutz ist dagegen anwendungsspezifisch und liegt deshalb lokal. -->
 <footer class="rechtliches">
   <a href="https://www.percursus.de/impressum/" target="_blank" rel="noopener noreferrer">Impressum ↗</a>
   <a href="https://www.percursus.de/urheberrecht/" target="_blank" rel="noopener noreferrer">Urheberrecht ↗</a>

@@ -42,6 +42,34 @@ mittlere Stelle (0.28→0.29).
   - Die **Meldungen unten** (`role="status"`) werden angesagt, statt nur
     aufzublitzen. Betrifft beide Toast-Bauformen, sie teilen sich ein Element.
 
+- **Wer die Daten einsehen kann** – steht jetzt in der Erklärung, weil es
+  nachgeprüft wurde: Der Sync holt jede Liste vollständig, die Einschränkung
+  passiert erst im Browser. Wer Leserecht auf der SharePoint-Site hat, sieht den
+  gesamten Bestand; „Nur meine / Alle" ordnet die Anzeige und ist **keine
+  Zugriffsgrenze**. Eine serverseitige Filterung kann eine reine Browser-App
+  nicht leisten – die wirksame Kontrolle sind die Site-Berechtigungen.
+
+- **21 Tests in `tests/test_v042.js`** (gesamt 426). Der wichtigste leitet die
+  Liste der Empfänger **aus der `index.html` ab**, statt sie fest zu verdrahten:
+  Jeder Host, den die App zur Laufzeit anspricht, muss in der Erklärung
+  vorkommen. Wer künftig einen Dienst einbaut und die Erklärung vergisst,
+  bekommt einen roten Test statt einer stillen Lücke.
+
+### Zur Entstehung
+
+Diese Version entstand **zweimal unabhängig** – am 31.07. in einer Cloud-Session
+als Dialoge in der App, am 03.08. lokal als Fußzeile mit externen Links und
+eigener Seite. Beide Stränge sind hier zusammengeführt.
+
+Ausschlaggebend war eine Frage, die kein Code beantwortet: **Anbieter nach
+§ 5 DDG ist Christian privat, nicht die Akademie** (entschieden 31.07.,
+bestätigt 03.08.2026). Damit gilt das Impressum auf `percursus.de`, und die
+Fassung vom 31.07., die auf die Träger-Seiten verwies, trug nicht mehr. Ihr
+Modul `Rechtliches` mit den Impressum-Datenfeldern ist deshalb entfallen –
+**ihre Substanz nicht:** der abgeleitete statt abgeschriebene Datenschutztext,
+der Befund zum Zugriffsmodell und die Test-Idee, die Dienste-Liste gegen stilles
+Verschwinden zu sichern.
+
 ## v0.41.1 – 2026-07-30
 
 - **Abwesenheit parkt die Azubis, statt sie einer Vertretung aufzuhalsen.** Korrektur

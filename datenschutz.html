@@ -129,6 +129,30 @@
     vornehmen, gehen denselben Weg zurück.
   </p>
 
+  <!--
+    Dieser Abschnitt geht auf eine Pruefung vom 31.07.2026 am Code zurueck: Der
+    Sync holt jede Liste vollstaendig ($top=999, keine serverseitige
+    Einschraenkung), und Azubis.sichtbar() filtert ein Array, das bereits alle
+    Azubis enthaelt. Der Umschalter "Nur meine / Alle" ist damit Anzeige, keine
+    Zugriffsgrenze. Eine serverseitige Filterung kann eine reine Browser-App
+    prinzipiell nicht leisten. Christian hat das am 31.07.2026 gesehen und
+    bewusst so entschieden -- es gehoert deshalb in die Erklaerung, nicht in
+    eine Fehlerliste.
+  -->
+  <h2>Wer die Daten einsehen kann</h2>
+  <p>
+    Die Anwendung lädt die Listen jeweils <strong>vollständig</strong> und
+    schränkt die Anzeige erst danach im Browser ein. Wer Leserecht auf der
+    SharePoint-Site der Akademie hat, kann deshalb den gesamten Bestand
+    einsehen – über diese Anwendung ebenso wie direkt in SharePoint. Die
+    Umschaltung „Nur meine / Alle" ordnet die Anzeige, sie ist
+    <strong>keine Zugriffsgrenze</strong>.
+  </p>
+  <p>
+    Die wirksame Zugriffskontrolle sind damit die Berechtigungen der
+    SharePoint-Site; sie vergibt die Akademie.
+  </p>
+
   <h2>Karten- und Routendienste</h2>
   <p>
     Für die Tourenplanung spricht die Anwendung drei Dienste des

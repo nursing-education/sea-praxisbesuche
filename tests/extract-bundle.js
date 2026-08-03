@@ -22,6 +22,8 @@ const bloecke = [
   ['Dashboard',        /const Dashboard = \{[\s\S]*?\n\};/],
   ['Bezugslehrer',     /const Bezugslehrer = \{[\s\S]*?\n\};/],
   ['Eingang',          /const Eingang = \{[\s\S]*?\n\};/],
+  /* v0.42: Rechtstexte. Geprueft wird nicht der Wortlaut, sondern die Feld-Logik --
+     leere Pflichtangaben duerfen keine leere Zeile erzeugen. */
 ];
 
 const teile = [];
