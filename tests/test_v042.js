@@ -19,6 +19,7 @@ const path = require('path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf-8');
 const ds = fs.readFileSync(path.join(__dirname, '..', 'datenschutz.html'), 'utf-8');
+const imp = fs.readFileSync(path.join(__dirname, '..', 'impressum.html'), 'utf-8');
 
 const log = [];
 let ok = 0, fail = 0;
@@ -69,29 +70,44 @@ p('datenschutz: nennt die Betroffenenrechte',
 p('datenschutz: benennt den Kreis, der die Daten tatsaechlich einsehen kann',
   /Leserecht/.test(ds));
 
-/* ---------- 3. Das Impressum bleibt ausserhalb dieses Repos -------------- */
-/* Anbieter ist Christian privat; seine Anschrift steht zentral auf percursus.de.
-   Dieses Repo war oeffentlich und wird es wieder -- sie darf hier nicht landen. */
-p('impressum: wird verlinkt, nicht einkopiert',
-  html.indexOf('percursus.de/impressum') >= 0
-  && ds.indexOf('percursus.de/impressum') >= 0);
-p('fusszeile: drei Links -- Impressum, Urheberrecht, Datenschutz',
-  /Impressum/.test(html) && /Urheberrecht/.test(html)
+/* ---------- 3. Impressum -------------------------------------------------- */
+/* Seit 04.08.2026 liegt es lokal statt als Link auf percursus.de: Der Sprung warf
+   die Nutzenden in ein fremdes Layout auf eine fremde Website. */
+p('fusszeile: zwei lokale Links -- Impressum und Datenschutz',
+  html.indexOf('href="impressum.html"') >= 0
   && html.indexOf('href="datenschutz.html"') >= 0);
-p('fusszeile: externe Links oeffnen entkoppelt (noopener noreferrer)',
-  (html.match(/rel="noopener noreferrer"/g) || []).length >= 2);
+/* Auf den Verweis pruefen, nicht auf das Wort -- der Kommentar an der Fusszeile
+   erklaert, warum der Sprung weg ist, und darf percursus.de nennen. */
+p('fusszeile: springt nicht mehr nach percursus.de',
+  !/href="[^"]*percursus/.test(html));
+p('impressum: nennt Anbieter und ladungsfaehige Anschrift',
+  /Christian Thiel/.test(imp) && /\b\d{5}\b/.test(imp) && /§ 5/.test(imp));
+p('impressum: nennt einen Kontaktweg',
+  /mailto:/.test(imp));
+/* Der Urheberrecht-Link ist entfallen, weil die Seite dort LERNINHALTE unter CC
+   stellt -- diese Anwendung ist Software. Die Klarstellung muss dafuer dastehen,
+   sonst waere die Frage einfach unbeantwortet. */
+p('impressum: stellt klar, dass die CC-Lizenz fuer die App nicht gilt',
+  /Creative.Commons/.test(imp) && /keine/i.test(imp));
+p('impressum: nennt OpenStreetMap und ODbL (Lizenzpflicht der Kartendaten)',
+  /OpenStreetMap/.test(imp) && /ODbL/.test(imp));
+p('impressum: der verbliebene externe Link oeffnet entkoppelt',
+  (imp.match(/rel="noopener noreferrer"/g) || []).length >= 1);
+p('rechtsseiten: verweisen wechselseitig aufeinander',
+  imp.indexOf('href="datenschutz.html"') >= 0
+  && ds.indexOf('href="impressum.html"') >= 0);
 
 /* ---------- 4. HTML-Geruest --------------------------------------------- */
 /* Genau eine h1 je Seite: Zwei sagen weder Screenreader noch Suchmaschine,
    wovon die Seite handelt. Stand hier schon einmal falsch. */
-p('geruest: die Datenschutzseite hat genau eine h1',
-  (ds.match(/<h1/g) || []).length === 1);
-p('geruest: die App hat genau eine h1',
-  (html.match(/<h1/g) || []).length === 1);
-p('geruest: beide Seiten sind als deutsch ausgezeichnet',
-  /<html lang="de">/.test(ds) && /<html lang="de">/i.test(html));
-p('geruest: beide Seiten deklarieren UTF-8',
-  /charset="utf-8"/i.test(ds) && /charset="utf-8"/i.test(html));
+for (const [name, quelle] of [['App', html], ['Datenschutzseite', ds], ['Impressum', imp]]) {
+  p('geruest: ' + name + ' hat genau eine h1',
+    (quelle.match(/<h1/g) || []).length === 1);
+  p('geruest: ' + name + ' ist als deutsch ausgezeichnet',
+    /<html lang="de">/i.test(quelle));
+  p('geruest: ' + name + ' deklariert UTF-8',
+    /charset="utf-8"/i.test(quelle));
+}
 p('geruest: die Tabelle der Dienste hat Spaltenkoepfe mit scope',
   /<th scope="col">/.test(ds));
 

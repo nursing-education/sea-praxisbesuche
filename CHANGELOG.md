@@ -6,11 +6,27 @@ mittlere Stelle (0.28→0.29).
 
 ## v0.42.0 – 2026-08-03
 
-- **Rechtliches: Fußzeile und Datenschutzerklärung.** Unter der Anwendung steht
-  jetzt eine Zeile mit **Impressum**, **Urheberrecht** und **Datenschutz**. Die
-  ersten beiden führen zu den zentralen Seiten auf `percursus.de` und öffnen sich
-  in einem neuen Tab – sie liegen dort, weil dieses Repo öffentlich ist und
-  Christians Anschrift nicht hineingehört.
+- **Rechtliches: Fußzeile, Impressum und Datenschutzerklärung.** Unter der
+  Anwendung steht jetzt eine Zeile mit **Impressum** und **Datenschutz**. Beide
+  Seiten liegen **in der Anwendung selbst** (`impressum.html`, `datenschutz.html`)
+  und sehen aus wie sie.
+
+  **Warum nicht verlinkt:** Zuerst zeigten die Links auf die zentralen Seiten von
+  `percursus.de`. In der Abnahme fiel auf, dass man damit mitten in eine fremde
+  Website mit fremdem Layout springt und sich dort verläuft. Ein Impressum soll
+  über die Anwendung Auskunft geben, nicht wegführen.
+
+  **Der Urheberrecht-Link ist entfallen.** Die Seite dort stellt *Lerninhalte*
+  unter CC BY-NC-SA – diese Anwendung ist Software, für die das nicht gilt. Der
+  Link hätte also etwas Falsches behauptet. Was tatsächlich gilt, steht jetzt als
+  Abschnitt im Impressum, zusammen mit der lizenzpflichtigen Nennung von
+  OpenStreetMap (ODbL).
+
+  Das Impressum enthält **bewusst keine Telefonnummer**. § 5 DDG verlangt einen
+  Weg zur unmittelbaren Kommunikation; der EuGH lässt E-Mail allein genügen, wenn
+  ein zweiter schneller Weg besteht – der Nutzerkreis sind Kolleginnen und
+  Kollegen. Die Begründung steht als Kommentar an der Stelle, an der die Zeile
+  stünde.
 
   **Neu: `datenschutz.html`** neben der `index.html`. Sie benennt jeden Empfänger,
   den die Anwendung tatsächlich anspricht – am Code nachgemessen, nicht geschätzt:
