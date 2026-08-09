@@ -4,6 +4,41 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.44.0 – 2026-08-09
+
+- **Der Feedback-Knopf war ein Briefkasten ohne Leerung.** Eine Meldung landete
+  in `state.meldungen[]` auf dem Gerät der meldenden Person und kam nur an, wenn
+  jemand von sich aus die Daten exportierte. Jetzt geht sie in die
+  SharePoint-Liste `Feedback` – dieselbe Anmeldung, dieselbe Verbindung, die die
+  Anwendung ohnehin benutzt. Kein neues Konto, kein neuer Empfänger.
+
+  **Der lokale Eintrag bleibt trotzdem bestehen.** Er ist nicht bloß eine Kopie,
+  sondern der Nachfass-Weg: Scheitert das Schreiben – kein Netz, keine
+  Anmeldung –, bleibt die Meldung als offen markiert liegen und geht beim
+  nächsten Sync mit raus.
+
+  Der Dialog sagte bisher „Kein automatischer Versand". Das wäre jetzt eine
+  Falschaussage und ist ersetzt. Und wenn das Schreiben scheitert, steht es
+  ausdrücklich da: „liegt vorerst nur auf diesem Gerät". Nach der Lehre aus
+  v0.40.2 – sichtbar falsch ist besser als still falsch.
+
+- **Rückmeldungen im Dashboard, nur für Administratoren.** Offene zuerst, darin
+  die neuesten oben; erledigte rutschen nach unten, verschwinden aber nicht –
+  ein verschwundener Eintrag sähe aus wie ein Datenverlust. Abgehakt wird direkt
+  in SharePoint über die Spalte `Erledigt`; die Anwendung zeigt nur an.
+
+- **Knopf „Als Issue anlegen" an jeder Rückmeldung, nur für Administratoren.**
+  Er öffnet GitHub mit vorausgefülltem Titel und Text. **Kein Zugriffsschlüssel
+  und kein API-Aufruf** – nur eine Adresse mit Parametern. Ein Schlüssel in einer
+  reinen Browser-Anwendung wäre für jeden lesbar, der den Quelltext öffnet; das
+  ist keine Frage der Sorgfalt, sondern der Bauart.
+
+- **Die Datenschutzerklärung nennt GitHub jetzt.** Nicht in der Tabelle der
+  Kartendienste, sondern als eigener Abschnitt: Diese Adresse wird nur auf
+  ausdrücklichen Klick und nur von Administratoren aufgerufen, beim gewöhnlichen
+  Benutzen der Anwendung nie. Aufgefallen ist die Lücke durch den Test aus
+  v0.42, der jeden Laufzeit-Host der `index.html` gegen die Erklärung prüft.
+
 ## v0.43.0 – 2026-08-09
 
 - **Notbremse für schmale Schirme.** Auf einem Handy war die Anwendung bisher
