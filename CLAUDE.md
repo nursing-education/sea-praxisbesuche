@@ -98,6 +98,13 @@ Getestet wird stets der **echte, aus `index.html` extrahierte Code**, keine
 Nachbildung. Die SVG-/Blasen-Zeichnung des Wizards ist Browser-Sache und nicht
 headless testbar.
 
+**Eine neue freie Funktion kann einen Extrakt-Test brechen.** Ruft ein
+extrahierter Block (z. B. `Onboarding`) eine Funktion, die *außerhalb* davon
+steht, kennt die `vm`-Sandbox sie nicht – der Test scheitert mit
+`ReferenceError`, obwohl die App läuft. Dann gehört ein Stub in den
+`sandbox`-Block des betroffenen Tests, wie bei `document` und `Oberflaeche`.
+Aufgetreten mit `reiterMarkieren()` in v0.42.
+
 ## Linting (Biome)
 
 ```
