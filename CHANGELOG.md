@@ -4,6 +4,88 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.42.0 – 2026-08-03
+
+- **Rechtliches: Fußzeile, Impressum und Datenschutzerklärung.** Unter der
+  Anwendung steht jetzt eine Zeile mit **Impressum** und **Datenschutz**. Beide
+  Seiten liegen **in der Anwendung selbst** (`impressum.html`, `datenschutz.html`)
+  und sehen aus wie sie.
+
+  **Warum nicht verlinkt:** Zuerst zeigten die Links auf die zentralen Seiten von
+  `percursus.de`. In der Abnahme fiel auf, dass man damit mitten in eine fremde
+  Website mit fremdem Layout springt und sich dort verläuft. Ein Impressum soll
+  über die Anwendung Auskunft geben, nicht wegführen.
+
+  **Der Urheberrecht-Link ist entfallen.** Die Seite dort stellt *Lerninhalte*
+  unter CC BY-NC-SA – diese Anwendung ist Software, für die das nicht gilt. Der
+  Link hätte also etwas Falsches behauptet. Was tatsächlich gilt, steht jetzt als
+  Abschnitt im Impressum, zusammen mit der lizenzpflichtigen Nennung von
+  OpenStreetMap (ODbL).
+
+  Das Impressum enthält **bewusst keine Telefonnummer**. § 5 DDG verlangt einen
+  Weg zur unmittelbaren Kommunikation; der EuGH lässt E-Mail allein genügen, wenn
+  ein zweiter schneller Weg besteht – der Nutzerkreis sind Kolleginnen und
+  Kollegen. Die Begründung steht als Kommentar an der Stelle, an der die Zeile
+  stünde.
+
+  **Neu: `datenschutz.html`** neben der `index.html`. Sie benennt jeden Empfänger,
+  den die Anwendung tatsächlich anspricht – am Code nachgemessen, nicht geschätzt:
+  `login.microsoftonline.com` (Anmeldung), `graph.microsoft.com` (die
+  SharePoint-Listen samt Azubi-Daten), `*.tile.openstreetmap.org`,
+  `nominatim.openstreetmap.org` und `router.project-osrm.org` (Karte und Routen –
+  diese drei erhalten die IP-Adresse) sowie Hostinger als Hoster.
+
+  Ebenfalls beschrieben: die Speicherung auf dem Gerät (IndexedDB
+  `sea-praxisbesuche` und das Microsoft-Token im `localStorage`) – keine Cookies,
+  nach § 25 Abs. 2 Nr. 2 TDDDG einwilligungsfrei, weil ohne sie die Anwendung
+  nicht funktioniert.
+
+  Kein Verhalten der Anwendung geändert; die Fußzeile fügt kein Skript hinzu.
+
+- **Kopfdaten der `index.html`.** Eine Kurzbeschreibung (`meta description`) und
+  `robots: noindex, nofollow` – die Anwendung liegt hinter der Microsoft-Anmeldung
+  und gehört in keinen Suchindex. Die Datenschutzerklärung hat eine eigene
+  Beschreibung und bleibt indexierbar.
+
+- **Drei Schritte für Screenreader**, ohne sichtbare Änderung:
+  - Der **offene Reiter** trägt jetzt `aria-current="page"` und nicht mehr nur eine
+    Farbe. Wer nicht sieht, wusste bisher nicht, wo er ist. Die Markierung sitzt in
+    der neuen Funktion `reiterMarkieren()` – sie wird an drei Stellen gebraucht und
+    lief sonst auseinander.
+  - Der **Dialog** ist als `role="dialog"` mit `aria-modal="true"` ausgewiesen.
+    Eine Fokusfalle (Tab bleibt im Dialog) fehlt weiterhin – das wäre eine
+    Verhaltensänderung und gehört in eine eigene Scheibe.
+  - Die **Meldungen unten** (`role="status"`) werden angesagt, statt nur
+    aufzublitzen. Betrifft beide Toast-Bauformen, sie teilen sich ein Element.
+
+- **Wer die Daten einsehen kann** – steht jetzt in der Erklärung, weil es
+  nachgeprüft wurde: Der Sync holt jede Liste vollständig, die Einschränkung
+  passiert erst im Browser. Wer Leserecht auf der SharePoint-Site hat, sieht den
+  gesamten Bestand; „Nur meine / Alle" ordnet die Anzeige und ist **keine
+  Zugriffsgrenze**. Eine serverseitige Filterung kann eine reine Browser-App
+  nicht leisten – die wirksame Kontrolle sind die Site-Berechtigungen.
+
+- **21 Tests in `tests/test_v042.js`** (gesamt 426). Der wichtigste leitet die
+  Liste der Empfänger **aus der `index.html` ab**, statt sie fest zu verdrahten:
+  Jeder Host, den die App zur Laufzeit anspricht, muss in der Erklärung
+  vorkommen. Wer künftig einen Dienst einbaut und die Erklärung vergisst,
+  bekommt einen roten Test statt einer stillen Lücke.
+
+### Zur Entstehung
+
+Diese Version entstand **zweimal unabhängig** – am 31.07. in einer Cloud-Session
+als Dialoge in der App, am 03.08. lokal als Fußzeile mit externen Links und
+eigener Seite. Beide Stränge sind hier zusammengeführt.
+
+Ausschlaggebend war eine Frage, die kein Code beantwortet: **Anbieter nach
+§ 5 DDG ist Christian privat, nicht die Akademie** (entschieden 31.07.,
+bestätigt 03.08.2026). Damit gilt das Impressum auf `percursus.de`, und die
+Fassung vom 31.07., die auf die Träger-Seiten verwies, trug nicht mehr. Ihr
+Modul `Rechtliches` mit den Impressum-Datenfeldern ist deshalb entfallen –
+**ihre Substanz nicht:** der abgeleitete statt abgeschriebene Datenschutztext,
+der Befund zum Zugriffsmodell und die Test-Idee, die Dienste-Liste gegen stilles
+Verschwinden zu sichern.
+
 ## v0.41.1 – 2026-07-30
 
 - **Abwesenheit parkt die Azubis, statt sie einer Vertretung aufzuhalsen.** Korrektur

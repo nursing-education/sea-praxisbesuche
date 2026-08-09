@@ -11,6 +11,11 @@ const sandbox={
   Daten:{ state, speichern:()=>{} },
   SharePoint:sp,
   Oberflaeche:{ ansicht:'start', tab:'anstehend', render:()=>{} },
+  /* v0.42: Der Onboarding-Block ruft beim Setzen eines Schritt-Zustands die
+     freie Funktion reiterMarkieren() -- sie steht ausserhalb des extrahierten
+     Blocks und faerbt/beschriftet nur die Reiter. Reine DOM-Arbeit, hier wie
+     das document-Stub neutralisiert. */
+  reiterMarkieren:()=>{},
   document:{ querySelector:()=>null, querySelectorAll:()=>[], getElementById:()=>null, createElement:()=>({style:{},classList:{add(){}}}), body:{appendChild:()=>{}}, addEventListener:()=>{}, removeEventListener:()=>{} },
   window:{ innerWidth:1200, innerHeight:800, addEventListener:()=>{}, removeEventListener:()=>{} },
   console

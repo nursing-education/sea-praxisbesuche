@@ -30,6 +30,11 @@ diesem öffentlichen Repo ausgeschlossen. Grund: Planung/Kontext könnten Intern
 - Die Versionsnummer steht im Dateinamen; bei einem Update ändern sich Datei **und**
   Pfad in `index.html`. `vendor/` muss immer neben der `index.html` liegen – die
   `index.html` allein ist nicht mehr lauffähig.
+- **`impressum.html` und `datenschutz.html`** liegen seit v0.42 neben der
+  `index.html`; die Fußzeile verlinkt sie relativ. Beide sind eigenständig (eigenes
+  CSS, laden nichts nach) und müssen beim Ausliefern mit. Sie teilen sich denselben
+  CSS-Block – **wird er in einer geändert, gehört er in der anderen nachgezogen.**
+  Kein Build, deshalb keine gemeinsame Datei.
 - **Ladereihenfolge ist bindend:** Leaflet CSS + JS im `<head>`, dann jsPDF und MSAL
   direkt nach `<body>`, der eigene Code zuletzt. Kein `defer`, kein `async` – sonst
   läuft der eigene Code, bevor die Libraries da sind.
@@ -92,6 +97,13 @@ node tests/run-all.js      # baut Bundle + alle Suiten
 Getestet wird stets der **echte, aus `index.html` extrahierte Code**, keine
 Nachbildung. Die SVG-/Blasen-Zeichnung des Wizards ist Browser-Sache und nicht
 headless testbar.
+
+**Eine neue freie Funktion kann einen Extrakt-Test brechen.** Ruft ein
+extrahierter Block (z. B. `Onboarding`) eine Funktion, die *außerhalb* davon
+steht, kennt die `vm`-Sandbox sie nicht – der Test scheitert mit
+`ReferenceError`, obwohl die App läuft. Dann gehört ein Stub in den
+`sandbox`-Block des betroffenen Tests, wie bei `document` und `Oberflaeche`.
+Aufgetreten mit `reiterMarkieren()` in v0.42.
 
 ## Linting (Biome)
 

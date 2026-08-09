@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datenschutzerklärung – SEA Praxisbesuche</title>
+<meta name="description" content="Welche Daten die Anwendung SEA Praxisbesuche verarbeitet: Microsoft-Anmeldung, SharePoint, Kartendienste, Speicherung auf dem Gerät.">
+<style>
+  /* Dieselben SEA-Token wie in index.html. Bewusst kopiert statt ausgelagert:
+     Die App hat keinen Build, und eine gemeinsame CSS-Datei waere eine zweite
+     Datei, die neben der index.html liegen muss, damit die Seite lesbar ist. */
+  :root{
+    --bg:#F4F1EB; --flaeche:#FFFFFF; --sekundaer:#EDE9DF;
+    --text:#1A1A1A; --text-leise:#4A4845; --rahmen:#DDD8CB;
+    --navy:#104E64; --orange:#F05100;
+    --radius:8px;
+    --font:system-ui, "Segoe UI", sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:0 0 3rem;font-family:var(--font);color:var(--text);
+    background:var(--bg);font-size:15px;line-height:1.55}
+
+  header{background:var(--navy);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:16px}
+  /* Die Marke ist bewusst keine Ueberschrift: Die einzige h1 der Seite ist ihr
+     Titel weiter unten. Zwei h1 wuerden Screenreader und Suchmaschinen im
+     Unklaren lassen, wovon die Seite handelt. */
+  header .marke{font-size:17px;font-weight:600}
+  header a{color:#fff;margin-left:auto;font-size:13px}
+
+  main{max-width:44rem;margin:0 auto;padding:2rem 18px 0}
+
+  h2{font-size:16px;color:var(--navy);margin:2.2rem 0 .5rem;padding-top:1.2rem;
+    border-top:1px solid var(--rahmen)}
+  h2:first-of-type{border-top:none;padding-top:0;margin-top:1.5rem}
+  h1.titel{font-size:26px;margin:0 0 .3rem;line-height:1.2}
+  .untertitel{margin:0 0 1.5rem;color:var(--text-leise);font-size:14px}
+
+  p{margin:0 0 .9rem}
+  ul{margin:0 0 .9rem;padding-left:1.3rem}
+  li{margin-bottom:.3rem}
+  address{font-style:normal;margin:0 0 .9rem}
+  a{color:var(--navy)}
+  a:hover{text-decoration:none}
+
+  .kasten{background:var(--flaeche);border:1px solid var(--rahmen);
+    border-radius:var(--radius);padding:14px 16px;margin:0 0 1.4rem}
+  .kasten p:last-child{margin-bottom:0}
+  .kasten.warnung{border-left:4px solid var(--orange)}
+
+  table{border-collapse:collapse;width:100%;margin:0 0 1rem;font-size:14px}
+  caption{text-align:left;font-size:13px;color:var(--text-leise);padding-bottom:6px}
+  th,td{text-align:left;vertical-align:top;padding:7px 9px;border:1px solid var(--rahmen)}
+  th{background:var(--sekundaer);color:var(--navy);font-size:13px}
+
+  footer{max-width:44rem;margin:2.5rem auto 0;padding:1.2rem 18px 0;
+    border-top:1px solid var(--rahmen);font-size:13px;color:var(--text-leise)}
+  footer a{margin-right:.9rem}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="marke">SEA&nbsp;Praxisbesuche</span>
+  <a href="index.html">← Zurück zur Anwendung</a>
+</header>
+
+<main>
+
+  <h1 class="titel">Datenschutzerklärung</h1>
+  <p class="untertitel">Für die Anwendung „SEA Praxisbesuche" zur Planung von Praxisbesuchen in der Pflegeausbildung</p>
+
+  <div class="kasten warnung">
+    <p>
+      Diese Anwendung wird von den <strong>Lehrkräften</strong> der Akademie
+      benutzt. Sie verarbeitet <strong>personenbezogene Daten von
+      Auszubildenden und Lehrkräften</strong> und überträgt sie an Microsoft.
+      Für die Kartenansicht werden zusätzlich Dienste des
+      OpenStreetMap-Projekts angesprochen. Was genau wohin geht, steht unten
+      im Einzelnen.
+    </p>
+  </div>
+
+  <h2>Verantwortlicher für diese Anwendung</h2>
+  <p>
+    Christian Thiel. Anschrift und Kontakt stehen im
+    <a href="impressum.html">Impressum</a>;
+    Fragen zum Datenschutz gehen an die dort genannte E-Mail-Adresse.
+  </p>
+
+  <!--
+    Offen (Stand 03.08.2026): Die Rollenverteilung nach DSGVO ist noch nicht
+    vertraglich geregelt. Die Azubi- und Einsatzdaten stammen aus SharePoint der
+    St. Elisabeth Akademie; fuer sie ist die Akademie die Verantwortliche, die
+    Anwendung ist nur das Werkzeug. Solange kein Vertrag zur
+    Auftragsverarbeitung nach Art. 28 DSGVO zwischen Christian und der Akademie
+    besteht, ist der Absatz unten eine Beschreibung der Lage, keine
+    vertraglich abgesicherte Aussage. Siehe "Offene Punkte" in
+    docs/specs/2026-07-31-rechtliches-design.md im KI-Hub.
+  -->
+  <h2>Woher die Daten kommen</h2>
+  <p>
+    Die Anwendung führt keine eigene Datenbank im Netz. Alle Azubi-, Einsatz-
+    und Lehrkraftdaten liegen in <strong>SharePoint-Listen der St. Elisabeth
+    Akademie</strong> und werden von dort gelesen und dorthin zurückgeschrieben.
+    Verantwortliche Stelle für diese Daten ist die Akademie; die Anwendung ist
+    das Werkzeug, mit dem die Praxisbesuche geplant werden.
+  </p>
+
+  <h2>Anmeldung mit dem Microsoft-Konto</h2>
+  <p>
+    Der Zugang läuft über das dienstliche Microsoft-Konto. Beim Anmelden werden
+    Ihre Zugangsdaten an <strong>login.microsoftonline.com</strong> (Microsoft
+    Ireland Operations Ltd. bzw. Microsoft Corporation) übertragen. Die
+    Anwendung selbst sieht Ihr Passwort nicht; sie erhält ausschließlich ein
+    Zugriffstoken.
+  </p>
+  <p>
+    Rechtsgrundlage ist Art. 6 Abs. 1 lit. b und lit. f DSGVO – ohne Anmeldung
+    ist die Anwendung nicht nutzbar, und der Zugriff auf Azubi-Daten muss auf
+    berechtigte Personen beschränkt bleiben.
+  </p>
+
+  <h2>Zugriff auf die SharePoint-Listen</h2>
+  <p>
+    Mit dem Token ruft die Anwendung die Microsoft-Graph-Schnittstelle unter
+    <strong>graph.microsoft.com</strong> auf. Dabei werden die Inhalte der
+    genannten Listen übertragen – Namen und Kursdaten der Auszubildenden, ihre
+    Einsätze und Einsatzorte, die Zuordnung zu Bezugslehrenden sowie die
+    Angaben zu den Einrichtungen. Änderungen, die Sie in der Anwendung
+    vornehmen, gehen denselben Weg zurück.
+  </p>
+
+  <!--
+    Dieser Abschnitt geht auf eine Pruefung vom 31.07.2026 am Code zurueck: Der
+    Sync holt jede Liste vollstaendig ($top=999, keine serverseitige
+    Einschraenkung), und Azubis.sichtbar() filtert ein Array, das bereits alle
+    Azubis enthaelt. Der Umschalter "Nur meine / Alle" ist damit Anzeige, keine
+    Zugriffsgrenze. Eine serverseitige Filterung kann eine reine Browser-App
+    prinzipiell nicht leisten. Christian hat das am 31.07.2026 gesehen und
+    bewusst so entschieden -- es gehoert deshalb in die Erklaerung, nicht in
+    eine Fehlerliste.
+  -->
+  <h2>Wer die Daten einsehen kann</h2>
+  <p>
+    Die Anwendung lädt die Listen jeweils <strong>vollständig</strong> und
+    schränkt die Anzeige erst danach im Browser ein. Wer Leserecht auf der
+    SharePoint-Site der Akademie hat, kann deshalb den gesamten Bestand
+    einsehen – über diese Anwendung ebenso wie direkt in SharePoint. Die
+    Umschaltung „Nur meine / Alle" ordnet die Anzeige, sie ist
+    <strong>keine Zugriffsgrenze</strong>.
+  </p>
+  <p>
+    Die wirksame Zugriffskontrolle sind damit die Berechtigungen der
+    SharePoint-Site; sie vergibt die Akademie.
+  </p>
+
+  <h2>Karten- und Routendienste</h2>
+  <p>
+    Für die Tourenplanung spricht die Anwendung drei Dienste des
+    OpenStreetMap-Umfelds an. Diese Dienste erhalten dabei zwangsläufig Ihre
+    <strong>IP-Adresse</strong>, weil Ihr Browser sie direkt aufruft:
+  </p>
+  <table>
+    <caption>Fremde Dienste, die beim Anzeigen einer Karte angesprochen werden</caption>
+    <thead>
+    <tr>
+      <th scope="col">Dienst</th>
+      <th scope="col">Was übertragen wird</th>
+      <th scope="col">Wann</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td>*.tile.openstreetmap.org<br>(OpenStreetMap Foundation)</td>
+      <td>IP-Adresse, angefragter Kartenausschnitt</td>
+      <td>bei jeder angezeigten Karte</td>
+    </tr>
+    <tr>
+      <td>nominatim.openstreetmap.org<br>(OpenStreetMap Foundation)</td>
+      <td>IP-Adresse, Anschrift einer Einrichtung als Suchtext</td>
+      <td>beim Ermitteln der Koordinaten einer Einrichtung</td>
+    </tr>
+    <tr>
+      <td>router.project-osrm.org<br>(Demo-Server des OSRM-Projekts)</td>
+      <td>IP-Adresse, Koordinaten der Start-, Zwischen- und Zielpunkte</td>
+      <td>beim Berechnen einer Fahrstrecke</td>
+    </tr>
+    </tbody>
+  </table>
+  <p>
+    Übertragen werden Anschriften und Koordinaten von <em>Einrichtungen</em>,
+    keine Namen von Auszubildenden. Ihre private Anschrift wird nur dann
+    übertragen, wenn Sie sie in den Einstellungen selbst als Startpunkt
+    hinterlegt haben.
+  </p>
+  <p>
+    Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; das berechtigte Interesse
+    liegt in der Planung sinnvoller Fahrtrouten zwischen den Einrichtungen. Die
+    genannten Dienste werden von Einrichtungen in Europa betrieben; auf ihre
+    Speicherfristen habe ich keinen Einfluss.
+  </p>
+
+  <h2>Speicherung auf Ihrem Gerät</h2>
+  <p>
+    Damit die Anwendung auch ohne Netz nutzbar ist, legt sie Daten im Speicher
+    Ihres Browsers ab – <strong>keine Cookies</strong>, sondern:
+  </p>
+  <ul>
+    <li>eine Datenbank <code>sea-praxisbesuche</code> (IndexedDB) mit den
+      geladenen Azubi-, Einsatz- und Einrichtungsdaten sowie Ihren
+      Einstellungen und automatischen Sicherungen,</li>
+    <li>das Anmeldetoken von Microsoft im lokalen Speicher
+      (<code>localStorage</code>), damit Sie sich nicht bei jedem Start neu
+      anmelden müssen.</li>
+  </ul>
+  <p>
+    Diese Speicherung ist für den von Ihnen ausdrücklich gewünschten Dienst
+    unbedingt erforderlich; sie ist daher nach § 25 Abs. 2 Nr. 2 TDDDG ohne
+    Einwilligung zulässig. Beides bleibt auf Ihrem Gerät. Über
+    <em>Einstellungen → Daten löschen</em> und über das Abmelden lässt es sich
+    entfernen; auch das Löschen der Browserdaten entfernt es.
+  </p>
+  <p>
+    Rückmeldungen über den Feedback-Knopf werden ebenfalls nur lokal
+    gespeichert und <strong>nicht automatisch versendet</strong>.
+  </p>
+
+  <h2>Hosting</h2>
+  <p>
+    Die Anwendung wird gehostet von der <strong>Hostinger International
+    Ltd.</strong>, 61 Lordou Vironos Street, 6023 Larnaca, Zypern; der Server
+    steht in Deutschland. Beim Abruf der Seite erhebt der Hoster die üblichen
+    Server-Protokolle: IP-Adresse, Zeitpunkt, abgerufene Datei, Browser und
+    Betriebssystem sowie die zuvor besuchte Seite, sofern Ihr Browser sie
+    übermittelt. Diese Daten werden nicht zusammengeführt und nicht
+    ausgewertet; Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO.
+    Der Hoster verarbeitet sie in meinem Auftrag auf Grundlage eines
+    Auftragsverarbeitungsvertrags nach Art. 28 DSGVO
+    (<a href="https://www.hostinger.com/de/legal/dpa" target="_blank" rel="noopener noreferrer">Vertragstext beim Hoster</a>).
+  </p>
+  <p>
+    Ich selbst bewahre keine Kopien der Protokolle auf. Die Aufbewahrungsdauer
+    richtet sich nach den Löschfristen des Hosters.
+  </p>
+
+  <h2>Verschlüsselung</h2>
+  <p>
+    Alle Verbindungen laufen verschlüsselt über HTTPS. Sie erkennen das am
+    Schloss-Symbol in der Adresszeile Ihres Browsers.
+  </p>
+
+  <h2>Ihre Rechte</h2>
+  <p>Sie haben jederzeit das Recht auf</p>
+  <ul>
+    <li>Auskunft über die zu Ihrer Person gespeicherten Daten (Art. 15 DSGVO),</li>
+    <li>Berichtigung unrichtiger Daten (Art. 16 DSGVO),</li>
+    <li>Löschung (Art. 17 DSGVO),</li>
+    <li>Einschränkung der Verarbeitung (Art. 18 DSGVO),</li>
+    <li>Datenübertragbarkeit (Art. 20 DSGVO),</li>
+    <li>Widerspruch gegen die Verarbeitung (Art. 21 DSGVO).</li>
+  </ul>
+  <p>
+    Für Daten, die in den SharePoint-Listen liegen, wenden Sie sich an die
+    St. Elisabeth Akademie als verantwortliche Stelle; für alles, was die
+    Anwendung selbst betrifft, an die im
+    <a href="impressum.html">Impressum</a>
+    genannte Adresse.
+  </p>
+
+  <h2>Beschwerderecht</h2>
+  <p>
+    Sie können sich bei einer Datenschutz-Aufsichtsbehörde beschweren.
+    Zuständig ist die Landesbeauftragte für Datenschutz und
+    Informationsfreiheit Nordrhein-Westfalen, Kavalleriestraße 2–4,
+    40213 Düsseldorf.
+  </p>
+
+</main>
+
+<footer>
+  <a href="index.html">Zur Anwendung</a>
+  <a href="impressum.html">Impressum</a>
+</footer>
+
+</body>
+</html>
