@@ -468,7 +468,12 @@
   .ob-blase{position:fixed;z-index:2060;pointer-events:auto;max-width:340px;width:min(340px,88vw);
     background:var(--flaeche);color:var(--text);border:1px solid var(--rahmen);border-radius:10px;
     box-shadow:0 8px 28px rgba(0,0,0,.28);padding:16px 18px}
-  .ob-blase.mitte{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:440px;width:min(440px,92vw);text-align:center}
+  /* Zentrierung ueber die eigene translate-Eigenschaft, NICHT ueber transform:
+     die Einblendung ob-fade endet auf "transform:none" und laeuft mit fill-mode
+     "both" -- ein transform hier wuerde danach ueberschrieben und die Blase
+     bliebe um ihre halbe Breite nach rechts versetzt stehen. Auf breiten
+     Schirmen faellt das nicht auf, bei 390 px ragte sie aus dem Bild. */
+  .ob-blase.mitte{position:fixed;left:50%;top:50%;translate:-50% -50%;max-width:440px;width:min(440px,92vw);text-align:center}
   .ob-blase h3{margin:0 0 8px;color:var(--navy);font-size:17px}
   .ob-blase p{margin:0 0 6px;font-size:14px;line-height:1.5}
   .ob-blase .ob-hinweis{font-size:12px;color:var(--text-leise);margin-top:8px}
@@ -497,6 +502,25 @@
   @media (prefers-reduced-motion: reduce){
     .ob-illu svg *{animation:none !important;opacity:1 !important;stroke-dashoffset:0 !important}
     .ob-blase{animation:none !important}
+  }
+
+  /* ===== v0.43: Notbremse fuer schmale Schirme ==========================
+     Gemessen am 04.08.2026 bei 390 px: die Seite blaehte sich auf 612 px auf,
+     die zweite Spalte von main fiel auf 0 px, Kopfzeile und Reiterleiste
+     ragten aus dem Bild. Hier wird nur das Ueberlaufen abgestellt -- nichts
+     wird schoen, aber alles ist erreichbar. Zuschnitt: spec/smartphone.md. */
+  @media (max-width:700px){
+    /* 340px feste Spalte + Abstaende passen nicht in 390px -- die zweite
+       Spalte fiel dadurch auf 0 px zusammen. Untereinander statt nebeneinander. */
+    main{grid-template-columns:1fr;gap:12px;padding:12px}
+    /* Ein Grid-Kind darf schmaler werden als sein Inhalt, sonst schiebt es
+       die ganze Seite in die Breite. */
+    .spalte{min-width:0}
+    header{flex-wrap:wrap;gap:8px;padding:10px 12px}
+    nav{flex-wrap:wrap;padding:8px 12px}
+    /* Breite Tabellen scrollen in sich selbst, statt die Seite zu schieben.
+       .prueftab liegt bereits in .pruef-scroll und bleibt unangetastet. */
+    main table:not(.prueftab){display:block;overflow-x:auto}
   }
 </style>
 <!-- Leaflet 1.9.4 aus vendor/ (lokal, kein CDN; Kartenkacheln brauchen Internet) -->
@@ -552,7 +576,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.42.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.43.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3814,10 +3838,13 @@ const Onboarding = {
     ];
     /* 1. bevorzugte Reihenfolge: erste Seite mit vollem Platz. */
     for(const k of kandidaten){ if(k.passt) return { top:k.top, left:k.left, seite:k.seite }; }
-    /* 2. Notfall: Seite mit dem meisten Platz – verdeckt das Loch NICHT, damit die
-       Eingabefelder frei bleiben (nur ggf. Überlauf über den Viewport-Rand). */
+    /* 2. Notfall: Seite mit dem meisten Platz. Bis v0.42 blieb diese Position
+       ungeklemmt, damit sie das Loch nicht verdeckt – auf 390 px landete die
+       Blase dadurch oberhalb des Bildschirms und "Einführung schließen" war
+       nicht antippbar. Eine unerreichbare Blase wiegt schwerer als ein
+       verdecktes Eingabefeld, deshalb wird jetzt auch hier geklemmt. */
     const best=kandidaten.reduce((a,b)=> b.platz>a.platz ? b : a);
-    return { top: best.top, left: best.left, seite: best.seite, knapp:true };
+    return { top: klemmY(best.top), left: klemmX(best.left), seite: best.seite, knapp:true };
   },
 
   _zeichnen(animieren, initial){
