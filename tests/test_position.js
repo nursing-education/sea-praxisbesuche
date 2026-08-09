@@ -101,5 +101,21 @@ t('_blasePosition existiert', typeof Ob._blasePosition === 'function');
   t('klein: seite=rechts, keine Ueberlappung', p.seite === 'rechts' && !ueberlappt(p, loch, BL));
 }
 
+// 9 Handy-Format: der Notfall darf die Blase nicht aus dem Bild schieben.
+//   Bis v0.42 blieb die Notfallposition ungeklemmt -- bei einem Loch dicht
+//   unter der Kopfzeile landete die Blase oberhalb des Bildschirms und
+//   "Einfuehrung schliessen" war nicht antippbar (gemessen 04.08.2026, 390 px).
+{
+  const vp = { left: 0, top: 0, width: 390, height: 844 };
+  const loch = { left: 20, top: 300, right: 370, bottom: 600 };
+  const bl = { w: 340, h: 300 };
+  const p = Ob._blasePosition(loch, bl, vp);
+  t('handy: als knapp markiert', p.knapp === true);
+  t('handy: top nicht negativ', p.top >= 10);
+  t('handy: Blase bleibt unten im Bild', p.top + bl.h <= vp.height - 10 + 0.0001);
+  t('handy: Blase bleibt links im Bild', p.left >= 10);
+  t('handy: Blase bleibt rechts im Bild', p.left + bl.w <= vp.width - 10 + 0.0001);
+}
+
 console.log('\n== ' + pass + ' bestanden, ' + fail + ' fehlgeschlagen ==');
 process.exit(fail ? 1 : 0);

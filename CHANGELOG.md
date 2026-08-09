@@ -4,6 +4,34 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.43.0 – 2026-08-09
+
+- **Notbremse für schmale Schirme.** Auf einem Handy war die Anwendung bisher
+  nicht bedienbar: Die zweite Spalte des Hauptbereichs fiel auf **0 px**
+  zusammen (gemessen: `340px 0px`), weil die feste erste Spalte mit 340 px plus
+  Abstände breiter ist als ein 390-px-Bildschirm. Unter 700 px stehen die
+  Spalten jetzt untereinander, Kopfzeile und Reiterleiste brechen um, breite
+  Tabellen scrollen in sich selbst statt die ganze Seite zu schieben.
+
+  Das ist ausdrücklich **keine Handy-Ansicht**, nur die Reparatur des
+  Überlaufens – nichts wird schön, aber alles ist erreichbar. Der Zuschnitt der
+  eigentlichen Handy-Ansichten steht in `spec/smartphone.md`.
+
+- **Die Einführungs-Sprechblase stand nicht dort, wo sie sollte.** In ihrer
+  zentrierten Variante hat sie sich per `transform: translate(-50%,-50%)` in die
+  Mitte geschoben – die Einblend-Animation endet aber auf `transform: none` und
+  wirkt nach (`fill-mode: both`), womit diese Verschiebung wieder verloren ging.
+  Die Blase stand dadurch immer um ihre halbe Breite zu weit rechts. Auf breiten
+  Schirmen blieb sie trotzdem im Bild, bei 390 px ragte sie 164 px heraus.
+  **Auch auf dem Desktop sitzt sie jetzt anders – nämlich richtig.**
+
+- **Die Sprechblase kann nicht mehr aus dem Bild rutschen.** Findet sie neben
+  ihrem Ziel nirgends genug Platz, wich sie bisher ungeklemmt aus, um das Ziel
+  nicht zu verdecken – bei wenig Platz landete sie außerhalb des Bildschirms und
+  war nicht mehr antippbar. Jetzt bleibt sie im sichtbaren Bereich, auch wenn sie
+  dabei ihr Ziel überlappt: Eine unerreichbare Blase wiegt schwerer als ein
+  verdecktes Eingabefeld.
+
 ## v0.42.0 – 2026-08-03
 
 - **Rechtliches: Fußzeile, Impressum und Datenschutzerklärung.** Unter der
