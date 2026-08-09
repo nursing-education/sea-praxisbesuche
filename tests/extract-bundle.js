@@ -17,6 +17,7 @@ const bloecke = [
   ['SP_FELDER_AZUBIS',  /const SP_FELDER_AZUBIS = \{[\s\S]*?\n\};/],
   ['SP_FELDER_EINSAETZE', /const SP_FELDER_EINSAETZE = \{[\s\S]*?\n\};/],
   ['SP_FELDER_BEZUGSLEHRER', /const SP_FELDER_BEZUGSLEHRER = \{[\s\S]*?\n\};/],
+  ['SP_FELDER_FEEDBACK', /const SP_FELDER_FEEDBACK = \{[\s\S]*?\n\};/],
   ['SPSync',           /const SPSync = \{[\s\S]*?\n\};/],
   ['Azubis',           /const Azubis = \{[\s\S]*?\n\};/],
   ['Dashboard',        /const Dashboard = \{[\s\S]*?\n\};/],

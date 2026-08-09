@@ -52,6 +52,9 @@
   .zeile .haupt{font-weight:600}
   .zeile .meta{font-size:12px;color:var(--text-leise)}
   .zeile .rechts{margin-left:auto;display:flex;gap:6px;align-items:center}
+  /* v0.44: Rückmeldungen im Dashboard. Erledigte bleiben stehen, treten aber zurück. */
+  .zeile.fb-erledigt{opacity:.6}
+  .fb-issue{font-size:12px;white-space:nowrap}
   .pill{font-size:11px;padding:2px 7px;border-radius:999px;background:var(--sekundaer);color:var(--text-leise)}
   .pill.Akut{background:#dde9ee;color:var(--navy)} .pill.LZP{background:#e3ede4;color:var(--forest)}
   .pill.Amb{background:#fdeede;color:#9a5b00} .pill.Päd{background:#fbe8c2;color:#7a5a00}
@@ -576,7 +579,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.43.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.44.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -694,6 +697,7 @@ const SP_CONFIG = {
   listEinsaetze : "Einsaetze",                 /* v0.22: Einsatzplaene (aus Easysoft-CSV) */
   listAdmins    : "Admins",                    /* v0.25: Admin-Erkennung (E-Mail-Abgleich) */
   listBezugslehrer : "Bezugslehrende",         /* v0.35: Lehrkräfte-Stammliste (Kapazität, Archivieren) */
+  listFeedback  : "Feedback",                  /* v0.44: Rückmeldungen der Kolleg:innen */
   scopes   : ["Sites.Selected"]
 };
 /* Zuordnung SharePoint-Spalte -> App-Feld. Heisst eine Spalte in SharePoint
@@ -766,6 +770,27 @@ const SP_FELDER_BEZUGSLEHRER = {
      ist gerade nicht verfuegbar. */
   abwesend       : "Abwesend",      /* Ja/Nein: true=faellt gerade aus */
   vertretungDurch: "VertretungDurch"/* Rohwert inkl. "(Zahl)", wie Azubis.Bezugslehrer */
+};
+
+/* v0.44 -- Feldzuordnung Liste "Feedback". Einwort-Spaltennamen -> interner
+   SharePoint-Name = Anzeigename.
+
+   ACHTUNG, Stand 09.08.2026: Christian hat die Spalten aus der LISTENANSICHT
+   genannt, nicht aus den Listeneinstellungen -- das sind Anzeigenamen. Dass
+   "Titel" dabei war (intern immer "Title"), belegt das. Fuer die vier anderen
+   ist interner Name = Anzeigename wahrscheinlich, aber unbestaetigt. Der
+   Abnahmeschritt "melden, dann F5, Zeile ist noch da" prueft genau das, und
+   ein Fehlschlag wird sichtbar gemeldet statt verschluckt (Lehre v0.40.2).
+
+   "Version" waere nicht gegangen: der Name gehoert zu den versteckten
+   Systemspalten der SharePoint-Versionsverwaltung. Deshalb "AppVersion". */
+const SP_FELDER_FEEDBACK = {
+  art       : "Title",       /* "Fehler", "Wunsch" oder "Frage" -- steht in jeder Standardansicht */
+  meldung   : "Meldung",     /* mehrere Textzeilen */
+  absender  : "Absender",    /* Name aus den Einstellungen der meldenden Person */
+  appVersion: "AppVersion",  /* APP_VERSION beim Melden */
+  erledigt  : "Erledigt"     /* Ja/Nein -- hakt Christian direkt in SharePoint ab */
+  /* Erstellt: legt SharePoint selbst an, kein eigenes Datumsfeld. */
 };
 
 /* Ausbildung ergibt sich aus dem Kurs-Text (bestaetigte Regel):
@@ -864,7 +889,8 @@ const Daten = {
              maxSammelGroesse:3,                             /* v0.18: max. Azubis gleichzeitig an einer Einrichtung */
              ansichtModus:"meine",                           /* v0.25: "meine" | "alle" (Admins-Umschalter, siehe Abschnitt 14) */
              onboardingGesehen:false,                        /* v0.27: Einführung schon durchlaufen/übersprungen? (lokal, steuert Auto-Start) */
-             meldungen:[],                                   /* v0.19: Feedback der Kolleg:innen (fürs Dashboard) */
+             meldungen:[],                                   /* v0.19: eigene Meldungen dieses Geräts (Nachfass-Weg, siehe v0.44) */
+             rueckmeldungen:[],                              /* v0.44: alle Meldungen aus SharePoint (nur Admins geladen) */
              azubis:[], azubiNamen:{}, einrichtungen:[], termine:[], touren:[],
              lehrer:[],                                      /* v0.35: Bezugslehrer-Stammliste */
              schreibDefekt:null };                           /* v0.40.2: von SharePoint abgelehnte Spalte (stehender Hinweis) */
@@ -1611,6 +1637,62 @@ const SPSync = {
     const url=await this._itemsUrl(token, SP_CONFIG.listBezugslehrer);
     await this._schreiben(url + "/" + spId, token, "DELETE");
   },
+  /* v0.44 -- Eine Rueckmeldung nach SharePoint schreiben.
+     Offline-first wie bezugslehrerSenden: scheitert es, bleibt die Meldung mit
+     fbOffen=true liegen und wird beim naechsten Sync nachgereicht. Der lokale
+     Eintrag bleibt IMMER bestehen -- er ist der Nachfass-Weg, nicht nur eine Kopie.
+     Rueckgabe: true = angekommen, false = liegt vorerst nur auf dem Geraet. */
+  async feedbackSenden(meldung){
+    let token=null;
+    try { token=await SharePoint._tokenStill(); } catch(e){ token=null; }
+    if(!token){ meldung.fbOffen=true; return false; }
+    try{
+      const url=await this._itemsUrl(token, SP_CONFIG.listFeedback);
+      await this._feedbackPost(url, token, meldung);
+      return true;
+    }catch(e){
+      meldung.fbOffen=true;
+      meldung.fbGrund=String((e&&e.message)||e||"");
+      return false;
+    }
+  },
+  /* Gemeinsamer Kern von feedbackSenden und dem Nachreichen in offeneSenden --
+     einmal gebaute Felder, damit beide Wege nicht auseinanderlaufen koennen. */
+  async _feedbackPost(url, token, meldung){
+    const F=SP_FELDER_FEEDBACK, felder={};
+    felder[F.art]        = this._fbArt(meldung.kategorie);
+    felder[F.meldung]    = meldung.text||"";
+    felder[F.absender]   = meldung.von||"";
+    felder[F.appVersion] = meldung.version||"";
+    const r=await this._schreiben(url, token, "POST", { fields: felder });
+    meldung.fbOffen=false;
+    meldung.fbGrund="";
+    if(r && r.id) meldung.spId=r.id;
+  },
+  /* Die drei Kategorien der App in die Beschriftung der Liste uebersetzen. */
+  _fbArt(kategorie){
+    return ({fehler:"Fehler", wunsch:"Wunsch", frage:"Frage"})[kategorie] || "Fehler";
+  },
+  /* v0.44 -- Alle Rueckmeldungen lesen (Dashboard, nur Admin). "Erledigt" fehlt
+     oder false heisst offen -- dieselbe Auslegung wie bei "Aktiv" in v0.35. */
+  async feedbackLaden(token){
+    const url=await this._itemsUrl(token, SP_CONFIG.listFeedback);
+    const r=await SharePoint._graphGet(url + "?$expand=fields&$top=999", token);
+    const F=SP_FELDER_FEEDBACK;
+    const txt=(f,k)=> (f[k]!=null ? String(f[k]) : "");
+    return (r.value||[]).map(it=>{
+      const f=it.fields||{};
+      return {
+        spId: it.id,
+        art: txt(f,F.art),
+        text: txt(f,F.meldung),
+        von: txt(f,F.absender),
+        version: txt(f,F.appVersion),
+        erledigt: f[F.erledigt]===true,
+        erstellt: txt(f,"Created")
+      };
+    }).filter(m=> m.text);
+  },
   async istAdmin(token, upn){
     if(!upn) return false;
     let admins;
@@ -1820,6 +1902,17 @@ const SPSync = {
         }catch(err){ fehler++; }
       }
     }
+    /* v0.44: liegengebliebene Rueckmeldungen nachreichen. Anders als bei den
+       Einsaetzen gibt es hier keine spId zum Abgleichen -- eine offene Meldung
+       ist noch NIE in SharePoint angekommen, deshalb POST statt PATCH. */
+    const offene=(Daten.state.meldungen||[]).filter(m=> m.fbOffen);
+    if(offene.length){
+      const urlFb=await this._itemsUrl(token, SP_CONFIG.listFeedback);
+      for(const m of offene){
+        try{ await this._feedbackPost(urlFb, token, m); ok++; }
+        catch(err){ fehler++; }
+      }
+    }
     return {ok, fehler};
   },
 
@@ -1835,6 +1928,15 @@ const SPSync = {
        (frisch angelegt / nicht erreichbar), bleibt der bisherige Stand erhalten. */
     try{ Daten.state.lehrer=await this.lehrerListeLaden(token); }
     catch(e){ if(!Array.isArray(Daten.state.lehrer)) Daten.state.lehrer=[]; }
+
+    /* v0.44: Rueckmeldungen nur fuer Admins laden -- nur sie sehen die Liste im
+       Dashboard. Ebenso defensiv: Bekommt die Liste eigene Berechtigungen
+       (offener Punkt der Spec: schreiben alle, lesen nur Admins), scheitert der
+       Zugriff fuer alle anderen, und das darf den ganzen Sync nicht kippen. */
+    if(SharePoint.istAdmin){
+      try{ Daten.state.rueckmeldungen=await this.feedbackLaden(token); }
+      catch(e){ if(!Array.isArray(Daten.state.rueckmeldungen)) Daten.state.rueckmeldungen=[]; }
+    }
 
     const proAzubi=new Map();
     einsaetze.forEach(e=>{
@@ -3148,6 +3250,37 @@ const Dashboard = {
   /* v0.30: Rollen-Signal fürs Dashboard – nur Admins dürfen verwalten. Kein echter
      Sicherheits-Layer (das leistet SharePoint), sondern Übersichtlichkeit. */
   darfVerwalten(){ return (typeof SharePoint!=="undefined") && !!SharePoint.istAdmin; },
+
+  /* v0.44 -- Reihenfolge der Rueckmeldungen: offene zuerst, darin die neuesten
+     oben. Erledigte rutschen nach unten, verschwinden aber nicht -- abgehakt
+     wird in SharePoint, und ein verschwundener Eintrag saehe wie ein Datenverlust
+     aus. Sortiert wird auf einer Kopie; die Aufrufer teilen sich state. */
+  rueckmeldungenSortiert(liste){
+    return (liste||[]).slice().sort((a,b)=>{
+      if(!!a.erledigt !== !!b.erledigt) return a.erledigt ? 1 : -1;
+      return String(b.erstellt||"").localeCompare(String(a.erstellt||""));
+    });
+  },
+
+  /* v0.44 -- Vorausgefuellter GitHub-Issue-Link. Kein Schluessel, kein
+     API-Aufruf: nur eine Adresse mit Parametern, die GitHub ins Formular
+     uebernimmt. Alles wird kodiert -- ein "&" im Meldungstext wuerde sonst als
+     Parametertrenner gelesen und der Rest des Textes verschluckt. */
+  issueLink(meldung){
+    const m=meldung||{};
+    const titel=(m.art?m.art+": ":"") + String(m.text||"").split("\n")[0].slice(0,72);
+    const koerper=[
+      String(m.text||""),
+      "",
+      "---",
+      "Gemeldet von: " + (m.von||"unbekannt"),
+      "App-Version: " + (m.version||"unbekannt"),
+      "Eingegangen: " + (m.erstellt||"unbekannt")
+    ].join("\n");
+    return "https://github.com/nursing-education/sea-praxisbesuche/issues/new"
+         + "?title=" + encodeURIComponent(titel)
+         + "&body="  + encodeURIComponent(koerper);
+  },
   soll(wert){
     /* v0.36: Kapazität bevorzugt aus der Bezugslehrer-Stammliste (per Name);
        Fallback auf die alte "(Zahl)"-Ableitung, solange die Liste leer/unbekannt ist. */
@@ -4088,7 +4221,7 @@ const Oberflaeche = {
     const wer=bezugslehrerAnzeige(Daten.state.bezugslehrerWert)||"";
     const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
     this.modal(`<h3>Feedback an Christian</h3>
-      <div class="meta" style="margin-bottom:10px">Deine Meldung wird lokal auf diesem Gerät gespeichert. Kein automatischer Versand.</div>
+      <div class="meta" style="margin-bottom:10px">Deine Meldung geht an Christian.</div>
       <div class="feld"><label>Art</label><div class="seg-reihe">${segs}</div></div>
       <div class="feld"><label>Beschreibung</label>
         <textarea id="fbText" rows="4" placeholder="Was ist passiert bzw. was wünschst du dir?" style="font:inherit;padding:6px 8px;border:1px solid var(--rahmen);border-radius:6px;resize:vertical"></textarea></div>
@@ -4102,14 +4235,22 @@ const Oberflaeche = {
       if(!text){ this.toast("Bitte eine Beschreibung eingeben.",true); return; }
       const kat=(document.querySelector('input[name=fbKat]:checked')||{}).value||"fehler";
       Daten.state.meldungen = Daten.state.meldungen || [];
-      Daten.state.meldungen.push({
+      const meldung={
         id:"m-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,6),
         zeit:new Date().toISOString(), von:bezugslehrerAnzeige(Daten.state.bezugslehrerWert)||"", version:APP_VERSION,
         tab:this.tab||"", kategorie:kat, text:text
-      });
+      };
+      Daten.state.meldungen.push(meldung);
+      /* v0.44: erst nach SharePoint, dann lokal ablegen. Der lokale Eintrag
+         bleibt in beiden Faellen -- bei Erfolg als Beleg, bei Fehlschlag als
+         Nachfass-Weg fuer offeneSenden. */
+      const angekommen=await SPSync.feedbackSenden(meldung);
       await Daten.speichern("Feedback gespeichert", true);
       this.modalZu();
-      this.toast("Danke für dein Feedback.");
+      /* Sichtbar falsch ist besser als still falsch (Lehre v0.40.2): Wer nicht
+         erfaehrt, dass die Meldung liegen blieb, haelt sie fuer zugestellt. */
+      if(angekommen) this.toast("Danke für dein Feedback.");
+      else this.toast("Gespeichert – die Meldung liegt vorerst nur auf diesem Gerät und geht beim nächsten Sync raus.", true);
     };
   },
 
@@ -4219,7 +4360,42 @@ const Oberflaeche = {
       ${verwaltung}
       ${kacheln}
       ${this.viewBezugslehrende()}
+      ${admin ? this._rueckmeldungenHtml() : ""}
     </div>`;
+  },
+
+  /* v0.44 -- Rueckmeldungen der Kolleg:innen (nur Admins). Gelesen aus
+     state.rueckmeldungen, gefuellt beim Sync. Abgehakt wird in SharePoint
+     selbst -- die App zeigt nur an. */
+  _rueckmeldungenHtml(){
+    const e=s=> String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+    const liste=Dashboard.rueckmeldungenSortiert(Daten.state.rueckmeldungen);
+    if(!liste.length){
+      return `<section class="einst-block">
+        <h2>Rückmeldungen</h2>
+        <div class="leer">Keine Rückmeldungen. Was über den Feedback-Knopf gemeldet wird, steht hier.</div>
+      </section>`;
+    }
+    const offen=liste.filter(m=> !m.erledigt).length;
+    const zeilen=liste.map(m=>{
+      const datum=m.erstellt ? new Date(m.erstellt).toLocaleDateString("de-DE") : "";
+      return `<div class="zeile${m.erledigt?" fb-erledigt":""}">
+        <div style="min-width:0;flex:1">
+          <div class="haupt">${e(m.text)}</div>
+          <div class="meta">${e(m.art||"—")} · ${e(m.von||"ohne Absender")} · v${e(m.version||"?")}${datum?" · "+e(datum):""}</div>
+        </div>
+        <div class="rechts">
+          ${m.erledigt ? `<span class="pill">erledigt</span>` : ""}
+          <a class="fb-issue" href="${e(Dashboard.issueLink(m))}" target="_blank" rel="noopener noreferrer"
+             title="Öffnet GitHub mit vorausgefülltem Titel und Text. Angelegt wird das Issue erst dort, mit deinem Konto.">Als Issue anlegen</a>
+        </div>
+      </div>`;
+    }).join("");
+    return `<section class="einst-block">
+      <h2>Rückmeldungen <span class="einst-info" title="Alle Meldungen aus der SharePoint-Liste „Feedback“. Erledigt wird direkt in SharePoint abgehakt – die App zeigt den Stand nur an.">i</span></h2>
+      <div class="meta" style="margin-bottom:8px">${offen} offen von ${liste.length}</div>
+      ${zeilen}
+    </section>`;
   },
 
   /* ---- v0.37: Arbeitsbereich "Bezugslehrende" ---------------------------
