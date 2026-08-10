@@ -98,6 +98,16 @@ Getestet wird stets der **echte, aus `index.html` extrahierte Code**, keine
 Nachbildung. Die SVG-/Blasen-Zeichnung des Wizards ist Browser-Sache und nicht
 headless testbar.
 
+**Ein neuer Test muss gegen den alten Stand rot sein.** Sonst prüft er nichts und
+sieht trotzdem aus, als täte er es. Gegenprobe, zwei Befehle:
+
+```
+git stash push index.html && node tests/test_xyz.js ; git stash pop
+```
+
+Ist der neue Fall dabei grün, misst er am Problem vorbei – dann gehört er
+umgeschrieben, nicht abgehakt.
+
 **Eine neue freie Funktion kann einen Extrakt-Test brechen.** Ruft ein
 extrahierter Block (z. B. `Onboarding`) eine Funktion, die *außerhalb* davon
 steht, kennt die `vm`-Sandbox sie nicht – der Test scheitert mit
