@@ -579,7 +579,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.44.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.44.1";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -2172,14 +2172,23 @@ const Azubis = {
      Anstehend.sammeln) auch auf Anstehend + Touren-Vorschlaege -- bewusste
      Vereinfachung, siehe kontext-Dokumentation, statt Sonderregeln je Ansicht.
      Fallback ungefiltert, solange keine Bezugslehrer-Auswahl getroffen wurde
-     (sonst leere/verwirrende Liste). "Alle" nur erreichbar fuer Admins. */
+     (sonst leere/verwirrende Liste). "Alle" nur erreichbar fuer Admins.
+
+     v0.44.1: Verglichen wird ueber Dashboard._blSchluessel, also OHNE die
+     "(Zahl)". Vorher standen hier die Rohwerte gegeneinander -- und die laufen
+     auseinander, sobald sich die Kapazitaet aendert: Die Auswahlliste unter
+     Einstellungen nimmt den Wert aus der Stammliste (viewEinstellungen), am
+     Azubi steht der Stand vom Zeitpunkt der Zuordnung. Fuer den Menschen
+     derselbe Name, fuer den Rohvergleich zwei Zeichenketten. Ergebnis im
+     Testbetrieb: Das Dashboard zeigte die Zuordnung (es vergleicht seit v0.41
+     ueber _blSchluessel), "Nur meine" verlor den Azubi still. */
   sichtbar(){
     const alle=this.alle();
     const wert=Daten.state.bezugslehrerWert;
     if(!wert) return alle;
     if(Daten.state.ansichtModus==="alle" && SharePoint.istAdmin) return alle;
-    const n=SPSync._norm(wert);
-    return alle.filter(a=> SPSync._norm(a.bezugslehrer)===n);
+    const n=Dashboard._blSchluessel(wert);
+    return alle.filter(a=> Dashboard._blSchluessel(a.bezugslehrer)===n);
   },
   /* v0.32 -- Azubis ohne Bezugslehrer-Zuordnung (z.B. frisch per CSV-Import
      angelegt). Grundlage der Dashboard-Kachel "Azubis ohne Bezugslehrer". */
