@@ -579,7 +579,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.44.1";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.44.2";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -1745,7 +1745,16 @@ const SPSync = {
   /* --- Einsatzplan hochladen (CSV-Import, Admin) ------------------------
      Ersetzt den Einsatzplan EINES Azubis in SharePoint. Bereits erfasste
      Besuchsstaende bleiben erhalten: bestehende Eintraege werden anhand des
-     Startdatums (Von) wiedererkannt und aktualisiert statt geloescht. */
+     Startdatums (Von) wiedererkannt und aktualisiert statt geloescht.
+
+     v0.44.2: Der Abgleich schuetzte nur gegen einen ZWEITEN Import -- nicht
+     gegen Wiederholungen INNERHALB einer Eingabe. nachVon kennt ausschliesslich
+     den SharePoint-Bestand; ein Plan, der denselben Einsatz mehrfach enthaelt,
+     fand fuer jede Wiederholung nichts vor und legte jedes Mal neu an. Aus dem
+     Testbetrieb: dieselbe Zeile viermal in der CSV -> jeder Einsatz viermal in
+     SharePoint, mit identischem Von und Bis. Verworfen wird nur, was in ALLEN
+     vier kennzeichnenden Feldern uebereinstimmt -- zwei echte Einsaetze mit
+     gleichem Starttag, aber verschiedener Einrichtung bleiben beide erhalten. */
   async einsatzplanHochladen(token, azubiSpId, vollName, einsaetze){
     const url=await this._itemsUrl(token, SP_CONFIG.listEinsaetze);
     const alle=await this._bestand(token);
@@ -1754,7 +1763,16 @@ const SPSync = {
     const behalten=new Set();
     let neu=0, geaendert=0, entfernt=0;
 
-    for(const e of einsaetze){
+    const gesehen=new Set();
+    const eindeutig=einsaetze.filter(e=>{
+      const k=[e.von, e.bis, e.typ, e.einrichtungName].join("|");
+      if(gesehen.has(k)) return false;
+      gesehen.add(k);
+      return true;
+    });
+    const uebersprungen=einsaetze.length - eindeutig.length;
+
+    for(const e of eindeutig){
       const alt=nachVon.get(e.von);
       if(alt){
         /* Besuchsstand des bestehenden Eintrags bewahren, damit ein erneuter
@@ -1787,8 +1805,8 @@ const SPSync = {
     /* Zwischenspeicher auf den neuen Stand bringen: Eintraege dieses Azubis
        ersetzen. So bleibt er fuer die uebrigen Azubis der CSV gueltig. */
     this._bestandCache = alle.filter(e=> e.azubiSpId!==String(azubiSpId))
-      .concat(einsaetze.map(e=> Object.assign({}, e, {azubiSpId:String(azubiSpId), vollName})));
-    return {neu, geaendert, entfernt};
+      .concat(eindeutig.map(e=> Object.assign({}, e, {azubiSpId:String(azubiSpId), vollName})));
+    return {neu, geaendert, entfernt, uebersprungen};
   },
 
   /* --- Einzelnen Besuchsstand zurueckschreiben -------------------------- */
@@ -2158,8 +2176,13 @@ const Eingang = {
     /* Kein Vollsync an dieser Stelle: bei einer Kurs-CSV mit vielen Azubis
        würde er pro Azubi einmal laufen. Er läuft einmal am Ende des Imports
        (siehe Oberflaeche._csvDialog). */
+    /* v0.44.2: Uebersprungene Wiederholungen gehoeren gemeldet -- sie stehen so
+       in der CSV und der Admin soll wissen, dass die Datei sie doppelt enthielt. */
+    const doppelt = bericht.uebersprungen
+      ? ", " + bericht.uebersprungen + " doppelte Zeile(n) übersprungen" : "";
     Oberflaeche.toast("Einsatzplan " + plan.id + " nach SharePoint übernommen ("
-      + bericht.neu + " neu, " + bericht.geaendert + " aktualisiert, " + bericht.entfernt + " entfernt)");
+      + bericht.neu + " neu, " + bericht.geaendert + " aktualisiert, " + bericht.entfernt + " entfernt"
+      + doppelt + ")");
     return {ok:true, bericht, abweichung:treffer.abweichung};
   }
 };
