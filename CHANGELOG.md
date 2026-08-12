@@ -4,6 +4,29 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.44.1 – 2026-08-12
+
+- **„Nur meine" verlor Azubis, die längst zugeordnet waren.** Im Testbetrieb
+  gemeldet: Ein Azubi war einer Bezugslehrkraft zugeordnet, im Dashboard war die
+  Zuordnung zu sehen – unter „Nur meine" fehlte er trotzdem. Er tauchte nur unter
+  „Alle" auf.
+
+  Ursache: In der Spalte `Bezugslehrer` steht `Nachname, Vorname (Zahl)`, wobei
+  die Zahl die Kapazität ist. Der Filter verglich die **Rohwerte** samt Klammer.
+  Die Auswahlliste unter Einstellungen nimmt den Wert aber aus der Stammliste
+  `Bezugslehrende`, während am Azubi der Stand vom Zeitpunkt der Zuordnung steht.
+  Ändert sich die Kapazität, sind das zwei verschiedene Zeichenketten – für den
+  Menschen derselbe Name.
+
+  Der Filter vergleicht jetzt über `Dashboard._blSchluessel`, also ohne die
+  Klammer. Genau dieser Schlüssel wird seit v0.41 überall sonst benutzt; der
+  Kommentar dort benennt das Problem seit damals wörtlich. Nur `Azubis.sichtbar()`
+  war nie nachgezogen worden – deshalb zeigte das Dashboard die Zuordnung und
+  die Azubi-Liste nicht.
+
+  Die eigentliche Doppelung – Kapazität steckt im Namenstext *und* in der
+  Stammliste – bleibt bestehen und ist als eigener Punkt vorgemerkt.
+
 ## v0.44.0 – 2026-08-09
 
 - **Der Feedback-Knopf war ein Briefkasten ohne Leerung.** Eine Meldung landete
