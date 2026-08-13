@@ -4,7 +4,7 @@
 const { execFileSync } = require('child_process');
 const path = require('path');
 
-const suiten = ['test_v028.js', 'test_position.js', 'test_v025.js', 'test_v026.js', 'test_v031.js', 'test_v032.js', 'test_v033.js', 'test_v034.js', 'test_v035.js', 'test_v036.js', 'test_v037.js', 'test_v038.js', 'test_v039.js', 'test_v040.js', 'test_v041.js', 'test_v042.js', 'test_v044.js', 'test_v0441.js', 'test_v0442.js', 'test_v045.js', 'test_v046.js', 'test_v047.js'];
+const suiten = ['test_v028.js', 'test_position.js', 'test_v025.js', 'test_v026.js', 'test_v031.js', 'test_v032.js', 'test_v033.js', 'test_v034.js', 'test_v035.js', 'test_v036.js', 'test_v037.js', 'test_v038.js', 'test_v039.js', 'test_v040.js', 'test_v041.js', 'test_v042.js', 'test_v044.js', 'test_v0441.js', 'test_v0442.js', 'test_v045.js', 'test_v046.js', 'test_v047.js', 'test_v048.js'];
 const dir = __dirname;
 
 function lauf(datei) {
