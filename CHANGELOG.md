@@ -4,6 +4,44 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.46.0 – 2026-08-13
+
+**Scheibe 1 von vier** aus dem Navigations-Fahrplan. Die Inhalte der Seiten
+bleiben, was sie waren – geändert hat sich nur, wie man zu ihnen kommt.
+
+- **Eine durchgehende Leiste statt zweier Ebenen.** Bisher lagen Startseite,
+  Dashboard und „Praxisbesuchsplaner" als drei getrennte Bereiche übereinander,
+  und die Reiterleiste gehörte nur zum Planer – auf den anderen beiden war sie
+  ausgeblendet. Die Startseite war damit keine Übersicht, sondern eine Weiche
+  mit zwei Türen: Jedes Öffnen der Anwendung kostete einen Klick, bevor
+  überhaupt Inhalt kam.
+
+  Jetzt steht dieselbe Leiste auf jeder Seite, und alle Ziele sind
+  gleichrangig: **Übersicht · Azubis · Anstehend · Touren · Einrichtungen**,
+  rechts abgesetzt **Einstellungen** und **Verwaltung** (das frühere Dashboard).
+  **Azubis steht neu vor Anstehend** – erst der Überblick, dann die Termine.
+
+- **„Ich bin …" steht jetzt in der Kopfzeile**, mit dem gewählten Namen darauf.
+  Dieser Wert entscheidet, wessen Azubis die ganze Anwendung zeigt, lag aber
+  bisher als Auswahlliste in den Einstellungen und war beim Arbeiten nirgends zu
+  sehen. Genau daran konnte sich der Fehler aus v0.44.1 so lange verstecken: Eine
+  Liste, in der jemand fehlte, sah aus wie ein Datenproblem. Ist noch nichts
+  gewählt, trägt der Knopf einen gestrichelten orangen Rahmen.
+
+- **Aktualisieren steht ebenfalls in der Kopfzeile** und ist damit von überall
+  erreichbar, nicht mehr nur aus den Einstellungen heraus. Beide Werkzeuge liegen
+  außerhalb des Bereichs, der bei jedem Wechsel neu gezeichnet wird.
+
+- **Entfallen:** der Knopf „← Zurück zur Startseite" in der Verwaltung. Er
+  stammte aus der Zeit ohne durchgehende Leiste. Die Abschnitte „Ich bin …" und
+  der Anmelde-Knopf sind aus den Einstellungen verschwunden – sie stehen oben.
+  Die **Versionsnummer steht jetzt zusätzlich in den Einstellungen**, weil sie
+  auf schmalen Schirmen aus der Kopfzeile weicht.
+
+- Auf 390 px weichen Versionsnummer und die Wortmarken von Aktualisieren und
+  Feedback; die Symbole und der gewählte Name bleiben. Im Browser geprüft: kein
+  waagerechter Überlauf auf keiner der sieben Seiten.
+
 ## v0.45.0 – 2026-08-13
 
 - **Der Sync lief unsichtbar.** Beim Öffnen der Anwendung holt sie automatisch

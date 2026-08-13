@@ -11,7 +11,7 @@ const block = m[0].replace(/\r?\nconst Oberflaeche = \{$/, '');
 const sandbox = {
   Daten: { state: {}, speichern: () => {} },
   SharePoint: { istAdmin: true },
-  Oberflaeche: { ansicht: 'start', tab: 'anstehend', render: () => {} },
+  Oberflaeche: { tab: 'start', render: () => {} },   /* v0.46: ohne die entfallene zweite Ebene `ansicht` */
   document: { querySelector: () => null, querySelectorAll: () => [], getElementById: () => null, createElement: () => ({ style: {}, classList: { add() {} } }), body: { appendChild: () => {} }, addEventListener: () => {}, removeEventListener: () => {} },
   window: { innerWidth: 1200, innerHeight: 800, addEventListener: () => {}, removeEventListener: () => {} },
   console
