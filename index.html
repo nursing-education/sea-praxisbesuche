@@ -35,6 +35,24 @@
   header .stand{font-size:12px;opacity:.8;margin-left:auto}
   header .ver{font-size:11px;opacity:.7;font-weight:400;padding:1px 7px;border:1px solid rgba(255,255,255,.35);border-radius:999px}
 
+  /* v0.45: Ladebalken unter der Kopfzeile. Steht wie der Footer AUSSERHALB von
+     #inhalt -- die Ansichten zeichnen sich staendig neu, die Rueckmeldung ueber
+     einen laufenden Sync muss das ueberleben und in JEDER Ansicht erscheinen.
+     Genau daran ist die alte Anzeige gescheitert: Sie schrieb in ein Element,
+     das nur der Einstellungen-Reiter enthaelt. */
+  .ladebalken{height:3px;background:var(--sekundaer);overflow:hidden}
+  .ladebalken>span{display:block;height:100%;width:35%;border-radius:999px;background:var(--orange);
+    animation:ladelauf 1.2s cubic-bezier(.4,0,.2,1) infinite}
+  @keyframes ladelauf{
+    from{transform:translateX(-110%)}
+    to{transform:translateX(400%)}
+  }
+  /* Wer Bewegung abgestellt hat, bekommt einen ruhenden Balken statt gar keiner
+     Rueckmeldung -- die Aussage "es laeuft etwas" darf nicht an der Animation haengen. */
+  @media (prefers-reduced-motion: reduce){
+    .ladebalken>span{animation:none;width:100%;opacity:.55}
+  }
+
   nav{display:flex;gap:4px;padding:8px 18px;background:var(--sekundaer);border-bottom:1px solid var(--rahmen)}
   nav button{position:relative;background:transparent;border:none;padding:8px 14px;border-radius:6px;color:var(--text-leise)}
   nav button.aktiv{background:var(--flaeche);color:var(--navy);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06)}
@@ -537,10 +555,13 @@
 <header>
   <h1>SEA&nbsp;Praxisbesuche</h1>
   <span class="ver" id="appVer"></span>
-  <span class="stand" id="standAnzeige"></span>
+  <span class="stand" id="standAnzeige" role="status"></span>
   <button id="bugBtn" title="Problem oder Wunsch an Christian melden"
     style="margin-left:auto;background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:5px 11px;cursor:pointer;font:inherit;font-size:13px;white-space:nowrap">✎&nbsp;Feedback</button>
 </header>
+<!-- v0.45: nur waehrend eines laufenden Sync sichtbar; rein dekorativ, die
+     Aussage steht als Text in #standAnzeige (role="status"). -->
+<div id="ladebalken" class="ladebalken" hidden aria-hidden="true"><span></span></div>
 <nav>
   <button class="nav-start" onclick="Oberflaeche.ansichtWechseln('start')" title="Zurück zur Startseite">⌂ Startseite</button>
   <button data-tab="anstehend" class="aktiv" aria-current="page">Anstehend</button>
@@ -579,7 +600,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.44.2";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.45.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -1311,7 +1332,30 @@ const SharePoint = {
     this._statusAnzeigen();
   },
 
+  /* v0.45: Bis v0.44.2 stand hier `if(!el) return` GANZ oben -- und #spStatus
+     gibt es nur im Einstellungen-Reiter. In jeder anderen Ansicht brach die
+     Funktion also wortlos ab. Der automatische Sync beim Start laeuft aber auf
+     "Anstehend" oder der Startseite: Er dauerte ueber fuenf Sekunden und meldete
+     sich nie. Wer das sah, hielt die Liste fuer fertig und drueckte danach von
+     Hand auf Aktualisieren -- der einzige Weg, auf dem die App Auskunft gab.
+
+     Die ausfuehrliche Zeile bleibt in den Einstellungen; Balken und Kopfzeile
+     kommen dazu und sind ueberall da. */
   _statusAnzeigen(){
+    const laedt = (this.status==="laden");
+
+    const balken=document.getElementById("ladebalken");
+    if(balken) balken.hidden = !laedt;
+
+    /* Kopfzeile: waehrend des Ladens die Taetigkeit, sonst wieder der Stand.
+       standAnzeigen() ist die einzige Stelle, die das Datum formatiert -- der
+       Text wird hier nicht nachgebaut, sonst laufen zwei Fassungen auseinander. */
+    const kopf=document.getElementById("standAnzeige");
+    if(kopf){
+      if(laedt) kopf.textContent="Daten werden aktualisiert …";
+      else if(typeof Oberflaeche!=="undefined" && Oberflaeche.standAnzeigen) Oberflaeche.standAnzeigen();
+    }
+
     const el=document.getElementById("spStatus");
     if(!el) return;
     const map={ unbekannt:"-", abgemeldet:"nicht angemeldet", angemeldet:"angemeldet",
@@ -4187,6 +4231,11 @@ const Oberflaeche = {
     Onboarding.pruefeStart();   /* v0.27: Einführung beim ersten Start automatisch anbieten */
   },
   standAnzeigen(){
+    /* v0.45: Laeuft gerade ein Sync, gehoert der Platz der Taetigkeitsmeldung.
+       Sonst wuerde jedes render() -- etwa beim Reiterwechsel waehrend des
+       Ladens -- "Daten werden aktualisiert" durch den ALTEN Stand ersetzen,
+       waehrend der Balken darunter weiterlaeuft. */
+    if(typeof SharePoint!=="undefined" && SharePoint.status==="laden") return;
     const t=Daten.state&&Daten.state.aktualisiertAm;
     document.getElementById("standAnzeige").textContent = t? "Stand: "+new Date(t).toLocaleString("de-DE") : "";
   },

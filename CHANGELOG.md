@@ -4,6 +4,37 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.45.0 – 2026-08-13
+
+- **Der Sync lief unsichtbar.** Beim Öffnen der Anwendung holt sie automatisch
+  den aktuellen Stand von SharePoint – das tut sie seit v0.20. Nur sagte sie es
+  niemandem: Der Zustand „lädt …" wurde in ein Element geschrieben, das es
+  **ausschließlich im Einstellungen-Reiter** gibt. In jeder anderen Ansicht fand
+  die Anzeigefunktion es nicht und brach in der ersten Zeile wortlos ab.
+
+  Beim Start steht man auf „Anstehend" oder der Startseite. Der automatische
+  Sync dauert über fünf Sekunden und meldete sich dort **nie**. Wer das sah,
+  hielt die Liste für fertig – und ging in die Einstellungen, um von Hand zu
+  aktualisieren. Das war der einzige Ort, an dem die Anwendung überhaupt
+  Auskunft gab.
+
+  Neu: Ein schmaler Balken unter der Kopfzeile, solange etwas läuft, und in der
+  Kopfzeile „Daten werden aktualisiert …" statt des alten Standes. Beides liegt
+  **außerhalb** des Bereichs, der bei jedem Ansichtswechsel neu gezeichnet wird –
+  dieselbe Bedingung, die seit v0.42 für die Fußzeile gilt. Danach steht dort
+  wieder „Stand: …" mit dem neuen Zeitpunkt.
+
+  Wer Bewegung im Betriebssystem abgestellt hat (`prefers-reduced-motion`),
+  bekommt einen ruhenden Balken statt gar keiner Rückmeldung. Die Aussage „es
+  läuft etwas" darf nicht an der Animation hängen.
+
+  Die ausführliche Statuszeile in den Einstellungen bleibt unverändert.
+
+- **7 Struktur-Tests in `tests/test_v045.js`.** Sie prüfen die Lage im Dokument –
+  dass die Rückmeldung außerhalb des neu gezeichneten Bereichs liegt und im Code
+  gesetzt wird, **bevor** die alte Abbruchzeile greift. Ob der Balken wirklich
+  erscheint, entscheidet der Browser und gehört in die Abnahme.
+
 ## v0.44.2 – 2026-08-12
 
 - **Der CSV-Import legte Einsätze mehrfach an.** Aus dem Testbetrieb gemeldet:
