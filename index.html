@@ -159,6 +159,12 @@
   /* Prüfschritt: feste Spaltenbreiten -> Dropdowns bleiben in der Box (kein Überlauf rechts) */
   .pruef-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .prueftab{table-layout:fixed}
+  /* v0.49: Die DFA-Tabelle hat elf Spalten mit Eingabefeldern fester Breite.
+     Ohne Mindestbreite presst table-layout:fixed sie in die Container-Breite --
+     auf 390 px gemessen: 336 px fuer alle elf. Die Seite lief zwar nicht ueber,
+     aber lesen konnte man nichts. Mit min-width scrollt stattdessen der
+     Container in sich selbst, wofuer .pruef-scroll da ist. */
+  .prueftab.dfa-tab{min-width:1080px}
   .prueftab td,.prueftab th{overflow:hidden}
   .prueftab td:nth-child(2){word-break:break-word}
   .prueftab select{width:100%;max-width:100%;box-sizing:border-box}
@@ -689,7 +695,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.48.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.49.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -4381,6 +4387,7 @@ const Oberflaeche = {
   azubiAnsicht:"liste",     // "liste" | "kalender" (Umschalter im Azubi-Tab)
   azubiOffen:null,          // v0.48: id des Azubis, dessen Detailseite gerade offen ist (null = Liste)
   azubiSuche:"",            // v0.48: Suchtext ueber der Azubi-Liste
+  dfaOffen:false,           // v0.49: Fahrtkostenabrechnung als eigene Seite (statt Dialog)
   kalZoom:"quartal",        // "monat" | "quartal" | "jahr"
   kalAnker:null,            // Ankerdatum (ISO); null = heutiges Fenster
   kalKurseZu:new Set(),     // zugeklappte Kursköpfe (Default: alle offen)
@@ -4413,6 +4420,7 @@ const Oberflaeche = {
        Bliebe eine offene Azubi-Seite stehen, kaeme man ueber "Azubis" nie
        zurueck zur Liste -- der Knopf saehe funktionslos aus. */
     this.azubiOffen=null;
+    this.dfaOffen=false;
     reiterMarkieren(x=>x.dataset.tab===t);
     this.render();
   },
@@ -4602,7 +4610,10 @@ const Oberflaeche = {
        dieselbe Funktion, die frueher die zweite Spalte gefuellt hat. So gibt es
        den Einsatzplan weiterhin nur an EINER Stelle im Code. */
     if(this.tab==="azubis" && this.azubiOffen) this.azubiDetail(this.azubiOffen);
-    if(this.tab==="touren") this._tourenInit();
+    /* v0.49: Auf der DFA-Seite gibt es keine Karte -- _tourenInit() wuerde
+       Leaflet auf ein Element ansetzen, das gar nicht da ist. */
+    if(this.tab==="touren" && this.dfaOffen) this._dfaLadenUndRendern();
+    else if(this.tab==="touren") this._tourenInit();
   },
 
   /* ---- v0.47: Uebersicht -- eine Aufgabenliste, keine Kennzahlen ----------
@@ -6057,6 +6068,11 @@ const Oberflaeche = {
 
   /* ---- Touren (Karte) ---- */
   viewTouren(){
+    /* v0.49: Die Fahrtkostenabrechnung ist eine eigene Seite geworden und tritt
+       an die Stelle der Touren-Ansicht -- so wie die Azubi-Seite an die Stelle
+       der Azubi-Liste tritt. Kein Reitereintrag: Man kommt aus den Touren
+       hierher, nicht aus dem Nichts. */
+    if(this.dfaOffen) return this.viewDfaSeite();
     /* v0.17 – Layout Option C: Karte fix links, Panel rechts scrollbar (Vorschläge → Builder → Touren).
        Legende ohne „überfällig" – rote Pins gibt es seit v0.16d nicht mehr. */
     return `<div class="spalte" style="grid-column:1/-1">
@@ -6496,7 +6512,7 @@ const Oberflaeche = {
   _tourListeBinden(){
     const self=this;
     const db=document.getElementById("dfaOeffnen");
-    if(db) db.addEventListener("click",()=>self._dfaDialog());
+    if(db) db.addEventListener("click",()=>self.dfaOeffnen());
     document.querySelectorAll(".tour-eintrag[data-tour]").forEach(k=>{
       k.addEventListener("click",()=>self._tourDetailToggle(k.dataset.tour));
       const lb=k.querySelector("[data-loesch]");
@@ -6511,10 +6527,27 @@ const Oberflaeche = {
   _dfa:null,   /* { jahr, monat, zeilen[] } während der Dialog offen ist */
   _MONATE:["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
 
-  _dfaDialog(){
+  /* v0.49: Eigene Seite statt Fenster. Elf Spalten in einem Dialog mit 46 %
+     Bildschirmhoehe hiessen: waagerecht scrollen UND senkrecht scrollen, im
+     Kleinen. Die Seite hat die ganze Hoehe; nur die Tabelle scrollt noch
+     waagerecht in sich selbst. */
+  dfaOeffnen(){
     const jetzt=new Date();
     this._dfa={ jahr:jetzt.getFullYear(), monat:jetzt.getMonth(), zeilen:null };
-    this._dfaLadenUndRendern();
+    this.dfaOffen=true;
+    this.tab="touren";
+    reiterMarkieren(x=>x.dataset.tab==="touren");
+    this.render();          /* render() ruft _dfaLadenUndRendern() */
+    window.scrollTo({top:0, behavior:"smooth"});
+  },
+  dfaSchliessen(){ this.dfaOffen=false; this._dfa=null; this.render(); },
+
+  viewDfaSeite(){
+    return `<div class="spalte" style="grid-column:1/-1">
+      <div class="werkzeug"><button id="dfaZurueck">← Zurück zu den Touren</button></div>
+      <h2>Fahrtkostenabrechnung</h2>
+      <div id="dfaSeite"></div>
+    </div>`;
   },
   _dfaLadenUndRendern(){
     const d=this._dfa;
@@ -6545,23 +6578,27 @@ const Oberflaeche = {
     }).join("");
     const leer = d.zeilen.length ? "" :
       `<tr><td colspan="11" class="meta">Keine nicht abgerechneten Touren in diesem Monat. Über „+ Fahrt hinzufügen" können nicht getrackte Fahrten manuell erfasst werden.</td></tr>`;
-    this.modal(`<h3>Fahrtkostenabrechnung (DFA)</h3>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    /* v0.49: Kein max-height mehr. Im Dialog waren es 46 % der Bildschirmhoehe;
+       auf der Seite darf die Tabelle so hoch werden, wie sie ist. Waagerecht
+       scrollt sie weiterhin in sich selbst (.pruef-scroll), damit die elf
+       Spalten nicht die ganze Seite in die Breite ziehen. */
+    const html=`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
         <button id="dfaVor">‹</button><b>${this._MONATE[d.monat]} ${d.jahr}</b><button id="dfaZur">›</button>
         <span class="meta" style="margin-left:12px">${d.zeilen.length} Fahrtabschnitt(e) · ${String(Math.round(gKm*10)/10).replace(".",",")} km · steuerfrei ${DFA._eur(gFrei)} · steuerpfl. ${DFA._eur(gPfl)}</span>
       </div>
       <div class="hinweis">Alle Felder sind vor dem Export änderbar. Bei <b>Parkgebühren bitte Quittung anhängen</b>.
         Fahrten ab/zur Privatadresse: automatisch wurde die kürzere Strecke (Vergleich mit Schule) angesetzt – Details stehen unter dem Reisegrund und bleiben korrigierbar.</div>
-      <div class="pruef-scroll" style="max-height:46vh"><table class="prueftab" style="font-size:.85em">
+      <div class="pruef-scroll"><table class="prueftab dfa-tab" style="font-size:.85em">
         <thead><tr><th>Datum</th><th>Reisegrund</th><th>Abfahrt-Ort</th><th>Ziel-Ort</th><th>km</th><th>Park €</th><th>MA</th><th>Namen MA</th><th>steuerpfl.</th><th>steuerfrei</th><th></th></tr></thead>
         <tbody>${rows||leer}</tbody></table></div>
-      <div class="modal-aktionen" style="justify-content:space-between">
+      <div class="werkzeug" style="justify-content:space-between;margin-top:12px">
         <button id="dfaNeu">+ Fahrt hinzufügen</button>
-        <span>
-          <button onclick="Oberflaeche.modalZu()">Abbrechen</button>
-          <button class="primaer" id="dfaExport" ${d.zeilen.length?"":"disabled"}>PDF erstellen</button>
-        </span>
-      </div>`);
+        <button class="primaer" id="dfaExport" ${d.zeilen.length?"":"disabled"}>PDF erstellen</button>
+      </div>`;
+    const ziel=document.getElementById("dfaSeite");
+    if(!ziel) return;      /* Seite nicht (mehr) offen -- nichts zu zeichnen */
+    ziel.innerHTML=html;
     this._dfaBinden();
   },
   _dfaBinden(){
@@ -6607,8 +6644,11 @@ const Oberflaeche = {
     const ids=new Set(d.zeilen.map(z=>z.tourId).filter(Boolean));
     (Daten.state.touren||[]).forEach(t=>{ if(ids.has(t.id)) t.dfaExportiert=true; });
     await Daten.speichern("DFA "+label+" exportiert – "+ids.size+" Tour(en) als abgerechnet markiert");
-    this.modalZu();
-    this._tourListeRendern();
+    /* v0.49: Frueher schloss sich hier das Fenster. Auf der Seite bleibt man --
+       und sieht am neu gezeichneten Monat, dass die Touren jetzt als
+       abgerechnet gelten und nicht mehr auftauchen. Der Erfolg des Exports war
+       vorher nur daran zu erkennen, dass ein Fenster verschwand. */
+    this._dfaLadenUndRendern();
   },
   /* Details auf-/zuklappen; beim Aufklappen Route der Tour auf der Karte zeigen */
   _tourDetailToggle(id){
@@ -6826,6 +6866,8 @@ const Oberflaeche = {
     document.querySelectorAll("[data-azubi]").forEach(z=> z.onclick=()=>this.azubiOeffnen(z.dataset.azubi));
     const azurueck=document.getElementById("azubiZurueck");
     if(azurueck) azurueck.onclick=()=>this.azubiSchliessen();
+    const dzurueck=document.getElementById("dfaZurueck");
+    if(dzurueck) dzurueck.onclick=()=>this.dfaSchliessen();
     const asuche=document.getElementById("azubiSuche");
     if(asuche){
       /* Beim Tippen neu zeichnen kostet den Fokus -- deshalb Fokus und

@@ -4,6 +4,30 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.49.0 – 2026-08-13
+
+**Scheibe 4 von vier.** Die Fahrtkostenabrechnung ist eine eigene Seite.
+
+- **Raus aus dem Fenster.** Elf Spalten standen in einem Dialog mit 46 % der
+  Bildschirmhöhe – das hieß waagerecht scrollen *und* senkrecht scrollen, im
+  Kleinen. Jetzt ist es eine Seite mit der ganzen Höhe; man kommt wie bisher
+  aus den Touren hin und über „← Zurück zu den Touren" wieder heraus. **Keinen
+  eigenen Eintrag in der Leiste** – die Abrechnung folgt aus den Touren.
+
+- **Nach dem PDF-Export bleibt man auf der Seite.** Vorher schloss sich das
+  Fenster wortlos; ob der Export geklappt hatte, war nur daran zu erkennen,
+  *dass* es verschwand. Jetzt wird der Monat neu aufgebaut, und man sieht, dass
+  die abgerechneten Touren nicht mehr auftauchen.
+
+- **Auf schmalen Schirmen war die Tabelle bisher unlesbar.** Auf 390 px
+  gemessen: `table-layout:fixed` presste alle elf Spalten in 336 px. Die Seite
+  lief nicht über – aber zu lesen war nichts. Die Tabelle hat jetzt eine
+  Mindestbreite und scrollt stattdessen in sich selbst.
+
+- Unverändert: die Monatsnavigation, alle Felder bleiben vor dem Export
+  änderbar, unvollständige Zeilen halten den Export weiterhin auf, und
+  abgerechnete Touren werden weiterhin markiert (Löschsperre).
+
 ## v0.48.0 – 2026-08-13
 
 **Scheibe 3 von vier.** Jeder Azubi hat jetzt eine eigene Seite, und eine Suche
