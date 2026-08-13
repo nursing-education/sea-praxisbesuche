@@ -4,6 +4,35 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.44.2 – 2026-08-12
+
+- **Der CSV-Import legte Einsätze mehrfach an.** Aus dem Testbetrieb gemeldet:
+  Für einen Azubi standen alle Einsätze vierfach in der Liste `Einsaetze` –
+  identisches „Von", identisches „Bis", identische Einrichtung. Bei drei
+  Orientierungs-Zeiträumen also zwölf Einträge.
+
+  Ursache: Der Import erkennt vorhandene Einträge am Startdatum wieder und
+  aktualisiert sie, statt neu anzulegen. Dieser Abgleich lief aber nur gegen den
+  **Bestand in SharePoint** – nicht gegen das, was im selben Durchgang gerade
+  angelegt wurde. Enthält die CSV denselben Einsatz mehrfach, fand jede
+  Wiederholung eine leere Vergleichsliste vor und legte neu an. Der Schutz gegen
+  einen zweiten Upload funktionierte; der Schutz gegen eine doppelte Zeile in
+  derselben Datei fehlte.
+
+  Wiederholungen werden jetzt vor dem Schreiben verworfen. Verworfen wird nur,
+  was in **allen vier** kennzeichnenden Feldern übereinstimmt – Von, Bis,
+  Einsatztyp und Einrichtung. Zwei echte Einsätze mit gleichem Starttag, aber
+  verschiedener Einrichtung bleiben damit beide erhalten.
+
+  **Die Meldung nach dem Import sagt es jetzt:** „… 3 doppelte Zeile(n)
+  übersprungen". Stilles Wegwerfen wäre genau der Fehlertyp, gegen den v0.40.2
+  gebaut wurde – wer die Datei erzeugt hat, soll wissen, dass sie Wiederholungen
+  enthielt.
+
+  **Bereits entstandene Doppelungen räumt das nicht auf.** Ein erneuter Import
+  derselben CSV bereinigt sie allerdings: Alles, was der neue Plan nicht mehr
+  enthält, wird beim Hochladen entfernt.
+
 ## v0.44.1 – 2026-08-12
 
 - **„Nur meine" verlor Azubis, die längst zugeordnet waren.** Im Testbetrieb
