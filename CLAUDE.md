@@ -55,6 +55,34 @@ Was eine Browser-Abnahme abdecken muss (kein Test erreicht das): **Login** (MSAL
 **Karte** inklusive Aussehen (Leaflet JS + CSS), **PDF-Export** (jsPDF). Vorher prüfen,
 ob oben die erwartete Versionsnummer steht – sonst zeigt der Browser einen Cache-Stand.
 
+## Prüfen im echten Browser (Playwright)
+
+Alles Sichtbare – Umbrüche, Fokus, ob ein Klick überhaupt ankommt – erreicht keine
+der Suiten. Dafür gibt es Playwright, **global installiert, nicht im Repo**:
+`package.json` bleibt unberührt, und die Prüfskripte liegen **außerhalb** des
+Projektordners (Scratchpad). Sie sind Werkzeug, kein Bestandteil der App.
+
+Vier Dinge, die dabei jedes Mal gelten:
+
+- **Den Server selbst starten**, nicht über `with_server.py` aus dem
+  `webapp-testing`-Skill – das Hilfsskript beendet seine Server auf Windows nicht
+  und hinterlässt belegte Ports. **Port 8000**, weil nur diese Adresse als
+  Redirect-URI freigeschaltet ist.
+- **Den Einführungs-Wizard schließen** (`Onboarding._schliessen()`), bevor
+  irgendetwas geklickt wird. Er schluckt per Capture jeden Klick außerhalb seiner
+  Sprechblase; die Überzüge tragen `pointer-events:none`, also **meldet Playwright
+  keinen Fehler – der Klick landet und bewirkt nichts.**
+- **Mitschreiben, wo man gelandet ist.** Eine Messreihe über mehrere Seiten muss
+  belegen, dass sie die Seiten erreicht hat. Am 13.08.2026 maß eine Überlaufprüfung
+  siebenmal dieselbe Seite und war siebenmal grün.
+- **Nur erfundene Testdaten** per `evaluate()` in `Daten.state` schreiben. Kein
+  Login, keine echten Azubi-Daten.
+
+**Überlauf messen reicht nicht.** `documentElement.scrollWidth` gegen
+`window.innerWidth` findet Schieben, aber nicht Quetschen: `table-layout:fixed`
+presste elf DFA-Spalten in 336 px, ohne dass die Seite überlief. Bei Tabellen
+zusätzlich prüfen, ob der Scroll-Container **überhaupt etwas zu scrollen hat**.
+
 ## Code-Aufbau (Module in `index.html`)
 
 Die JS-Logik ist in benannte Objekt-Module gegliedert (Reihenfolge in der Datei):
