@@ -1,6 +1,9 @@
 /* Isolierte Logiktests v0.26 – Dashboard.auslastung() laut Validierungsplan
    (SPEC_SEA-Dashboard_Plan.md Abschnitt 9) gegen den TATSAECHLICH aus der
-   HTML extrahierten Code. Zusaetzlich: ansichtWechseln-Grenzfaelle. */
+   HTML extrahierten Code.
+   v0.46: Der Zusatz "ansichtWechseln-Grenzfaelle" ist entfallen -- die zweite
+   Navigationsebene gibt es nicht mehr, geprueft wurde sie hier ohnehin nie
+   (Oberflaeche liegt nicht im Testbuendel). */
 const fs = require('fs');
 const path = require('path');
 const bundle = fs.readFileSync(path.join(__dirname, 'extracted_test_bundle.js'), 'utf-8');
