@@ -4,6 +4,40 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.47.0 – 2026-08-13
+
+**Scheibe 2 von vier.** Die Übersicht zeigt jetzt, was zu tun ist.
+
+- **Die Startseite trägt Inhalt.** Bisher standen dort zwei Kacheln, die nur
+  weiterleiteten – die Seite kostete einen Klick und gab nichts zurück. Jetzt
+  steht darauf eine **Aufgabenliste**: nicht was der Fall ist, sondern was zu
+  tun ist. Nichts davon wird gespeichert; alles wird bei jedem Zeichnen neu
+  abgeleitet, und **Erledigtes verschwindet dadurch von selbst**.
+
+- **Drei Aufgabenarten.** Für alle: **Einsatz läuft, kein Termin geplant** –
+  der häufigste stille Ausfall. Niemand merkt, dass ein Besuch nie geplant
+  wurde, bis der Einsatz vorbei ist. Für die Verwaltung zusätzlich: **Azubis
+  ohne Bezugslehrkraft** und **offene Rückmeldungen**.
+
+  Wer keine Adminrechte hat, sieht die beiden letzten nicht. Eine Aufgabe, die
+  man nicht erledigen kann, ist keine Aufgabe.
+
+- **Überfällige Besuche stehen bewusst nicht hier.** Sie sind nicht mehr zu
+  retten und haben unter „Anstehend" bereits eine eigene Gruppe. Stünden sie
+  auch auf der Übersicht, ginge das Dringende in Vergangenem unter. Ganz oben
+  steht stattdessen, wo es **keinen weiteren Einsatz** dieses Pflichttyps mehr
+  gibt („letzte Chance"), danach was zuerst endet.
+
+- **Jede Zeile ist ein Knopf.** Der Termin-Fall öffnet **direkt** den
+  Besuch-Dialog des betroffenen Einsatzes – ein Sprung in den Reiter würde
+  bedeuten, die Zeile dort noch einmal zu suchen.
+
+- **Der Besuch-Dialog nennt jetzt den Azubi.** Er tat es nie; solange man ihn
+  nur von einer Karte aus öffnete, auf der der Name stand, fiel das nicht auf.
+
+- Die Begrüßung „Willkommen, …" ist entfallen – der Name steht seit v0.46 in
+  der Kopfzeile.
+
 ## v0.46.0 – 2026-08-13
 
 **Scheibe 1 von vier** aus dem Navigations-Fahrplan. Die Inhalte der Seiten

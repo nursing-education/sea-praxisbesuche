@@ -496,6 +496,25 @@
      Einstieg -- dunkler als die uebrigen, damit die Leiste einen Anfang hat. */
   nav button.nav-start{color:var(--navy);font-weight:600}
   .start-kacheln{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;max-width:640px;margin-top:14px}
+
+  /* v0.47: Aufgabenliste der Uebersicht. Jede Zeile ist ein Knopf, weil jede
+     Zeile eine Handlung ist -- nicht eine Kennzahl, die man zur Kenntnis nimmt. */
+  .aufg-liste{display:flex;flex-direction:column;gap:8px;margin-top:8px;max-width:820px}
+  .aufg{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    padding:10px 12px;border:1px solid var(--rahmen);border-radius:var(--radius);background:var(--flaeche)}
+  .aufg:hover{border-color:var(--navy);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+  .aufg-ico{font-size:19px;line-height:1;flex:none}
+  .aufg-txt{flex:1;min-width:0}
+  .aufg-titel{font-weight:600;color:var(--navy)}
+  .aufg-meta{font-size:13px;color:var(--text-leise)}
+  .aufg-pfeil{flex:none;color:var(--text-leise)}
+  /* Letzte Chance: Fuer diesen Pflichttyp gibt es keinen weiteren Einsatz mehr. */
+  .aufg.dringend{border-left:4px solid var(--orange);padding-left:9px}
+  .aufg-marke{display:inline-block;font-size:11px;font-weight:600;color:#fff;background:var(--orange);
+    border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+  .aufg-gruppe{font-size:13px;color:var(--text-leise);text-transform:uppercase;
+    letter-spacing:.04em;margin:16px 0 0}
+  .aufg-gruppe:first-of-type{margin-top:6px}
   .kachel{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:18px;text-align:left;
     border:1px solid var(--rahmen);border-radius:var(--radius);background:var(--flaeche);cursor:pointer}
   .kachel:hover{border-color:var(--navy);box-shadow:0 2px 6px rgba(0,0,0,.08)}
@@ -667,7 +686,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.46.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.47.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3399,6 +3418,45 @@ const Dashboard = {
     });
   },
 
+  /* v0.47 -- Was auf der Uebersicht steht: nicht was der Fall ist, sondern was
+     zu TUN ist (Spec "Navigation", Punkt 5). Abgearbeitetes verschwindet von
+     selbst, weil hier nichts gespeichert, sondern jedes Mal neu abgeleitet wird.
+
+     Die anstehenden Eintraege und die Meldungen kommen als Parameter herein,
+     damit die Funktion ohne Browser pruefbar bleibt -- wie besuchsUebersicht()
+     und rueckmeldungenSortiert(). Azubis und Rolle liest sie selbst, beide
+     stehen dem Testbuendel zur Verfuegung. `rueckmeldungen` ist die Liste aus
+     SharePoint (nur Admins geladen), NICHT state.meldungen -- das sind die
+     eigenen Meldungen dieses Geraets.
+
+     Zwei der drei Arten sind Admin-Sache: Nur Admins koennen eine Zuordnung
+     herstellen oder eine Rueckmeldung abhaken. Eine Aufgabe, die man nicht
+     erledigen kann, ist keine Aufgabe, sondern eine Beschwerde. */
+  aufgaben(anstehend, meldungen){
+    const admin=this.darfVerwalten();
+    /* Der haeufigste stille Ausfall: Der Einsatz laeuft GERADE und es wurde nie
+       ein Termin eingetragen. Bewusst NUR "laeuft" -- ueberfaellige Besuche sind
+       nicht mehr zu retten und stehen bereits als eigene Gruppe unter
+       "Anstehend". Hier soll stehen, was heute noch zu drehen ist. */
+    const ohneTermin=(anstehend||[])
+      .filter(e=> e.gruppe==="kein" && e.zustand==="laeuft")
+      .slice()
+      .sort((x,y)=>{
+        /* "Letzte Chance" zuerst: Bei diesem Typ gibt es keinen weiteren
+           Einsatz mehr, in dem der Besuch nachgeholt werden koennte. */
+        if(x.letzteChance!==y.letzteChance) return x.letzteChance?-1:1;
+        return String(x.bis||"").localeCompare(String(y.bis||""));  /* was zuerst endet, zuerst */
+      });
+    const ohneLehrkraft = admin ? Azubis.ohneBezugslehrer() : [];
+    const offeneMeldungen = admin
+      ? this.rueckmeldungenSortiert(meldungen).filter(m=>!m.erledigt)
+      : [];
+    return {
+      ohneTermin, ohneLehrkraft, offeneMeldungen,
+      anzahl: ohneTermin.length + ohneLehrkraft.length + offeneMeldungen.length
+    };
+  },
+
   /* v0.44 -- Vorausgefuellter GitHub-Issue-Link. Kein Schluessel, kein
      API-Aufruf: nur eine Adresse mit Parametern, die GitHub ins Formular
      uebernimmt. Alles wird kodiert -- ein "&" im Meldungstext wuerde sonst als
@@ -4507,29 +4565,88 @@ const Oberflaeche = {
     if(this.tab==="touren") this._tourenInit();
   },
 
-  /* ---- v0.26: Startseite ---- */
+  /* ---- v0.47: Uebersicht -- eine Aufgabenliste, keine Kennzahlen ----------
+     Bis v0.46 standen hier zwei Kacheln, die nur weiterleiteten: Die Seite
+     kostete einen Klick und gab nichts zurueck. Jetzt steht darauf, was zu TUN
+     ist. Erledigtes verschwindet von selbst -- nichts davon ist gespeichert,
+     alles wird bei jedem Zeichnen neu abgeleitet (Spec "Navigation", Punkt 5).
+
+     Die Zeilen sind Knoepfe, nicht Anzeigen: Der erste Fall oeffnet direkt den
+     Besuch-Dialog des betroffenen Einsatzes, statt nur in den Reiter zu
+     springen, wo man ihn wiederfinden muesste. ---- */
   viewStart(){
-    const wer=bezugslehrerAnzeige(Daten.state.bezugslehrerWert)||"";
+    const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+    /* state.rueckmeldungen, nicht state.meldungen: Letzteres sind die eigenen
+       Meldungen DIESES Geraets (Nachfass-Weg). Die Aufgabe meint die Liste aus
+       SharePoint, die nur Admins geladen bekommen -- dieselbe Quelle wie die
+       Rueckmeldungsliste in der Verwaltung. */
+    const auf=Dashboard.aufgaben(Anstehend.sammeln(), Daten.state.rueckmeldungen);
+    /* v0.47: Die Begruessung mit Namen ist entfallen. Der gewaehlte Name steht
+       seit v0.46 dauerhaft in der Kopfzeile -- hier stand er ein zweites Mal und
+       wegen text-transform:uppercase auf .spalte h2 auch noch in Versalien. */
+    const kopf=`<h2>Übersicht</h2>`;
+
+    if(auf.anzahl===0){
+      /* Bewusst nicht nur "nichts da": Wer die Seite leer sieht, soll wissen,
+         WAS geprueft wurde -- sonst liest sich Leere wie ein Ladefehler.
+         Genau diese Verwechslung hat im Testbetrieb schon einmal Zeit gekostet. */
+      return `<div class="spalte" style="grid-column:1/-1">
+        ${kopf}
+        <div class="leer">Nichts offen ✓ – kein laufender Einsatz ohne geplanten Termin${
+          Dashboard.darfVerwalten()?", kein Azubi ohne Bezugslehrkraft, keine offene Rückmeldung":""}.</div>
+        <div class="meta" style="margin-top:10px">Neue Aufgaben erscheinen hier von selbst,
+          sobald sie entstehen – abgearbeitete verschwinden.</div>
+      </div>`;
+    }
+
+    const zeile=(o)=>`<button class="aufg${o.dringend?" dringend":""}" ${o.daten}>
+        <span class="aufg-ico" aria-hidden="true">${o.ico}</span>
+        <span class="aufg-txt">
+          <span class="aufg-titel">${o.titel}</span>
+          <span class="aufg-meta" style="display:block">${o.meta}</span>
+        </span>
+        <span class="aufg-pfeil" aria-hidden="true">›</span>
+      </button>`;
+
+    const teile=[];
+
+    if(auf.ohneTermin.length){
+      teile.push(`<p class="aufg-gruppe">Einsatz läuft, kein Termin geplant (${auf.ohneTermin.length})</p>`);
+      teile.push(`<div class="aufg-liste">${auf.ohneTermin.map(e=>zeile({
+        dringend:e.letzteChance, ico:"🗓️",
+        daten:`data-aufg="termin" data-aufg-azubi="${esc(e.azubiId)}" data-aufg-idx="${e.idx}"`,
+        titel:esc(Azubis.name(e.azubiId)||e.azubiId)
+          + (e.letzteChance?`<span class="aufg-marke">letzte Chance</span>`:""),
+        meta:`${esc(e.typ)} · ${esc(e.einrichtungName||"ohne Einrichtung")} · Einsatz endet ${fmtDatum(e.bis)}`
+      })).join("")}</div>`);
+    }
+
+    /* Beide Admin-Aufgaben stehen als EINE Zeile mit Anzahl, nicht als je eine
+       Zeile pro Fall: Erledigt werden sie ohnehin gesammelt in der Verwaltung,
+       und 40 Azubis ohne Zuordnung wuerden die eigentliche Arbeit verdecken. */
+    if(auf.ohneLehrkraft.length){
+      teile.push(`<p class="aufg-gruppe">Zuordnung fehlt</p>`);
+      teile.push(`<div class="aufg-liste">${zeile({
+        dringend:false, ico:"👥", daten:`data-aufg="verwaltung"`,
+        titel:`${auf.ohneLehrkraft.length} ${auf.ohneLehrkraft.length===1?"Azubi ohne":"Azubis ohne"} Bezugslehrkraft`,
+        meta:"Ohne Zuordnung taucht der Azubi bei niemandem unter „Nur meine“ auf."
+      })}</div>`);
+    }
+
+    if(auf.offeneMeldungen.length){
+      teile.push(`<p class="aufg-gruppe">Rückmeldungen</p>`);
+      teile.push(`<div class="aufg-liste">${zeile({
+        dringend:false, ico:"✉️", daten:`data-aufg="verwaltung"`,
+        titel:`${auf.offeneMeldungen.length} offene ${auf.offeneMeldungen.length===1?"Rückmeldung":"Rückmeldungen"}`,
+        meta:"Aus der App gemeldet – abgehakt wird in SharePoint."
+      })}</div>`);
+    }
+
     return `<div class="spalte" style="grid-column:1/-1">
-      <h2>Willkommen${wer?", "+wer.replace(/</g,"&lt;"):""}</h2>
-      <div class="meta">Womit möchtest du arbeiten?</div>
-      <!-- Platz für News-Feed, siehe SPEC_SEA-Dashboard_Plan.md Abschnitt 2 -->
-      <!-- v0.46: Die beiden Kacheln waren die Weiche in die zwei frueheren
-           Bereiche. Die Bereiche gibt es nicht mehr, also springen sie jetzt auf
-           Reiter. Inhaltlich bleibt die Startseite in dieser Scheibe wie sie war
-           -- die Aufgabenliste, die sie ersetzt, ist Scheibe 2. -->
-      <div class="start-kacheln">
-        <button class="kachel" onclick="Oberflaeche.tabWechseln('anstehend')">
-          <span class="kachel-ico">🗓️</span>
-          <span class="kachel-titel">Anstehende Besuche</span>
-          <span class="kachel-text">Was als Nächstes ansteht – von dort weiter zu Azubis, Touren und DFA.</span>
-        </button>
-        <button class="kachel" onclick="Oberflaeche.tabWechseln('verwaltung')">
-          <span class="kachel-ico">📊</span>
-          <span class="kachel-titel">Verwaltung</span>
-          <span class="kachel-text">Praxisbesuche im Überblick und Auslastung der Bezugslehrenden (Ist / Soll).</span>
-        </button>
-      </div></div>`;
+      ${kopf}
+      <div class="meta">${auf.anzahl} ${auf.anzahl===1?"Punkt":"Punkte"} offen – Stand ${fmtDatum(Anstehend._heute())}.</div>
+      ${teile.join("")}
+    </div>`;
   },
 
   /* ---- v0.26/v0.37: Dashboard. Ignoriert bewusst den "Nur meine/Alle"-
@@ -5511,8 +5628,13 @@ const Oberflaeche = {
     const e=a.einsaetze[idx]; if(!e.pflichtbesuch)return;
     const heute=new Date().toISOString().slice(0,10);
     const segs=STATUS.map(s=>`<label class="seg b-${s}"><input type="radio" name="bStatus" value="${s}" ${s===e.besuchStatus?"checked":""}> ${s}</label>`).join("");
+    /* v0.47: Der Name gehoert in die Ueberschrift. Bisher stand er nur auf der
+       Karte, von der aus man den Dialog oeffnete -- seit die Uebersicht direkt
+       hierher springt, ist diese Karte nicht mehr zu sehen, und der Dialog sagte
+       nicht mehr, um WEN es geht. */
+    const nm=(Azubis.name(id)||a.kuerzel||id).replace(/</g,"&lt;");
     this.modal(`<h3>Besuch · <span class="pill ${e.typ.replace('PE ','').replace(' ','')}">${e.typ}</span> ${e.einrichtungName}</h3>
-      <div class="meta" style="margin-bottom:10px">Einsatz: ${fmtDatum(e.von)} – ${fmtDatum(e.bis)}</div>
+      <div class="meta" style="margin-bottom:10px"><b>${nm}</b> · Einsatz: ${fmtDatum(e.von)} – ${fmtDatum(e.bis)}</div>
       <div class="feld"><label>Status</label><div class="seg-reihe">${segs}</div></div>
       <div class="feld-reihe">
         <div class="feld"><label>Datum</label><input type="date" id="bDatum" value="${e.besuchDatum||''}"></div>
@@ -6550,6 +6672,16 @@ const Oberflaeche = {
   },
 
   _verdrahten(){
+    /* v0.47: Aufgabenliste der Uebersicht. Der Termin-Fall oeffnet direkt den
+       Besuch-Dialog des betroffenen Einsatzes -- ein Sprung in den Reiter
+       "Anstehend" wuerde bedeuten, die Zeile dort noch einmal zu suchen. Nach
+       dem Speichern zeichnet der Dialog neu, und die Aufgabe ist von selbst weg. */
+    document.querySelectorAll("[data-aufg]").forEach(b=>{
+      b.onclick=()=>{
+        if(b.dataset.aufg==="termin") this.besuchFormular(b.dataset.aufgAzubi, +b.dataset.aufgIdx);
+        else this.tabWechseln("verwaltung");
+      };
+    });
     // Anstehende Besuche: ganze Karte öffnet den Besuch-Dialog (planen/bearbeiten)
     document.querySelectorAll(".av-karte").forEach(k=>{
       k.onclick=()=>{ this.besuchFormular(k.dataset.anstAzubi, +k.dataset.anstIdx); };
