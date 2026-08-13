@@ -10,7 +10,9 @@ const sp={ istAdmin:true };
 const sandbox={
   Daten:{ state, speichern:()=>{} },
   SharePoint:sp,
-  Oberflaeche:{ ansicht:'start', tab:'anstehend', render:()=>{} },
+  /* v0.46: `ansicht` als zweite Navigationsebene ist entfallen -- der Stub
+     fuehrt nur noch das, was der extrahierte Block wirklich liest. */
+  Oberflaeche:{ tab:'start', render:()=>{} },
   /* v0.42: Der Onboarding-Block ruft beim Setzen eines Schritt-Zustands die
      freie Funktion reiterMarkieren() -- sie steht ausserhalb des extrahierten
      Blocks und faerbt/beschriftet nur die Reiter. Reine DOM-Arbeit, hier wie
@@ -99,10 +101,21 @@ t('kein Demo-/Block-B-Schritt in Runde 1',
 t('Block-A-live-Schritte haben Ziel',
   Ob.schritte.filter(s=>s.modus==='live').every(s=>typeof s.ziel==='string'&&s.ziel));
 
-// 14 CSV-Schritt ist Admin-only und zeigt aufs Dashboard
+// 14 CSV-Schritt ist Admin-only und zeigt auf die Verwaltung
 const csv=Ob.schritte.find(s=>s.id==='csv');
 t('csv-Schritt nurAdmin', csv.nurAdmin===true);
-t('csv-Schritt Ansicht dashboard', csv.ansicht==='dashboard');
+/* v0.46: Der Schritt zeigte auf ansicht:"dashboard" -- die obere Ebene gibt es
+   nicht mehr, das Dashboard ist der Reiter "verwaltung". */
+t('csv-Schritt Reiter verwaltung', csv.tab==='verwaltung');
+t('kein Schritt traegt noch das alte Feld ansicht',
+  Ob.schritte.every(s=>s.ansicht===undefined));
+/* Die Kopfzeile steht auf jeder Seite -- ihre beiden Schritte brauchen keinen
+   Reiterwechsel mehr und duerfen den Nutzer nicht wegnavigieren. */
+t('Kopfzeilen-Schritte ohne Reiterwechsel',
+  ['sharepoint','ichbin'].every(id=>Ob.schritte.find(s=>s.id===id).tab===undefined));
+t('Kopfzeilen-Schritte zielen auf die Kopfzeile',
+  Ob.schritte.find(s=>s.id==='sharepoint').ziel==='#syncBtn' &&
+  Ob.schritte.find(s=>s.id==='ichbin').ziel==='#ichBinBtn');
 
 // 15 Admin sieht csv-Schritt
 sp.istAdmin=true;

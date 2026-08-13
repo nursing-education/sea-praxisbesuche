@@ -32,8 +32,26 @@
 
   header{background:var(--navy);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:16px}
   header h1{font-size:17px;margin:0;font-weight:600}
-  header .stand{font-size:12px;opacity:.8;margin-left:auto}
+  header .stand{font-size:12px;opacity:.8}
   header .ver{font-size:11px;opacity:.7;font-weight:400;padding:1px 7px;border:1px solid rgba(255,255,255,.35);border-radius:999px}
+
+  /* v0.46: Werkzeuge in der Kopfzeile. "Ich bin ..." und Aktualisieren lagen
+     bisher in den Einstellungen -- beide gelten aber fuer JEDE Ansicht, und
+     "Ich bin ..." entscheidet, wessen Azubis die ganze App zeigt. Dass der Wert
+     nirgends sichtbar war, hat den Fehler v0.44.1 erst so lange verdeckt.
+     margin-left:auto schiebt die Gruppe nach rechts; die Standanzeige steht
+     dadurch links neben der Version, nicht mehr rechts aussen. */
+  .kopf-werkzeuge{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .kopf-knopf{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.35);
+    border-radius:6px;padding:5px 11px;cursor:pointer;font:inherit;font-size:13px;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:6px;max-width:220px}
+  .kopf-knopf:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.6)}
+  .kopf-knopf .kopf-name{overflow:hidden;text-overflow:ellipsis}
+  /* Nicht gewaehlt: gestrichelter Rahmen in Signalfarbe. Blasser waere falsch --
+     das laese sich als "abgeschaltet" lesen, dabei ist es das Gegenteil: eine
+     fehlende Angabe, ohne die die App ALLE Azubis zeigt statt der eigenen. */
+  .kopf-knopf.leer{border-style:dashed;border-color:var(--orange)}
+  .kopf-knopf.leer .kopf-name{font-style:italic}
 
   /* v0.45: Ladebalken unter der Kopfzeile. Steht wie der Footer AUSSERHALB von
      #inhalt -- die Ansichten zeichnen sich staendig neu, die Rueckmeldung ueber
@@ -53,8 +71,15 @@
     .ladebalken>span{animation:none;width:100%;opacity:.55}
   }
 
+  /* v0.46: Eine durchgehende Leiste auf JEDER Seite. Vorher gab es zwei Ebenen --
+     Startseite/Dashboard/Planer als obere, diese Reiter nur innerhalb von
+     "Planer". Die Startseite war damit eine Weiche und kein Inhalt: jedes
+     Oeffnen der App kostete einen Klick, bevor etwas zu sehen war. */
   nav{display:flex;gap:4px;padding:8px 18px;background:var(--sekundaer);border-bottom:1px solid var(--rahmen)}
   nav button{position:relative;background:transparent;border:none;padding:8px 14px;border-radius:6px;color:var(--text-leise)}
+  /* Selten Gebrauchtes rechts abgesetzt (Spec "Navigation", Punkt 4). */
+  nav button.nav-abgesetzt{margin-left:auto}
+  nav button.nav-abgesetzt ~ button.nav-abgesetzt{margin-left:0}
   nav button.aktiv{background:var(--flaeche);color:var(--navy);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06)}
   nav button.hat-hinweis::after{content:"";position:absolute;top:5px;right:6px;width:7px;height:7px;
     border-radius:50%;background:var(--orange);box-shadow:0 0 0 2px var(--sekundaer)}
@@ -466,6 +491,9 @@
   .kal-legende i{width:13px;height:13px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.12)}
 
   /* v0.26: Startseite + Auslastungs-Dashboard (SPEC_SEA-Dashboard) */
+  /* v0.46: Hiess einmal "Zurueck zur Startseite" und war ein Einzelknopf neben
+     der Reiterleiste. Heute markiert die Regel den Uebersichts-Reiter als
+     Einstieg -- dunkler als die uebrigen, damit die Leiste einen Anfang hat. */
   nav button.nav-start{color:var(--navy);font-weight:600}
   .start-kacheln{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;max-width:640px;margin-top:14px}
   .kachel{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:18px;text-align:left;
@@ -538,7 +566,21 @@
        die ganze Seite in die Breite. */
     .spalte{min-width:0}
     header{flex-wrap:wrap;gap:8px;padding:10px 12px}
+    /* v0.46: Auf 390px traegt die Kopfzeile keine sechs beschrifteten Dinge.
+       Was weicht: die Versionsnummer (steht ab jetzt auch in den Einstellungen)
+       und die Wortmarken von Aktualisieren und Feedback -- die Symbole bleiben.
+       Was NICHT weicht: der Name hinter "Ich bin ...", denn genau seine
+       Unsichtbarkeit war der Anlass fuer den Umzug in die Kopfzeile. */
+    header .ver{display:none}
+    .kopf-txt{display:none}
+    .kopf-knopf{padding:5px 9px;max-width:150px}
+    .kopf-werkzeuge{gap:6px}
     nav{flex-wrap:wrap;padding:8px 12px}
+    nav button{padding:8px 10px}
+    /* Bei umgebrochener Leiste wuerde margin-left:auto die abgesetzten Eintraege
+       in eine eigene Zeile schieben -- auf dem Handy zaehlt Platz mehr als die
+       Absetzung. */
+    nav button.nav-abgesetzt{margin-left:0}
     /* Breite Tabellen scrollen in sich selbst, statt die Seite zu schieben.
        .prueftab liegt bereits in .pruef-scroll und bleibt unangetastet. */
     main table:not(.prueftab){display:block;overflow-x:auto}
@@ -556,19 +598,44 @@
   <h1>SEA&nbsp;Praxisbesuche</h1>
   <span class="ver" id="appVer"></span>
   <span class="stand" id="standAnzeige" role="status"></span>
-  <button id="bugBtn" title="Problem oder Wunsch an Christian melden"
-    style="margin-left:auto;background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:5px 11px;cursor:pointer;font:inherit;font-size:13px;white-space:nowrap">✎&nbsp;Feedback</button>
+  <!-- v0.46: Die drei Werkzeuge gelten fuer jede Ansicht und stehen deshalb
+       AUSSERHALB von #inhalt -- wie Footer und Ladebalken. Sie ueberleben damit
+       jedes Neuzeichnen und werden EINMALIG in Oberflaeche.init() verdrahtet,
+       nicht in _verdrahten(). aria-label ist Pflicht: unter 700px verschwinden
+       die Wortmarken, und ein blosses Symbol hat keinen ansagbaren Namen. -->
+  <div class="kopf-werkzeuge">
+    <button id="ichBinBtn" class="kopf-knopf leer"
+      title="Wer bin ich? Steuert, wessen Azubis und Besuche die App zeigt.">
+      <span aria-hidden="true">👤</span><span class="kopf-name" id="ichBinName">Ich bin …</span>
+    </button>
+    <button id="syncBtn" class="kopf-knopf" aria-label="Daten aktualisieren"
+      title="Bei Microsoft anmelden und Daten von SharePoint aktualisieren">
+      <span aria-hidden="true">⟳</span><span class="kopf-txt">Aktualisieren</span>
+    </button>
+    <button id="bugBtn" class="kopf-knopf" aria-label="Feedback melden"
+      title="Problem oder Wunsch an Christian melden">
+      <span aria-hidden="true">✎</span><span class="kopf-txt">Feedback</span>
+    </button>
+  </div>
 </header>
 <!-- v0.45: nur waehrend eines laufenden Sync sichtbar; rein dekorativ, die
      Aussage steht als Text in #standAnzeige (role="status"). -->
 <div id="ladebalken" class="ladebalken" hidden aria-hidden="true"><span></span></div>
+<!-- v0.46: Eine Ebene. Reihenfolge nach Benutzungshaeufigkeit, "Azubis" bewusst
+     VOR "Anstehend" (Spec "Navigation", Punkt 4): erst der Ueberblick, dann die
+     Termine. Einstellungen und Verwaltung sind rechts abgesetzt.
+     "Verwaltung" ist bewusst noch fuer alle sichtbar -- die Ansicht selbst
+     unterscheidet seit v0.37 zwischen Admin und Nur-Lese. Sie rollenabhaengig
+     auszublenden waere eine Inhaltsaenderung und gehoert nicht in diese Scheibe. -->
 <nav>
-  <button class="nav-start" onclick="Oberflaeche.ansichtWechseln('start')" title="Zurück zur Startseite">⌂ Startseite</button>
-  <button data-tab="anstehend" class="aktiv" aria-current="page">Anstehend</button>
+  <button data-tab="start" class="nav-start aktiv" aria-current="page">⌂ Übersicht</button>
   <button data-tab="azubis">Azubis</button>
-  <button data-tab="einrichtungen">Einrichtungen</button>
+  <button data-tab="anstehend">Anstehend</button>
   <button data-tab="touren">Touren</button>
-  <button data-tab="einstellungen">Einstellungen</button>
+  <button data-tab="einrichtungen">Einrichtungen</button>
+  <button data-tab="einstellungen" class="nav-abgesetzt" aria-label="Einstellungen"
+    title="Einstellungen"><span aria-hidden="true">⚙</span><span class="kopf-txt">&nbsp;Einstellungen</span></button>
+  <button data-tab="verwaltung">Verwaltung</button>
 </nav>
 <main id="inhalt"></main>
 
@@ -600,7 +667,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.45.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.46.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -3884,22 +3951,26 @@ const Onboarding = {
      v0.28 Runde 1: Block A (Einrichtung). Der Demo-Rundgang (Block B) wird in
      Runde 2 zwischen "willkommen" und dem ersten Block-A-Schritt eingefügt. */
   schritte: [
-    { id:"willkommen", modus:"info", ansicht:"start", illu:"willkommen",
+    /* v0.46: Das Feld `ansicht` ist entfallen -- es gab die obere Navigationsebene
+       an, die es nicht mehr gibt. Uebrig bleibt `tab`, und zwei Schritte brauchen
+       nicht einmal den: "Mit SharePoint verbinden" und "Ich bin ..." zeigen jetzt
+       auf die Kopfzeile, die auf JEDER Seite steht. */
+    { id:"willkommen", modus:"info", tab:"start", illu:"willkommen",
       titel:"Willkommen bei SEA Praxisbesuche",
       text:"Diese kurze Einführung richtet die App für deine Arbeit ein. Sie dauert nur einen Moment – los geht’s." },
-    { id:"sharepoint", modus:"live", block:"A", ansicht:"planer", tab:"einstellungen",
-      ziel:"#spSyncBtn", illu:"sharepoint",
+    { id:"sharepoint", modus:"live", block:"A",
+      ziel:"#syncBtn", illu:"sharepoint",
       titel:"Mit SharePoint verbinden",
-      text:"Über diese Schaltfläche meldest du dich einmalig bei Microsoft an. Danach lädt die App Einrichtungen, Azubis und Einsatzpläne automatisch. Ohne Internet kannst du das später in den Einstellungen nachholen." },
-    { id:"ichbin", modus:"live", block:"A", ansicht:"planer", tab:"einstellungen",
-      ziel:"#bezugslehrerWert", illu:"ichbin",
+      text:"Über diese Schaltfläche oben rechts meldest du dich einmalig bei Microsoft an. Danach lädt die App Einrichtungen, Azubis und Einsatzpläne automatisch. Ohne Internet kannst du das später nachholen – die Schaltfläche steht auf jeder Seite." },
+    { id:"ichbin", modus:"live", block:"A",
+      ziel:"#ichBinBtn", illu:"ichbin",
       titel:"Wähle „Ich bin …“",
-      text:"Wähle hier deinen Namen aus der Bezugslehrer-Liste. Das steuert die Ansicht „Nur meine Azubis“ und erscheint auf dem DFA-Formular. Die Auswahl steht nach dem ersten Import zur Verfügung." },
-    { id:"privatadresse", modus:"live", block:"A", ansicht:"planer", tab:"einstellungen",
+      text:"Hier wählst du deinen Namen aus der Bezugslehrer-Liste. Das steuert die Ansicht „Nur meine Azubis“ und erscheint auf dem DFA-Formular. Dein gewählter Name steht danach dauerhaft in der Kopfzeile. Die Auswahl steht nach dem ersten Import zur Verfügung." },
+    { id:"privatadresse", modus:"live", block:"A", tab:"einstellungen",
       ziel:"#obZielAdresse", illu:"adresse",
       titel:"Private Startadresse (optional)",
       text:"Optional: deine private Startadresse als Startpunkt für die Fahrtkostenberechnung. Ohne Eingabe wird die Schuladresse genutzt. Diese Angabe bleibt nur lokal auf deinem Gerät." },
-    { id:"csv", modus:"live", block:"A", nurAdmin:true, ansicht:"dashboard",
+    { id:"csv", modus:"live", block:"A", nurAdmin:true, tab:"verwaltung",
       ziel:"#csvImport", illu:"csv",
       titel:"Azubis importieren",
       text:"Über diese Schaltfläche liest du einen Easysoft-Export (CSV) ein. Daraus entstehen die Azubis mit ihren Einsatzplänen. Der Import ersetzt vorhandene Einsätze, statt sie zu ergänzen. (Nur für die Administration – Bezugslehrer*innen erhalten die Azubi-Daten bereits fertig.)" },
@@ -3954,8 +4025,11 @@ const Onboarding = {
     if(this._cleanup){ this._cleanup(); this._cleanup=null; }
     const o=document.getElementById("obOverlay"); if(o) o.remove();
     const b=document.getElementById("obBlase"); if(b) b.remove();
-    /* SharePoint-Button wieder auf das normale (Redirect-)Verhalten zurücksetzen. */
-    const spb=document.querySelector("#spSyncBtn");
+    /* SharePoint-Button wieder auf das normale (Redirect-)Verhalten zurücksetzen.
+       v0.46: Das ist jetzt der Knopf in der Kopfzeile -- er lebt ausserhalb von
+       #inhalt und ueberlebt jedes Neuzeichnen, die Umleitung bliebe also sonst
+       dauerhaft haengen. */
+    const spb=document.querySelector("#syncBtn");
     if(spb && typeof SharePoint!=="undefined") spb.onclick=()=>SharePoint.synchronisieren(true);
   },
 
@@ -3975,8 +4049,9 @@ const Onboarding = {
   /* ---- Darstellung (DOM) ---- */
   _zeigeSchritt(animieren){
     const s=this.aktiverSchritt(); if(!s) return;
+    /* v0.46: Nur noch eine Ebene. Schritte ohne `tab` lassen offen, wo man
+       gerade ist -- ihr Ziel steht in der Kopfzeile und ist von ueberall da. */
     let neuRendern=false;
-    if(s.ansicht && Oberflaeche.ansicht!==s.ansicht){ Oberflaeche.ansicht=s.ansicht; neuRendern=true; }
     if(s.tab && Oberflaeche.tab!==s.tab){
       Oberflaeche.tab=s.tab;
       reiterMarkieren(x=>x.dataset.tab===s.tab);
@@ -3987,7 +4062,7 @@ const Onboarding = {
     /* Im SharePoint-Schritt die Anmeldung auf POPUP umleiten (kein Reload), damit
        der Wizard die Anmeldung übersteht. Nach Erfolg schaltet der Wizard weiter. */
     if(s.id==="sharepoint"){
-      const spb=document.querySelector("#spSyncBtn");
+      const spb=document.querySelector("#syncBtn");
       if(spb) spb.onclick=()=>this._sharepointAnmelden();
     }
     if(!this._cleanup){
@@ -4199,8 +4274,12 @@ const Onboarding = {
 };
 
 const Oberflaeche = {
-  ansicht:"start",          /* v0.26: "start" | "dashboard" | "planer" -- nicht persistent, Startseite bei jedem App-Start (Spec Abschnitt 4) */
-  tab:"anstehend",
+  /* v0.46: EIN Zustand statt zweier. Bis v0.45 stand hier zusaetzlich
+     `ansicht` ("start"|"dashboard"|"planer") als obere Ebene, und die
+     Reiterleiste gehoerte nur zu "planer". Beide Ebenen sind zu dieser einen
+     verschmolzen; "start" und "verwaltung" sind jetzt gewoehnliche Reiter.
+     Nicht persistent -- die App oeffnet bei jedem Start auf der Uebersicht. */
+  tab:"start",              /* start | azubis | anstehend | touren | einrichtungen | einstellungen | verwaltung */
   einrFilter:"",            // aktueller Suchtext (Einrichtungen)
   einrOffen:new Set(),      // welche Bereich-Gruppen sind aufgeklappt
   boardAuswahl:null,        // v0.34: fuer die Zuordnung gewaehlter Azubi (id), Klick-Weg
@@ -4217,11 +4296,15 @@ const Oberflaeche = {
   kalKurseZu:new Set(),     // zugeklappte Kursköpfe (Default: alle offen)
   init(){
     document.querySelectorAll("nav button[data-tab]").forEach(b=>{
-      b.onclick=()=>{ this.tab=b.dataset.tab;
-        reiterMarkieren(x=>x===b);
-        this.render(); };
+      b.onclick=()=>this.tabWechseln(b.dataset.tab);
     });
+    /* v0.46: Die drei Kopfzeilen-Werkzeuge liegen ausserhalb von #inhalt und
+       werden vom Neuzeichnen nie ersetzt -- sie gehoeren deshalb hierher und
+       NICHT in _verdrahten(), das bei jedem render() erneut liefe und die
+       Handler stapeln wuerde. */
     const fb=document.getElementById("bugBtn"); if(fb) fb.onclick=()=>this.feedbackFormular();
+    const ib=document.getElementById("ichBinBtn"); if(ib) ib.onclick=()=>this.ichBinDialog();
+    const sy=document.getElementById("syncBtn"); if(sy) sy.onclick=()=>SharePoint.synchronisieren(true);
     /* v0.39: Klick daneben oder Esc schliesst jedes offene Aktionsmenue. Hier
        einmalig gebunden -- im Render wuerden sich die Handler stapeln. */
     document.addEventListener("click", ()=> this._aktionsMenueZu());
@@ -4229,6 +4312,15 @@ const Oberflaeche = {
     this.standAnzeigen(); this.render();
     const v=document.getElementById("appVer"); if(v) v.textContent="v"+APP_VERSION;
     Onboarding.pruefeStart();   /* v0.27: Einführung beim ersten Start automatisch anbieten */
+  },
+  /* v0.46: Ein Reiterwechsel an einer Stelle. Vorher stand er inline in init()
+     und daneben gab es eine zweite Wechsel-Funktion fuer die obere Ebene --
+     zwei Wege, eine Sache. Nimmt den Reiternamen, nicht den Knopf, damit auch Aufrufer
+     ohne DOM-Bezug (Onboarding, Sprungziele) ihn benutzen koennen. */
+  tabWechseln(t){
+    this.tab=t;
+    reiterMarkieren(x=>x.dataset.tab===t);
+    this.render();
   },
   standAnzeigen(){
     /* v0.45: Laeuft gerade ein Sync, gehoert der Platz der Taetigkeitsmeldung.
@@ -4300,7 +4392,7 @@ const Oberflaeche = {
       <div class="feld"><label>Art</label><div class="seg-reihe">${segs}</div></div>
       <div class="feld"><label>Beschreibung</label>
         <textarea id="fbText" rows="4" placeholder="Was ist passiert bzw. was wünschst du dir?" style="font:inherit;padding:6px 8px;border:1px solid var(--rahmen);border-radius:6px;resize:vertical"></textarea></div>
-      <div class="meta">Absender: <b>${wer?esc(wer):"(noch keine Bezugslehrer-Auswahl in den Einstellungen getroffen)"}</b></div>
+      <div class="meta">Absender: <b>${wer?esc(wer):"(noch keine Auswahl bei „Ich bin …“ oben rechts getroffen)"}</b></div>
       <div class="modal-aktionen">
         <button onclick="Oberflaeche.modalZu()">Abbrechen</button>
         <button class="primaer" id="fbSenden">Melden</button>
@@ -4329,34 +4421,89 @@ const Oberflaeche = {
     };
   },
 
-  /* v0.26: Wechsel Startseite / Dashboard / Planer. Kein zusaetzlicher
-     Graph-API-Call beim Wechsel -- alle Ansichten lesen aus demselben,
-     einmal beim Login geladenen Zustand (Spec Abschnitt 7). */
-  ansichtWechseln(z){
-    this.ansicht = (z==="dashboard"||z==="planer") ? z : "start";
-    this.render();
+  /* ---- v0.46: „Ich bin …“ in der Kopfzeile -------------------------------
+     Der Wert entscheidet, wessen Azubis die GANZE App zeigt -- er lag bisher
+     als Auswahlliste in den Einstellungen und war beim Arbeiten nirgends zu
+     sehen. Genau daran hat sich der Fehler v0.44.1 so lange verstecken koennen:
+     Eine leere Liste sah aus wie ein Datenproblem, war aber die Auswahl.
+     Ein Auswahlfeld direkt in der Kopfzeile scheidet aus -- auf 390 px waere es
+     entweder unlesbar kurz oder wuerde die Zeile sprengen. Also ein Knopf, der
+     den Namen traegt, und die Liste im vorhandenen Dialog. */
+
+  /* Die waehlbaren Werte. Rohwert bleibt fuehrend fuers Matching (er enthaelt
+     die "(Zahl)"), die Anzeige trennt sie per bezugslehrerAnzeige() ab.
+     Quellen: die Bezugslehrer-Spalte der geladenen Azubis UND die Stammliste
+     (auch Lehrkraefte ohne Azubis) -- dedupliziert per Name, der kanonische
+     Listen-Rohwert gewinnt. Kein zusaetzlicher API-Aufruf. */
+  _ichBinWerte(){
+    const werteMap=new Map();
+    (Daten.state.azubis||[]).forEach(x=>{ const w=x.bezugslehrer; if(!w) return;
+      const k=SPSync._norm(bezugslehrerAnzeige(w)); if(!werteMap.has(k)) werteMap.set(k, w); });
+    (Bezugslehrer.aktive()||[]).forEach(l=>{ const k=SPSync._norm(l.name); if(k) werteMap.set(k, Bezugslehrer.wertFuer(l)); });
+    return [...werteMap.values()].sort((x,y)=>x.localeCompare(y,"de"));
   },
+
+  /* Schreibt den gewaehlten Namen in die Kopfzeile. Laeuft am Ende jedes
+     render() -- der Wert kann sich durch einen Sync aendern, ohne dass jemand
+     den Dialog angefasst hat. */
+  ichBinAnzeigen(){
+    const el=document.getElementById("ichBinName"); if(!el) return;
+    const wer=bezugslehrerAnzeige(Daten.state && Daten.state.bezugslehrerWert)||"";
+    el.textContent = wer || "Ich bin …";
+    const knopf=document.getElementById("ichBinBtn");
+    if(knopf) knopf.classList.toggle("leer", !wer);
+  },
+
+  ichBinDialog(){
+    const s=Daten.state;
+    const esc=v=>String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+    const selK=SPSync._norm(bezugslehrerAnzeige(s.bezugslehrerWert));
+    const werte=this._ichBinWerte();
+    const optionen = `<option value="">– bitte wählen –</option>` +
+      werte.map(w=>`<option value="${esc(w)}" ${selK && selK===SPSync._norm(bezugslehrerAnzeige(w))?"selected":""}>${esc(bezugslehrerAnzeige(w))}</option>`).join("");
+    /* Leere Liste heisst fast immer "noch nichts importiert" -- das gehoert
+       gesagt, sonst sieht der Dialog kaputt aus. */
+    const hinweis = werte.length
+      ? `Steuert die Ansicht „Nur meine / Alle“ und liefert den Namen für DFA-Formular und Feedback.`
+      : `Noch keine Namen vorhanden – die Liste entsteht aus der Bezugslehrer-Spalte in SharePoint. Erst aktualisieren.`;
+    this.modal(`<h3>Ich bin …</h3>
+      <div class="meta" style="margin-bottom:10px">${hinweis}</div>
+      <div class="feld"><label for="bezugslehrerWert">Bezugslehrer*in</label>
+        <select id="bezugslehrerWert">${optionen}</select></div>
+      <div class="modal-aktionen">
+        <button onclick="Oberflaeche.modalZu()">Abbrechen</button>
+        <button class="primaer" id="ichBinSpeichern">Übernehmen</button>
+      </div>`);
+    document.getElementById("ichBinSpeichern").onclick=()=>{
+      const g=document.getElementById("bezugslehrerWert");
+      Daten.state.bezugslehrerWert = g ? g.value : "";
+      Daten.speichern("Auswahl gespeichert");
+      this.modalZu();
+      this.render();          /* render() ruft ichBinAnzeigen() mit */
+    };
+  },
+
+  /* v0.46: Ein flacher Zweig ueber this.tab. Bis v0.45 stand hier eine
+     Fallunterscheidung ueber die zweite Ebene, die die Reiterleiste per
+     Inline-Stil ausblendete -- daher stammte der Zwischenklick beim App-Start.
+     Kein zusaetzlicher Graph-API-Call beim Wechsel: alle Ansichten lesen aus
+     demselben, einmal beim Login geladenen Zustand. */
   render(){
     const el=document.getElementById("inhalt");
-    const nav=document.querySelector("nav");
-    if(this.ansicht!=="planer"){                       /* v0.26: Start/Dashboard ohne Tab-Leiste */
-      if(nav) nav.style.display="none";
-      el.innerHTML = this.ansicht==="dashboard" ? this.viewDashboard() : this.viewStart();
-      // v0.32.1: Auch das Dashboard braucht _verdrahten() -- der CSV-Import-Button
-      // (und kuenftige Verwaltungs-Buttons) lebt dort. Vorher lief _verdrahten() nur
-      // fuer die "planer"-Ansicht, der Dashboard-Button blieb funktionslos.
-      if(this.ansicht==="dashboard") this._verdrahten();
-      return;
-    }
-    if(nav) nav.style.display="";
     let html;
-    if(this.tab==="anstehend") html=this.viewAnstehend();
+    if(this.tab==="start") html=this.viewStart();
+    else if(this.tab==="verwaltung") html=this.viewDashboard();
+    else if(this.tab==="anstehend") html=this.viewAnstehend();
     else if(this.tab==="azubis") html=this.viewAzubis();
     else if(this.tab==="einrichtungen") html=this.viewEinrichtungen();
     else if(this.tab==="touren") html=this.viewTouren();
     else html=this.viewEinstellungen();
     el.innerHTML=html;
+    /* Laeuft seit v0.46 fuer JEDE Ansicht -- vorher war die Startseite davon
+       ausgenommen. Alle Zugriffe darin sind einzeln abgesichert (if(el)), eine
+       Ansicht ohne die gesuchten Elemente kostet also nur leere Suchlaeufe. */
     this._verdrahten();
+    this.ichBinAnzeigen();
     if(this.tab==="touren") this._tourenInit();
   },
 
@@ -4367,36 +4514,42 @@ const Oberflaeche = {
       <h2>Willkommen${wer?", "+wer.replace(/</g,"&lt;"):""}</h2>
       <div class="meta">Womit möchtest du arbeiten?</div>
       <!-- Platz für News-Feed, siehe SPEC_SEA-Dashboard_Plan.md Abschnitt 2 -->
+      <!-- v0.46: Die beiden Kacheln waren die Weiche in die zwei frueheren
+           Bereiche. Die Bereiche gibt es nicht mehr, also springen sie jetzt auf
+           Reiter. Inhaltlich bleibt die Startseite in dieser Scheibe wie sie war
+           -- die Aufgabenliste, die sie ersetzt, ist Scheibe 2. -->
       <div class="start-kacheln">
-        <button class="kachel" onclick="Oberflaeche.ansichtWechseln('dashboard')">
-          <span class="kachel-ico">📊</span>
-          <span class="kachel-titel">Dashboard</span>
-          <span class="kachel-text">Praxisbesuche im Überblick und Auslastung der Bezugslehrenden (Ist / Soll).</span>
-        </button>
-        <button class="kachel" onclick="Oberflaeche.ansichtWechseln('planer')">
+        <button class="kachel" onclick="Oberflaeche.tabWechseln('anstehend')">
           <span class="kachel-ico">🗓️</span>
-          <span class="kachel-titel">Praxisbesuchsplaner</span>
-          <span class="kachel-text">Azubis, anstehende Besuche, Kalender, Touren, DFA und Einstellungen.</span>
+          <span class="kachel-titel">Anstehende Besuche</span>
+          <span class="kachel-text">Was als Nächstes ansteht – von dort weiter zu Azubis, Touren und DFA.</span>
+        </button>
+        <button class="kachel" onclick="Oberflaeche.tabWechseln('verwaltung')">
+          <span class="kachel-ico">📊</span>
+          <span class="kachel-titel">Verwaltung</span>
+          <span class="kachel-text">Praxisbesuche im Überblick und Auslastung der Bezugslehrenden (Ist / Soll).</span>
         </button>
       </div></div>`;
   },
 
   /* ---- v0.26/v0.37: Dashboard. Ignoriert bewusst den "Nur meine/Alle"-
      Umschalter -- zeigt immer ALLE Bezugslehrer (Spec Abschnitt 6, letzter
-     Punkt). Aufbau seit v0.39.1: Kopfzeile (Zurück + CSV-Import) -> Kennzahlen
+     Punkt). Aufbau seit v0.39.1: Kopfzeile (CSV-Import) -> Kennzahlen
      -> Bezugslehrende. Der CSV-Import steht rechtsbündig ganz oben, weil er
      sonst hinter der 40-zeiligen Lehrkraft-Tabelle läge. ---- */
   viewDashboard(){
     /* CSV-Import ist eine Admin-Funktion (Azubi-Daten sind für Bezugslehrer bereits
        geladen). Der Button lebt daher hier im Dashboard, nur für Admins sichtbar.
-       v0.39.1: steht jetzt rechtsbündig in der Kopfzeile neben "Zurück" -- der
-       frühere eigene Verwaltungs-Abschnitt enthielt sonst nur noch eine
-       Überschrift ohne weiteren Inhalt. */
+       v0.46: "← Zurück zur Startseite" ist entfallen. Er stammt aus der Zeit, in
+       der diese Ansicht keine Reiterleiste hatte -- jetzt steht die Übersicht
+       dauerhaft in der Leiste, und ein zweiter Weg dorthin ist nur noch Ballast.
+       Ohne ihn trägt die Zeile nur den Import, also rechtsbündig statt verteilt. */
     const admin=Dashboard.darfVerwalten();
-    const kopfzeile=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <button onclick="Oberflaeche.ansichtWechseln('start')">← Zurück zur Startseite</button>
-        ${admin?`<button class="aktion" id="csvImport">CSV importieren</button>`:""}
-      </div>`;
+    const kopfzeile=admin
+      ? `<div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:12px">
+        <button class="aktion" id="csvImport">CSV importieren</button>
+      </div>`
+      : "";
     const badge=admin ? `<span class="rollen-badge admin">Verwaltung</span>`
                       : `<span class="rollen-badge">Nur-Lese-Ansicht</span>`;
     const verwaltung = admin
@@ -5123,7 +5276,7 @@ const Oberflaeche = {
      oder Umschalter (nur fuer Admins sichtbar/bedienbar), sonst leer. */
   _ansichtModusBlock(){
     if(!Daten.state.bezugslehrerWert){
-      return `<div class="meta" style="margin-bottom:10px">ℹ️ Noch keine Auswahl bei „Ich bin …" in den Einstellungen getroffen – es werden aktuell <b>alle</b> Azubis angezeigt.</div>`;
+      return `<div class="meta" style="margin-bottom:10px">ℹ️ Noch keine Auswahl bei „Ich bin …" getroffen (oben rechts in der Kopfzeile) – es werden aktuell <b>alle</b> Azubis angezeigt.</div>`;
     }
     if(!SharePoint.istAdmin) return "";
     return `<div class="seg-knopf" id="ansichtModusUmschalter" style="margin-bottom:10px">
@@ -6325,35 +6478,22 @@ const Oberflaeche = {
     const s=Daten.state;
     const a=s.privatAdresse||{};
     const esc=v=>(v||'').replace(/"/g,'&quot;');
-    /* v0.25: Auswahlliste "Ich bin ..." aus den tatsaechlich vorkommenden
-       Bezugslehrer-Werten der schon geladenen Azubis-Liste (kein neuer
-       API-Aufruf). Rohwert bleibt fuehrend fuers Matching, Anzeige/Druck
-       trennt die "(Zahl)" per bezugslehrerAnzeige() ab. */
-    /* v0.36: zusätzlich die aktiven Lehrkräfte aus der Stammliste (auch ohne Azubis),
-       dedupliziert per Name -- der kanonische Listen-Rohwert gewinnt. */
-    const werteMap=new Map();
-    (s.azubis||[]).forEach(x=>{ const w=x.bezugslehrer; if(!w) return;
-      const k=SPSync._norm(bezugslehrerAnzeige(w)); if(!werteMap.has(k)) werteMap.set(k, w); });
-    (Bezugslehrer.aktive()||[]).forEach(l=>{ const k=SPSync._norm(l.name); if(k) werteMap.set(k, Bezugslehrer.wertFuer(l)); });
-    const bezugslehrerWerte=[...werteMap.values()].sort((x,y)=>x.localeCompare(y,"de"));
-    const selK=SPSync._norm(bezugslehrerAnzeige(s.bezugslehrerWert));
-    const bezugslehrerOptionen = `<option value="">– bitte wählen –</option>` +
-      bezugslehrerWerte.map(w=>`<option value="${esc(w)}" ${selK && selK===SPSync._norm(bezugslehrerAnzeige(w))?"selected":""}>${esc(bezugslehrerAnzeige(w))}</option>`).join("");
     /* v0.29: flache Abschnitte auf einer Seite (keine Akkordeons), logische
-       Reihenfolge (SharePoint zuerst), Erklärungen als ⓘ-Hover statt Fließtext. */
+       Reihenfolge (SharePoint zuerst), Erklärungen als ⓘ-Hover statt Fließtext.
+       v0.46: Zwei Abschnitte sind hier weg. "Ich bin ..." und der
+       Aktualisieren-Knopf waren keine Einstellungen, sondern Werkzeuge fuer die
+       taegliche Arbeit -- sie stehen jetzt in der Kopfzeile und damit auf jeder
+       Seite. Was hier bleibt, ist die Statuszeile (#spStatus) und das seltene
+       Neuladen der Einrichtungen. */
     return `<div class="spalte" style="grid-column:1/-1">
       <section class="einst-block">
         <h2>Datenquelle SharePoint <span class="einst-info" title="Login und Live-Sync von Einrichtungen, Azubis und Einsatzplänen. Erste Anmeldung einmalig, danach Hintergrund-Sync. Manuell angelegte Einträge bleiben erhalten.">i</span></h2>
         <div id="spStatus" class="meta" style="margin-bottom:8px">SharePoint: -</div>
-        <button id="spSyncBtn">Anmelden &amp; Daten aktualisieren</button>
+        <div class="meta" style="margin-bottom:8px">Anmelden und Aktualisieren läuft über <b>⟳ Aktualisieren</b> oben rechts – auf jeder Seite erreichbar.</div>
         <button id="startlisteNeuBtn">Einrichtungen neu von SharePoint laden</button>
       </section>
 
       <section class="einst-block">
-        <h2>Ich bin … <span class="einst-info" title="Steuert die Nur-meine/Alle-Ansicht im Azubi-Tab und liefert den Namen für DFA-Formular und Feedback. Werte aus der Bezugslehrer-Spalte in SharePoint.">i</span></h2>
-        <div class="feld" style="max-width:320px"><label>Bezugslehrer*in</label>
-          <select id="bezugslehrerWert">${bezugslehrerOptionen}</select></div>
-
         <div id="obZielAdresse">
           <h2>Private Startadresse <span class="einst-info" title="Startpunkt für die Fahrtkostenberechnung. Ohne Angabe wird die Schuladresse genutzt. Wird nur lokal auf diesem Gerät gespeichert.">i</span></h2>
           <div class="feld-reihe" style="max-width:560px">
@@ -6397,6 +6537,14 @@ const Oberflaeche = {
       <section class="einst-block">
         <h2>Gefahrenzone <span class="einst-info" title="Löscht gezielt einzelne Datenpakete. Zentrale SharePoint-Einrichtungen kommen beim nächsten Abgleich neu; manuell angelegte Einträge bleiben erhalten.">i</span></h2>
         <button class="gefahr" id="loeschBtn">Daten löschen…</button>
+      </section>
+
+      <!-- v0.46: Die Versionsnummer weicht unter 700px aus der Kopfzeile. Ohne
+           eine zweite Stelle waere sie auf dem Handy nicht mehr ablesbar -- und
+           sie ist die erste Frage bei jeder Fehlermeldung ("welche Version?"). -->
+      <section class="einst-block">
+        <h2>Über diese App</h2>
+        <div class="meta">Version <b>${esc(APP_VERSION)}</b></div>
       </section>
     </div>`;
   },
@@ -6497,7 +6645,6 @@ const Oberflaeche = {
     this._einrOhneAdresseRender();   // Box "ohne Adresse" ueber der Liste
     // Einstellungen
     const obBtn=document.getElementById("obErneutBtn"); if(obBtn) obBtn.onclick=()=>Onboarding.erneutAnzeigen();
-    const g=document.getElementById("bezugslehrerWert"); if(g) g.onchange=()=>{ Daten.state.bezugslehrerWert=g.value; Daten.speichern("Auswahl gespeichert"); Oberflaeche.render(); };
     const pSave=document.getElementById("privSpeichern");
     if(pSave) pSave.onclick=()=>{
       const s=document.getElementById("privStrasse").value.trim();
@@ -6542,7 +6689,9 @@ const Oberflaeche = {
     document.querySelectorAll("#ansichtModusUmschalter button").forEach(b=>{
       b.onclick=()=>{ Daten.state.ansichtModus=b.dataset.modus; Daten.speichern(false,true); this.render(); };
     });
-    const spb=document.getElementById("spSyncBtn"); if(spb) spb.onclick=()=>SharePoint.synchronisieren(true);
+    /* v0.46: Der Aktualisieren-Knopf sitzt in der Kopfzeile und wird einmalig in
+       init() verdrahtet. _statusAnzeigen() bleibt hier -- es fuellt #spStatus,
+       und das Element entsteht mit jedem Zeichnen der Einstellungen neu. */
     if(typeof SharePoint!=="undefined") SharePoint._statusAnzeigen();
     const gn=document.getElementById("geoNeuBtn");
     if(gn) gn.onclick=async()=>{
