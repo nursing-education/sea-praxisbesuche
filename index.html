@@ -87,6 +87,9 @@
   main{display:grid;grid-template-columns:340px 1fr;gap:18px;padding:18px;max-width:1280px;margin:0 auto;align-items:start}
   .spalte{background:var(--flaeche);border:1px solid var(--rahmen);border-radius:var(--radius);padding:14px}
   .spalte h2{font-size:14px;margin:0 0 10px;color:var(--navy);text-transform:uppercase;letter-spacing:.04em}
+  /* v0.48: Der Name eines Menschen wird nicht versalisiert. Als Zeile in einer
+     Seitenspalte fiel es nicht auf; als Ueberschrift der eigenen Seite schon. */
+  .spalte h2.azubi-name{font-size:19px;text-transform:none;letter-spacing:0}
   .leer{color:var(--text-leise);font-size:14px;padding:8px 0}
 
 
@@ -686,7 +689,7 @@
    Vanilla JS, deutsche PascalCase-Module. Alle Daten laufen über "Daten".
    ========================================================================= */
 
-const APP_VERSION = "0.47.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
+const APP_VERSION = "0.48.0";  // = umgesetzte Spec-Version (HTML wird mitversioniert)
 const BEREICHE = ["Akut","LZP","Amb","Päd","Psych","WE"];
 const TYPEN    = ["OE","PE Akut","PE LZP","PE Amb","PE Päd","PE Psych","VE","WE"];
 const STATUS   = ["offen","vorläufig","geplant","durchgeführt","nachzuholen"];
@@ -2342,6 +2345,33 @@ const Azubis = {
     if(Daten.state.ansichtModus==="alle" && SharePoint.istAdmin) return alle;
     const n=Dashboard._blSchluessel(wert);
     return alle.filter(a=> Dashboard._blSchluessel(a.bezugslehrer)===n);
+  },
+  /* v0.48 -- Suche als WEG zur Detailseite, nicht als Selbstzweck (Spec
+     "Navigation", Punkt 9). Wonach gesucht wird, ergibt sich aus dem Bedarf,
+     der die Detailseite ueberhaupt begruendet hat: "einen spezifischen
+     Schueler ... gucken, hat der schon Einsaetze hinter sich, WO und so weiter."
+     Deshalb faellt auch der Einrichtungsname in den Heuhaufen -- "Musterhaus"
+     findet alle, die dort eingesetzt sind.
+
+     Mehrere Woerter werden UND-verknuepft, nicht als eine Zeichenkette gesucht:
+     "petra amb" findet Petra im Ambulant-Einsatz. Das macht nebenbei den
+     ungeklaerten Kursfilter entbehrlich -- der Kursname ist ein Wort wie jedes
+     andere. Ob eine Gruppierung nach Kurs zusaetzlich lohnt, bleibt offen.
+
+     Die Liste kommt optional herein, damit die Funktion ohne Browser pruefbar
+     bleibt und der Aufrufer entscheidet, ob "Nur meine" schon gewirkt hat. */
+  suchen(text, liste){
+    const quelle = liste || this.sichtbar();
+    const q=String(text==null?"":text).trim().toLowerCase();
+    if(!q) return quelle;
+    const teile=q.split(/\s+/);
+    return quelle.filter(a=>{
+      const heuhaufen=[this.name(a.id), a.kuerzel, a.kurs, a.ausbildung, a.stammeinrichtung, a.bezugslehrer]
+        .concat((a.einsaetze||[]).map(e=>e.einrichtungName))
+        .concat((a.einsaetze||[]).map(e=>e.typ))
+        .filter(Boolean).join(" ").toLowerCase();
+      return teile.every(t=>heuhaufen.includes(t));
+    });
   },
   /* v0.32 -- Azubis ohne Bezugslehrer-Zuordnung (z.B. frisch per CSV-Import
      angelegt). Grundlage der Dashboard-Kachel "Azubis ohne Bezugslehrer". */
@@ -4349,6 +4379,8 @@ const Oberflaeche = {
   lehrerModus:"alle",       // v0.37: "alle" | "frei" | "ueberlastet" | "archiviert"
   lehrerSort:"auslastung",  // v0.37: "auslastung" (wie bisher) | "name"
   azubiAnsicht:"liste",     // "liste" | "kalender" (Umschalter im Azubi-Tab)
+  azubiOffen:null,          // v0.48: id des Azubis, dessen Detailseite gerade offen ist (null = Liste)
+  azubiSuche:"",            // v0.48: Suchtext ueber der Azubi-Liste
   kalZoom:"quartal",        // "monat" | "quartal" | "jahr"
   kalAnker:null,            // Ankerdatum (ISO); null = heutiges Fenster
   kalKurseZu:new Set(),     // zugeklappte Kursköpfe (Default: alle offen)
@@ -4377,6 +4409,10 @@ const Oberflaeche = {
      ohne DOM-Bezug (Onboarding, Sprungziele) ihn benutzen koennen. */
   tabWechseln(t){
     this.tab=t;
+    /* v0.48: Ein Reiterklick fuehrt immer auf die Uebersicht des Reiters.
+       Bliebe eine offene Azubi-Seite stehen, kaeme man ueber "Azubis" nie
+       zurueck zur Liste -- der Knopf saehe funktionslos aus. */
+    this.azubiOffen=null;
     reiterMarkieren(x=>x.dataset.tab===t);
     this.render();
   },
@@ -4562,6 +4598,10 @@ const Oberflaeche = {
        Ansicht ohne die gesuchten Elemente kostet also nur leere Suchlaeufe. */
     this._verdrahten();
     this.ichBinAnzeigen();
+    /* v0.48: Die Detailseite bringt nur den Rumpf mit; die Tabelle fuellt
+       dieselbe Funktion, die frueher die zweite Spalte gefuellt hat. So gibt es
+       den Einsatzplan weiterhin nur an EINER Stelle im Code. */
+    if(this.tab==="azubis" && this.azubiOffen) this.azubiDetail(this.azubiOffen);
     if(this.tab==="touren") this._tourenInit();
   },
 
@@ -5404,28 +5444,77 @@ const Oberflaeche = {
 
   /* ---- Azubis ---- */
   viewAzubis(){
+    /* v0.48: Ist ein Azubi geoeffnet, tritt seine Seite an die Stelle der Liste.
+       Bis v0.47 stand er in einer zweiten Spalte daneben -- auf 390 px landete
+       die unter der ganzen Liste, und der Weg dorthin hiess scrollen. */
+    if(this.azubiOffen) return this.viewAzubiSeite(this.azubiOffen);
+
     const umschalter=`<div class="seg-knopf" id="azubiAnsichtUmschalter">
         <button data-ansicht="liste" class="${this.azubiAnsicht==='liste'?'an':''}">Liste</button>
         <button data-ansicht="kalender" class="${this.azubiAnsicht==='kalender'?'an':''}">Kalender</button>
       </div>`;
     const modusBlock=this._ansichtModusBlock();
     if(this.azubiAnsicht==="kalender") return this.viewKalender(umschalter, modusBlock);
-    const liste=Azubis.sichtbar().map(a=>{
+
+    const sichtbar=Azubis.sichtbar();
+    const gefunden=Azubis.suchen(this.azubiSuche, sichtbar);
+    const suchfeld=`<input id="azubiSuche" type="search" placeholder="Suchen: Name, Kurs, Einrichtung, Einsatzart …"
+        value="${String(this.azubiSuche||"").replace(/"/g,"&quot;")}" style="flex:1;min-width:200px">`;
+    const treffer = this.azubiSuche
+      ? `<div class="meta" style="margin-bottom:8px">${gefunden.length} von ${sichtbar.length} ${sichtbar.length===1?"Azubi":"Azubis"}${gefunden.length?"":" – nichts gefunden"}</div>`
+      : "";
+
+    const liste=gefunden.map(a=>{
       const f=Azubis.fortschritt(a); const nm=Azubis.name(a.id);
       const si=Azubis.sollIst(a); const fehlt=si?si.filter(x=>!x.da).length:0;
       return `<div class="zeile" data-azubi="${a.id}">
         <div><div class="haupt">${nm||a.id}</div>
         <div class="meta">${a.ausbildung} · ${a.kurs||"—"} · ${a.einsaetze.length} Einsätze</div></div>
         <div class="rechts"><span class="pill">${f.erledigt}/${f.gesamt} Besuche</span>${fehlt?`<span class="pill fehlt">${fehlt} fehlt</span>`:""}</div></div>`;
-    }).join("") || `<div class="leer">Noch keine Azubis geladen.</div>`;
-    return `<div class="spalte">
+    }).join("") || (sichtbar.length
+      ? `<div class="leer">Kein Azubi passt zu „${String(this.azubiSuche||"").replace(/</g,"&lt;")}“.</div>`
+      : `<div class="leer">Noch keine Azubis geladen.</div>`);
+
+    return `<div class="spalte" style="grid-column:1/-1">
         <h2>Azubis</h2>
         ${modusBlock}
-        <div class="werkzeug">${umschalter}</div>
+        <div class="werkzeug">${umschalter}${suchfeld}</div>
+        ${treffer}
         ${liste}
-      </div>
-      <div class="spalte" id="azubiDetail"><div class="leer">Azubi links auswählen.</div></div>`;
+      </div>`;
   },
+
+  /* ---- v0.48: Azubi-Detailseite -----------------------------------------
+     Traegt Einsatzplan, Besuchsverlauf, Pflichtbereiche, Traegerhaus und
+     Bezugslehrkraft an einem Ort (Spec "Navigation", Punkt 9). Der Rumpf steht
+     hier, den Inhalt fuellt azubiDetail() -- dieselbe Funktion wie bisher, damit
+     es die Tabelle nicht zweimal gibt. ---- */
+  viewAzubiSeite(id){
+    const a=Azubis.alle().find(x=>x.id===id);
+    if(!a){
+      /* Kann vorkommen: Der Azubi wurde geloescht oder ein Sync hat ihn
+         entfernt, waehrend seine Seite offen war. Stiller Absturz waere hier
+         eine leere Seite ohne Rueckweg. */
+      return `<div class="spalte" style="grid-column:1/-1">
+        <div class="werkzeug"><button id="azubiZurueck">← Alle Azubis</button></div>
+        <div class="leer">Dieser Azubi ist nicht mehr in der Liste.</div></div>`;
+    }
+    /* Die Bezugslehrkraft steht nicht hier, sondern in der Kopfzeile, die
+       azubiDetail() zeichnet -- sonst stuende sie ueber dem Namen des Azubis. */
+    return `<div class="spalte" style="grid-column:1/-1">
+      <div class="werkzeug"><button id="azubiZurueck">← Alle Azubis</button></div>
+      <div id="azubiDetail"></div>
+    </div>`;
+  },
+
+  azubiOeffnen(id){
+    this.azubiOffen=id;
+    this.tab="azubis"; this.azubiAnsicht="liste";
+    reiterMarkieren(x=>x.dataset.tab==="azubis");
+    this.render();
+    window.scrollTo({top:0, behavior:"smooth"});
+  },
+  azubiSchliessen(){ this.azubiOffen=null; this.render(); },
 
   /* ---- Azubi-Kalender (Einsatz-Zeitleiste über alle eigenen Azubis) ---- */
   viewKalender(umschalter, modusBlock){
@@ -5538,16 +5627,11 @@ const Oberflaeche = {
       ${legende}</div>`;
   },
   /* v0.19: Von „Anstehend" (bzw. dem Termin-Formular) direkt zum vollständigen Einsatzplan eines Azubis
-     im Azubis-Tab springen. Wechselt Tab + Ansicht, baut neu auf und öffnet die Detailtabelle. */
+     springen. v0.48: Das ist jetzt seine eigene Seite -- azubiOeffnen() erledigt
+     Reiter, Markierung, Neuzeichnen und das Scrollen nach oben in einem. */
   zumEinsatzplan(id){
     this.modalZu();
-    this.tab="azubis";
-    this.azubiAnsicht="liste";
-    reiterMarkieren(x=>x.dataset.tab==="azubis");
-    this.render();
-    this.azubiDetail(id);
-    const el=document.getElementById("azubiDetail");
-    if(el && el.scrollIntoView) el.scrollIntoView({behavior:"smooth",block:"start"});
+    this.azubiOeffnen(id);
   },
   azubiDetail(id){
     if(!document.getElementById("azubiDetail")) return;   // anderer Tab aktiv → nichts zu füllen
@@ -5595,13 +5679,17 @@ const Oberflaeche = {
         ? `<div class="meta" style="margin-bottom:10px">PFA: 2 Pflichtbesuche – Vorschlag früh (OE) und Abschluss (VE). Mit „+ Pflicht" / „− Pflicht" je Einsatz frei verschiebbar.</div>`
         : `<div class="meta" style="margin-bottom:10px">Pflichtbereiche für ${a.ausbildung} werden separat geprüft.</div>`);
     document.getElementById("azubiDetail").innerHTML=`
-      <h2>${nm||id}</h2>
+      <h2 class="azubi-name">${nm||id}</h2>
       <div class="werkzeug">
         <input id="nameFeld" placeholder="Name (nur lokal)" value="${nm.replace(/"/g,'&quot;')}" style="flex:1">
         <button id="nameSpeichern">Name speichern</button>
         <button class="gefahr" id="azubiLoeschen">Azubi entfernen</button>
       </div>
-      <div class="meta" style="margin-bottom:8px">Stammeinrichtung: ${a.stammeinrichtung||"—"} · ${a.ausbildung}</div>
+      <!-- v0.48: Die Bezugslehrkraft stand bisher nirgends auf dieser Seite.
+           Die Spec verlangt sie ausdruecklich (Punkt 9) -- und wer nachsieht,
+           warum ein Azubi unter "Nur meine" fehlt, sucht genau diesen Wert. -->
+      <div class="meta" style="margin-bottom:8px">Stammeinrichtung: ${a.stammeinrichtung||"—"} · ${a.ausbildung}
+        · Bezugslehrkraft: <b>${(bezugslehrerAnzeige(a.bezugslehrer)||"– keine zugeordnet –").replace(/</g,"&lt;")}</b></div>
       ${sollIstHtml}
       <table class="einsatztab"><thead><tr><th>Typ</th><th>Einrichtung</th><th>Zeitraum</th><th>Besuch</th></tr></thead><tbody>${rows}</tbody></table>`;
     document.getElementById("nameSpeichern").onclick=()=>Azubis.nameSetzen(id,document.getElementById("nameFeld").value.trim());
@@ -6733,7 +6821,25 @@ const Oberflaeche = {
       k.ondragend=()=> this._ziehenAus();
     });
     this._lehrerZeilenVerdrahten();
-    document.querySelectorAll("[data-azubi]").forEach(z=> z.onclick=()=>this.azubiDetail(z.dataset.azubi));
+    /* v0.48: Ein Klick in der Liste oeffnet die Detailseite, statt eine zweite
+       Spalte daneben zu fuellen. */
+    document.querySelectorAll("[data-azubi]").forEach(z=> z.onclick=()=>this.azubiOeffnen(z.dataset.azubi));
+    const azurueck=document.getElementById("azubiZurueck");
+    if(azurueck) azurueck.onclick=()=>this.azubiSchliessen();
+    const asuche=document.getElementById("azubiSuche");
+    if(asuche){
+      /* Beim Tippen neu zeichnen kostet den Fokus -- deshalb Fokus und
+         Schreibmarke danach zuruecksetzen. Ohne das springt der Cursor bei
+         jedem Zeichen ans Ende eines fremden Feldes und Weitertippen ist
+         unmoeglich. */
+      asuche.oninput=()=>{
+        const pos=asuche.selectionStart;
+        this.azubiSuche=asuche.value;
+        this.render();
+        const neu=document.getElementById("azubiSuche");
+        if(neu){ neu.focus(); try{ neu.setSelectionRange(pos,pos); }catch(e){} }
+      };
+    }
     // Azubis: Umschalter Liste|Kalender
     document.querySelectorAll("#azubiAnsichtUmschalter button").forEach(b=>{
       b.onclick=()=>{ this.azubiAnsicht=b.dataset.ansicht; this.render(); };

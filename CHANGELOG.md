@@ -4,6 +4,36 @@ Versionen der App (`APP_VERSION` in `index.html`, in der Oberfläche als „vX.Y
 sichtbar). Schema: Bugfix → letzte Stelle (0.28.2→0.28.3), neues Feature →
 mittlere Stelle (0.28→0.29).
 
+## v0.48.0 – 2026-08-13
+
+**Scheibe 3 von vier.** Jeder Azubi hat jetzt eine eigene Seite, und eine Suche
+führt hin.
+
+- **Die Azubi-Seite ersetzt die zweite Spalte.** Bisher klappte der Azubi rechts
+  neben der Liste auf. Auf schmalen Schirmen landete diese Spalte **unter** der
+  ganzen Liste – der Weg dorthin hieß scrollen. Jetzt tritt die Seite an die
+  Stelle der Liste, mit einem Knopf „← Alle Azubis" zurück.
+
+- **Sie trägt jetzt auch die Bezugslehrkraft.** Die stand vorher nirgends auf
+  dieser Seite – dabei ist sie genau der Wert, den man sucht, wenn ein Azubi
+  unter „Nur meine" fehlt. Dazu wie bisher Einsatzplan, Besuchsverlauf,
+  Pflichtbereiche und Trägerhaus.
+
+- **Der Name des Azubis steht nicht mehr in Großbuchstaben.** Als Zeile in einer
+  Seitenspalte fiel das nicht auf; als Überschrift einer eigenen Seite schon.
+
+- **Suche über der Liste.** Gesucht wird in Name, Kürzel, Kurs, Ausbildung,
+  Trägerhaus, Bezugslehrkraft, **Einrichtung und Einsatzart** – „Musterhaus"
+  findet alle, die dort eingesetzt sind. Mehrere Wörter werden **und**-verknüpft:
+  „petra ambulant" findet Petra in ihrem Ambulant-Einsatz.
+
+  Damit erübrigt sich der nie begründete Kursfilter: Der Kursname ist ein
+  Suchwort wie jedes andere. Ob zusätzlich eine **Gruppierung** nach Kurs lohnt,
+  bleibt offen.
+
+- Ein Klick auf den Reiter „Azubis" führt immer zur Liste zurück, auch wenn
+  gerade eine Azubi-Seite offen ist.
+
 ## v0.47.0 – 2026-08-13
 
 **Scheibe 2 von vier.** Die Übersicht zeigt jetzt, was zu tun ist.
