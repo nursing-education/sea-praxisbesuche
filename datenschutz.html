@@ -71,7 +71,7 @@
 
   <div class="kasten warnung">
     <p>
-      Diese Anwendung wird von den <strong>Lehrkräften</strong> der Akademie
+      Diese Anwendung wird von den <strong>Benutzern</strong> der hinterlegten Microsoft-Accounts
       benutzt. Sie verarbeitet <strong>personenbezogene Daten von
       Auszubildenden und Lehrkräften</strong> und überträgt sie an Microsoft.
       Für die Kartenansicht werden zusätzlich Dienste des
@@ -99,16 +99,16 @@
   -->
   <h2>Woher die Daten kommen</h2>
   <p>
-    Die Anwendung führt keine eigene Datenbank im Netz. Alle Azubi-, Einsatz-
-    und Lehrkraftdaten liegen in <strong>SharePoint-Listen der St. Elisabeth
+    Die Anwendung führt keine eigene Datenbank im Netz. 
+    Alle Daten liegen in <strong>SharePoint-Listen der St. Elisabeth
     Akademie</strong> und werden von dort gelesen und dorthin zurückgeschrieben.
-    Verantwortliche Stelle für diese Daten ist die Akademie; die Anwendung ist
+    Verantwortliche Stelle für diese Daten ist der Benutzer der Sharepoint-Listen; die Anwendung ist
     das Werkzeug, mit dem die Praxisbesuche geplant werden.
   </p>
 
   <h2>Anmeldung mit dem Microsoft-Konto</h2>
   <p>
-    Der Zugang läuft über das dienstliche Microsoft-Konto. Beim Anmelden werden
+    Der Zugang läuft über ein Microsoft-Konto. Beim Anmelden werden
     Ihre Zugangsdaten an <strong>login.microsoftonline.com</strong> (Microsoft
     Ireland Operations Ltd. bzw. Microsoft Corporation) übertragen. Die
     Anwendung selbst sieht Ihr Passwort nicht; sie erhält ausschließlich ein
@@ -116,7 +116,7 @@
   </p>
   <p>
     Rechtsgrundlage ist Art. 6 Abs. 1 lit. b und lit. f DSGVO – ohne Anmeldung
-    ist die Anwendung nicht nutzbar, und der Zugriff auf Azubi-Daten muss auf
+    ist die Anwendung nicht nutzbar, und der Zugriff auf Daten muss auf
     berechtigte Personen beschränkt bleiben.
   </p>
 
@@ -124,10 +124,10 @@
   <p>
     Mit dem Token ruft die Anwendung die Microsoft-Graph-Schnittstelle unter
     <strong>graph.microsoft.com</strong> auf. Dabei werden die Inhalte der
-    genannten Listen übertragen – Namen und Kursdaten der Auszubildenden, ihre
+    genannten Listen übertragen – Namen und Daten der betroffenen Personen, ihre
     Einsätze und Einsatzorte, die Zuordnung zu Bezugslehrenden sowie die
     Angaben zu den Einrichtungen. Änderungen, die Sie in der Anwendung
-    vornehmen, gehen denselben Weg zurück.
+    vornehmen, gehen denselben Weg.
   </p>
 
   <!--
@@ -144,7 +144,7 @@
   <p>
     Die Anwendung lädt die Listen jeweils <strong>vollständig</strong> und
     schränkt die Anzeige erst danach im Browser ein. Wer Leserecht auf der
-    SharePoint-Site der Akademie hat, kann deshalb den gesamten Bestand
+    SharePoint-Site hat, kann deshalb den gesamten Bestand
     einsehen – über diese Anwendung ebenso wie direkt in SharePoint. Die
     Umschaltung „Nur meine / Alle" ordnet die Anzeige, sie ist
     <strong>keine Zugriffsgrenze</strong>.
@@ -189,7 +189,7 @@
   </table>
   <p>
     Übertragen werden Anschriften und Koordinaten von <em>Einrichtungen</em>,
-    keine Namen von Auszubildenden. Ihre private Anschrift wird nur dann
+    keine Namen von Personen. Ihre private Anschrift wird nur dann
     übertragen, wenn Sie sie in den Einstellungen selbst als Startpunkt
     hinterlegt haben.
   </p>
@@ -225,7 +225,7 @@
   </p>
   <ul>
     <li>eine Datenbank <code>sea-praxisbesuche</code> (IndexedDB) mit den
-      geladenen Azubi-, Einsatz- und Einrichtungsdaten sowie Ihren
+      geladenen Personen-, Einsatz- und Einrichtungsdaten sowie Ihren
       Einstellungen und automatischen Sicherungen,</li>
     <li>das Anmeldetoken von Microsoft im lokalen Speicher
       (<code>localStorage</code>), damit Sie sich nicht bei jedem Start neu
@@ -279,7 +279,7 @@
   </ul>
   <p>
     Für Daten, die in den SharePoint-Listen liegen, wenden Sie sich an die
-    St. Elisabeth Akademie als verantwortliche Stelle; für alles, was die
+    verantwortliche Stelle; für alles, was die
     Anwendung selbst betrifft, an die im
     <a href="impressum.html">Impressum</a>
     genannte Adresse.
